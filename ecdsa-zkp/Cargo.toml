@@ -1,0 +1,13 @@
+[package]
+name = "ecdsa-zkp"
+version = "0.0.0-alpha"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+generic-array = "0.14.5"
+p256 = { version = "0.10.1", features = ["arithmetic", "ecdsa"] }
+sha2 = "0.10"
+rand = "0.8.5"

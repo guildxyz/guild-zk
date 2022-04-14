@@ -1,0 +1,6 @@
+[workspace]
+members = [
+	"ecdsa-zkp",
+	"merkle-tree-example",
+	"tom256"
+]
