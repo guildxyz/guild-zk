@@ -17,8 +17,6 @@ impl elliptic_curve::PrimeCurve for TomEdwards256 {}
 pub type FieldBytes = elliptic_curve::FieldBytes<TomEdwards256>;
 pub type NonZeroScalar = elliptic_curve::NonZeroScalar<TomEdwards256>;
 
-
-
 #[cfg(test)]
 mod test {
     use super::*;
