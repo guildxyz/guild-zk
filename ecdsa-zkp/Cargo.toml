@@ -7,7 +7,9 @@ edition = "2021"
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
-generic-array = "0.14.5"
-p256 = { version = "0.10.1", features = ["arithmetic", "ecdsa"] }
-sha2 = "0.10"
-rand = "0.8.5"
+curv-kzen = "0.9.0"
+wasm-bindgen = "0.2.80"
+#generic-array = "0.14.5"
+#p256 = { version = "0.10.1", features = ["arithmetic", "ecdsa"] }
+#sha2 = "0.10"
+#rand = "0.8.5"
