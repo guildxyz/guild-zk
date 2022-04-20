@@ -1,20 +1,14 @@
-mod field;
-mod int_ops;
+mod arithmetic;
 mod point;
 
-use elliptic_curve::bigint::U256;
-use field::{FieldElement, Modular};
+use bigint::U256;
 
-
-const ORDER: U256 =
-    U256::from_be_hex("ffffffff00000001000000000000000000000000ffffffffffffffffffffffff");
-
-/*
-const MODULUS: U256 = U256::from_be_hex();
-const EQUATION_COEFF_B: U256 = U256::from_be_hex("7");
-const GEN_X: U256 = U256::from_be_hex();
-const GEN_Y: U256 = U256::from_be_hex();
-*/
+pub trait Curve {
+    const PRIME_MODULUS: U256;
+    const ORDER: U256;
+    const GENERATOR_X: U256;
+    const GENERATOR_Y: U256;
+}
 
 #[cfg(test)]
 mod test {
@@ -33,8 +27,5 @@ mod test {
         println!("fe1 + fe2: {:?}", fe1.add(&fe2));
         println!("fe1 - fe2: {:?}", fe1.sub(&fe2));
         println!("fe1 * fe2: {:?}", fe1.mul(&fe2));
-
-        
-
     }
 }

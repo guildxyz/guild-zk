@@ -1,4 +1,5 @@
-use crate::field::FieldElement;
+/*
+use crate::arithmetic::field::FieldElement;
 
 pub struct Point {
     x: FieldElement,
@@ -12,3 +13,4 @@ impl PartialEq for Point {
         todo!();
     }
 }
+*/
