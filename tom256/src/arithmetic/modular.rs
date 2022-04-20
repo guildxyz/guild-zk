@@ -1,5 +1,5 @@
 use bigint::{nlimbs, Limb, U256};
-use subtle::{Choice, ConditionallySelectable};
+use bigint::subtle::{Choice, ConditionallySelectable};
 
 pub trait Modular: Sized {
     const MODULUS: U256;

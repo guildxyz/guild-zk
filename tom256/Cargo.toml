@@ -3,6 +3,9 @@ name = "tom256"
 version = "0.0.0-alpha.0"
 edition = "2021"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
-bigint = { package = "crypto-bigint", version = "0.3.2" }
-subtle = "2.4.1"
+bigint = { package = "crypto-bigint", version = "0.3.2", default-features = false }
+wasm-bindgen = "0.2.80"

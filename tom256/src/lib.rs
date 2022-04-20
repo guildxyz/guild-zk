@@ -1,7 +1,11 @@
-mod arithmetic;
+pub mod arithmetic;
 mod point;
 
+use arithmetic::field::FieldElement;
+use arithmetic::modular::Modular;
+
 use bigint::U256;
+use wasm_bindgen::prelude::*;
 
 pub trait Curve {
     const PRIME_MODULUS: U256;
@@ -10,22 +14,20 @@ pub trait Curve {
     const GENERATOR_Y: U256;
 }
 
-#[cfg(test)]
-mod test {
-    use super::*;
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct TestWasmCurve;
 
-    #[test]
-    fn sanity_check() {
-        let fe1 = FieldElement::new(11);
-        let fe2 = FieldElement::new(97);
+impl Curve for TestWasmCurve {
+    const PRIME_MODULUS: U256 = U256::from_u32(1783242237);
+    const ORDER: U256 = U256::ONE;
+    const GENERATOR_X: U256 = U256::ZERO;
+    const GENERATOR_Y: U256 = U256::ZERO;
+}
 
-        println!("fe1: {:?}", fe1);
-        println!("fe2: {:?}", fe2);
-        println!("");
+#[wasm_bindgen]
+pub fn wasm_build_test(bignum: String) -> String {
+    let a = FieldElement::<TestWasmCurve>::new(U256::from_be_hex(&bignum));
+    let b = FieldElement::<TestWasmCurve>::from_u32(134);
 
-        println!("!fe1: {:?}", fe1.neg());
-        println!("fe1 + fe2: {:?}", fe1.add(&fe2));
-        println!("fe1 - fe2: {:?}", fe1.sub(&fe2));
-        println!("fe1 * fe2: {:?}", fe1.mul(&fe2));
-    }
+    format!("{:?}", a * b)
 }
