@@ -1,5 +1,11 @@
 import sympy.ntheory as nt
-#p = 2**224 * (2**32 - 1) + 2**192 + 2**96 - 1
+# NIST P-256
+#np = 2**224 * (2**32 - 1) + 2**192 + 2**96 - 1
+#nn = int("0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551", 0)
+#mu = int("0x100000000fffffffffffffffeffffffff43190552df1a6c21012ffd85eedf9bfe", 0)
+# SECP256K1
+#import sys
+#sys.exit()
 
 # secp256k1 (y^2 = x^3 + 7)
 p = int("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F", 0) # prime modulus
