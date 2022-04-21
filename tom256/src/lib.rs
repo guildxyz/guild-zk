@@ -11,6 +11,8 @@ pub trait Curve {
     const ORDER: U256;
     const GENERATOR_X: U256;
     const GENERATOR_Y: U256;
+    const COEFF_A: U256;
+    const COEFF_B: U256;
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -25,6 +27,8 @@ impl Curve for Secp256k1 {
         U256::from_be_hex("79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798");
     const GENERATOR_Y: U256 =
         U256::from_be_hex("483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8");
+    const COEFF_A: U256 = U256::ZERO;
+    const COEFF_B: U256 = U256::from_u8(7);
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -40,6 +44,8 @@ impl Curve for Tom256k1 {
 
     const GENERATOR_Y: U256 =
         U256::from_be_hex("6ad7d16db13c428e5dce61c8bfe2b3860a306d201f059826120e7ac684ee209f");
+    const COEFF_A: U256 = U256::ZERO;
+    const COEFF_B: U256 = U256::from_u8(7);
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -50,6 +56,8 @@ impl Curve for TestWasmCurve {
     const ORDER: U256 = U256::ONE;
     const GENERATOR_X: U256 = U256::ZERO;
     const GENERATOR_Y: U256 = U256::ZERO;
+    const COEFF_A: U256 = U256::ZERO;
+    const COEFF_B: U256 = U256::from_u8(7);
 }
 
 use wasm_bindgen::prelude::*;

@@ -20,13 +20,17 @@ pub trait Modular: Sized {
     }
 
     fn mul(&self, other: &Self) -> Self {
-        // U512::from((lo, hi))
-        let product = U512::from(self.inner().mul_wide(&other.inner()));
-        // NOTE modulus is never zero, so unwrap is fine here
-        let mod512 = NonZero::new(U512::from((Self::MODULUS, U256::ZERO))).unwrap();
-        // split the remainder result of a % b into a (lo, hi) U256 pair
-        // 'hi' should always be zero because the modulus is an U256 number
-        let (rem, _) = (product % mod512).split();
-        Self::new(U256::from(rem))
+        Self::new(mul_mod_u256(self.inner(), other.inner(), &Self::MODULUS))
     }
+}
+
+pub fn mul_mod_u256(lhs: &U256, rhs: &U256, modulus: &U256) -> U256 {
+    // NOTE modulus is never zero, so unwrap is fine here
+    let mod512 = NonZero::new(U512::from((*modulus, U256::ZERO))).unwrap();
+    // U512::from((lo, hi))
+    let product = U512::from(lhs.mul_wide(rhs));
+    // split the remainder result of a % b into a (lo, hi) U256 pair
+    // 'hi' should always be zero because the modulus is an U256 number
+    let (rem, _) = (product % mod512).split();
+    rem
 }

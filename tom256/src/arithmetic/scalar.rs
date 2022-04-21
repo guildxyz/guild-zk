@@ -63,6 +63,8 @@ mod test {
         const ORDER: U256 = U256::ONE;
         const GENERATOR_X: U256 = U256::ZERO;
         const GENERATOR_Y: U256 = U256::ZERO;
+        const COEFF_A: U256 = U256::ZERO;
+        const COEFF_B: U256 = U256::ZERO;
     }
 
     type ScalarSmall = Scalar<TestCurveSmallMod>;
