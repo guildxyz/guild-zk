@@ -12,6 +12,8 @@ impl<C: Curve> Modular for FieldElement<C> {
     const MODULUS: U256 = C::PRIME_MODULUS;
 
     fn new(number: U256) -> Self {
+        // NOTE unwrap is fine here because the modulus
+        // can be safely assumed to be nonzero
         Self(number % NonZero::new(Self::MODULUS).unwrap(), PhantomData)
     }
 
