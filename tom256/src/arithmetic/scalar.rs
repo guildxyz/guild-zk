@@ -1,11 +1,11 @@
 use super::modular::Modular;
 use crate::Curve;
 
-use bigint::U256;
+use bigint::{NonZero, U256};
 
 use std::marker::PhantomData;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Scalar<C: Curve>(U256, PhantomData<C>);
 
 impl<C: Curve> Modular for Scalar<C> {
@@ -66,13 +66,12 @@ mod test {
     }
 
     type ScalarSmall = Scalar<TestCurveSmallMod>;
-    type ScalarSmall = Scalar<Secp256k1>;
+    type ScalarLarge = Scalar<Secp256k1>;
 
     #[test]
     fn operations_with_small_modulus() {
         let a = ScalarSmall::new(U256::from_u32(15));
         let b = ScalarSmall::new(U256::from_u32(9));
-        assert_eq!(&a + &b, ScalarSmall::new(U256::from_u32(7)));
         assert_eq!(a * b, ScalarSmall::new(U256::from_u32(16)));
         assert_eq!(a + b, ScalarSmall::new(U256::from_u32(7)));
         assert_eq!(a - b, ScalarSmall::new(U256::from_u32(6)));
@@ -110,7 +109,7 @@ mod test {
         assert_eq!(
             a * b,
             ScalarLarge::new(U256::from_be_hex(
-                "fd3dc529c6eb60fb9d166034cf3c1a5a72324aa9dfd3428a56d7e1ce0179fd9b"
+                "805714a252d0c0b58910907e85b5b801fff610a36bdf46847a4bf5d9ae2d10ed"
             ))
         );
 
@@ -127,7 +126,7 @@ mod test {
         assert_eq!(
             b_min_a,
             ScalarLarge::new(U256::from_be_hex(
-                "ce7c73f82cc708b9080499663f89fda1fa7bb76d78b72b4042554f33e418b94f"
+                "ce7c73f82cc708b9080499663f89fda0b52a945427ffcb7c0227adc1b44efe61"
             ))
         );
 
@@ -137,13 +136,13 @@ mod test {
         assert_eq!(
             a + b,
             ScalarLarge::new(U256::from_be_hex(
-                "17597ac62cc9e6c8f2e81f1999444583995cbc86d7f6ed34487cb74723bfad07"
+                "17597ac62cc9e6c8f2e81f1999444584deaddfa028ae4cf888aa58b9538967f5"
             ))
         );
         assert_eq!(
             a * b,
             ScalarLarge::new(U256::from_be_hex(
-                "062869f8c96e49475ff3596b7703d46e6183d7f987513f1ede13456a91dbd48e"
+                "354880368b136b492e8cbce77a7b5ffc3dbef5087bc30537b87ca9d57648c840"
             ))
         );
 
