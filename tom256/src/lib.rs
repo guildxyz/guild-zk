@@ -23,13 +23,11 @@ impl Curve for TestWasmCurve {
     const GENERATOR_Y: U256 = U256::ZERO;
 }
 
-/*
 use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 pub fn wasm_build_test(bignum: String) -> String {
     let a = FieldElement::<TestWasmCurve>::new(U256::from_be_hex(&bignum));
-    let b = FieldElement::<TestWasmCurve>::from_u32(134);
+    let b = FieldElement::<TestWasmCurve>::new(U256::from_u32(134));
 
     format!("{:?}", a * b)
 }
-*/

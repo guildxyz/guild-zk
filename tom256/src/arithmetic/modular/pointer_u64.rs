@@ -1,5 +1,5 @@
 use bigint::subtle::{Choice, ConditionallySelectable};
-use bigint::{nlimbs, Limb, U256};
+use bigint::{Limb, U256};
 
 pub trait Modular: Sized {
     const MODULUS: U256;
@@ -32,8 +32,8 @@ pub trait Modular: Sized {
     }
 
     fn reduce(lo: U256, hi: U256) -> Self {
-        let hi_limbs: [u64; nlimbs!(256)] = hi.to_uint_array();
-        let lo_limbs: [u64; nlimbs!(256)] = lo.to_uint_array();
+        let hi_limbs: [u64; 4] = hi.to_uint_array();
+        let lo_limbs: [u64; 4] = lo.to_uint_array();
 
         let n0 = hi_limbs[0];
         let n1 = hi_limbs[1];
@@ -125,7 +125,7 @@ fn ct_less(a: u64, b: u64) -> u64 {
 }
 
 /// Add a to the number defined by (c0,c1,c2). c2 must never overflow.
-pub fn sumadd(a: u64, c0: u64, c1: u64, c2: u64) -> (u64, u64, u64) {
+fn sumadd(a: u64, c0: u64, c1: u64, c2: u64) -> (u64, u64, u64) {
     let new_c0 = c0.wrapping_add(a); // overflow is handled on the next line
     let over = ct_less(new_c0, a);
     let new_c1 = c1.wrapping_add(over); // overflow is handled on the next line
@@ -134,7 +134,7 @@ pub fn sumadd(a: u64, c0: u64, c1: u64, c2: u64) -> (u64, u64, u64) {
 }
 
 /// Add a to the number defined by (c0,c1). c1 must never overflow, c2 must be zero.
-pub fn sumadd_fast(a: u64, c0: u64, c1: u64) -> (u64, u64) {
+fn sumadd_fast(a: u64, c0: u64, c1: u64) -> (u64, u64) {
     let new_c0 = c0.wrapping_add(a); // overflow is handled on the next line
     let new_c1 = c1 + ct_less(new_c0, a); // never overflows by contract (verified the next line)
     debug_assert!((new_c1 != 0) | (new_c0 >= a));
@@ -142,7 +142,7 @@ pub fn sumadd_fast(a: u64, c0: u64, c1: u64) -> (u64, u64) {
 }
 
 /// Add a*b to the number defined by (c0,c1,c2). c2 must never overflow.
-pub fn muladd(a: u64, b: u64, c0: u64, c1: u64, c2: u64) -> (u64, u64, u64) {
+fn muladd(a: u64, b: u64, c0: u64, c1: u64, c2: u64) -> (u64, u64, u64) {
     let t = (a as u128) * (b as u128);
     let th = (t >> 64) as u64; // at most 0xFFFFFFFFFFFFFFFE
     let tl = t as u64;
@@ -156,7 +156,7 @@ pub fn muladd(a: u64, b: u64, c0: u64, c1: u64, c2: u64) -> (u64, u64, u64) {
 }
 
 /// Add a*b to the number defined by (c0,c1). c1 must never overflow.
-pub fn muladd_fast(a: u64, b: u64, c0: u64, c1: u64) -> (u64, u64) {
+fn muladd_fast(a: u64, b: u64, c0: u64, c1: u64) -> (u64, u64) {
     let t = (a as u128) * (b as u128);
     let th = (t >> 64) as u64; // at most 0xFFFFFFFFFFFFFFFE
     let tl = t as u64;
