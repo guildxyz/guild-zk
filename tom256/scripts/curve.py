@@ -1,4 +1,5 @@
 import sympy.ntheory as nt
+import math
 # NIST P-256
 #np = 2**224 * (2**32 - 1) + 2**192 + 2**96 - 1
 #nn = int("0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551", 0)
@@ -16,8 +17,10 @@ gx = int("0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798", 0
 gy = int("0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8", 0) # generator point y
 assert(nt.isprime(p))
 
-print(hex((gx + gy) % p))
-print(hex((gx * gy) % p))
+p = 2**128 - 7
+a = 2**127 + 11
+b = int(2**128 / 3) + 11
+print(hex((a + b) % p))
 import sys
 sys.exit()
 

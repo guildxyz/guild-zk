@@ -1,5 +1,5 @@
 use bigint::subtle::{Choice, ConditionallySelectable};
-use bigint::{Limb, U256};
+use bigint::{Split, Limb, U256, U512, NonZero};
 
 pub trait Modular: Sized {
     const MODULUS: U256;
@@ -27,8 +27,10 @@ pub trait Modular: Sized {
     }
 
     fn mul(&self, other: &Self) -> Self {
-        let (lo, hi) = self.inner().mul_wide(&other.inner());
-        Self::reduce(lo, hi)
+        let product = U512::from(self.inner().mul_wide(&other.inner()));
+        let mod512 = NonZero::new(U512::from((Self::MODULUS, U256::ZERO))).unwrap();
+        let (rem, _) = (product % mod512).split();
+        Self::new(U256::from(rem))
     }
 
     fn reduce(lo: U256, hi: U256) -> Self {

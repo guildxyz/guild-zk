@@ -1,7 +1,7 @@
 use super::modular::Modular;
 use crate::Curve;
 
-use bigint::U256;
+use bigint::{U256, NonZero};
 
 use std::marker::PhantomData;
 
@@ -12,10 +12,7 @@ impl<C: Curve> Modular for FieldElement<C> {
     const MODULUS: U256 = C::PRIME_MODULUS;
 
     fn new(number: U256) -> Self {
-        Self(
-            number.reduce(&Self::MODULUS).unwrap_or_else(|| U256::ZERO),
-            PhantomData,
-        )
+        Self(number % NonZero::new(Self::MODULUS).unwrap(), PhantomData)
     }
 
     fn inner(&self) -> &U256 {
@@ -83,6 +80,8 @@ mod test {
         assert_eq!(&a + &b, FeSmall::new(U256::from_u32(7)));
         assert_eq!(a * b, FeSmall::new(U256::from_u32(16)));
         assert_eq!(a + b, FeSmall::new(U256::from_u32(7)));
+        assert_eq!(a - b, FeSmall::new(U256::from_u32(6)));
+        assert_eq!(b - a, FeSmall::new(U256::from_u32(11)));
     }
 
     #[test]
