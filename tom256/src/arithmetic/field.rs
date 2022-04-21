@@ -1,7 +1,7 @@
 use super::modular::Modular;
 use crate::Curve;
 
-use bigint::{U256, NonZero};
+use bigint::{NonZero, U256};
 
 use std::marker::PhantomData;
 
