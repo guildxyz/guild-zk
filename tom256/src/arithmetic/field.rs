@@ -37,6 +37,20 @@ impl<C: Curve> std::ops::Add for FieldElement<C> {
     }
 }
 
+impl<C: Curve> std::ops::Sub for FieldElement<C> {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self::Output {
+        Modular::sub(&self, &rhs)
+    }
+}
+
+impl<C: Curve> std::ops::Neg for FieldElement<C> {
+    type Output = Self;
+    fn neg(self) -> Self::Output {
+        Modular::neg(&self)
+    }
+}
+
 impl<C: Curve> std::ops::Mul for FieldElement<C> {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self::Output {
@@ -47,6 +61,7 @@ impl<C: Curve> std::ops::Mul for FieldElement<C> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::Secp256k1;
 
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     struct TestCurveSmallMod;
@@ -58,21 +73,8 @@ mod test {
         const GENERATOR_Y: U256 = U256::ZERO;
     }
 
-    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-    struct TestCurveLargeMod;
-
-    impl Curve for TestCurveLargeMod {
-        const PRIME_MODULUS: U256 =
-            U256::from_be_hex("fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f");
-        const ORDER: U256 = U256::ONE;
-        const GENERATOR_X: U256 =
-            U256::from_be_hex("79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798");
-        const GENERATOR_Y: U256 =
-            U256::from_be_hex("483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8");
-    }
-
     type FeSmall = FieldElement<TestCurveSmallMod>;
-    type FeLarge = FieldElement<TestCurveLargeMod>;
+    type FeLarge = FieldElement<Secp256k1>;
 
     #[test]
     fn operations_with_small_modulus() {
@@ -103,8 +105,8 @@ mod test {
                 "000123450671f20a8b0a93d71f37ba2ec0d166be8a54889e735d97664ad9f5e0"
             ))
         );
-        let a = FeLarge::new(TestCurveLargeMod::GENERATOR_X);
-        let b = FeLarge::new(TestCurveLargeMod::GENERATOR_Y);
+        let a = FeLarge::new(Secp256k1::GENERATOR_X);
+        let b = FeLarge::new(Secp256k1::GENERATOR_Y);
         assert_eq!(
             a + b,
             FeLarge::new(U256::from_be_hex(
