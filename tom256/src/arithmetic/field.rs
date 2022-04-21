@@ -60,7 +60,7 @@ impl<C: Curve> std::ops::Mul for FieldElement<C> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::Secp256k1;
+    use crate::{Secp256k1, Tom256k1};
 
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     struct TestCurveSmallMod;
@@ -120,5 +120,42 @@ mod test {
                 "fd3dc529c6eb60fb9d166034cf3c1a5a72324aa9dfd3428a56d7e1ce0179fd9b"
             ))
         );
+
+        let a_min_b = a - b;
+        let b_min_a = b - a;
+        assert_eq!(a_min_b, -b_min_a);
+
+        assert_eq!(
+            a_min_b,
+            FeLarge::new(U256::from_be_hex(
+                "31838c07d338f746f7fb6699c076025e058448928748d4bfbdaab0cb1be742e0"
+            ))
+        );
+        assert_eq!(
+            b_min_a,
+            FeLarge::new(U256::from_be_hex(
+                "ce7c73f82cc708b9080499663f89fda1fa7bb76d78b72b4042554f33e418b94f"
+            ))
+        );
+
+        // tom curve generator points summed/multiplied using secp256k1 modulus
+        let a = FeLarge::new(Tom256k1::GENERATOR_X);
+        let b = FeLarge::new(Tom256k1::GENERATOR_Y);
+        assert_eq!(
+            a + b,
+            FeLarge::new(U256::from_be_hex(
+                "17597ac62cc9e6c8f2e81f1999444583995cbc86d7f6ed34487cb74723bfad07"
+            ))
+        );
+        assert_eq!(
+            a * b,
+            FeLarge::new(U256::from_be_hex(
+                "062869f8c96e49475ff3596b7703d46e6183d7f987513f1ede13456a91dbd48e"
+            ))
+        );
+
+        let a_min_b = a - b;
+        let b_min_a = b - a;
+        assert_eq!(a_min_b, -b_min_a);
     }
 }
