@@ -1,11 +1,10 @@
 /*
 use crate::arithmetic::field::FieldElement;
 
-pub struct Point {
-    x: FieldElement,
-    y: FieldElement,
-    z: FieldElement,
-    t: FieldElement,
+pub struct Point<C: Curve> {
+    x: FieldElement<C>,
+    y: FieldElement<C>,
+    z: FieldElement<C>,
 }
 
 impl PartialEq for Point {
