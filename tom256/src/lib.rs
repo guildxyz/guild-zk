@@ -5,7 +5,6 @@ use arithmetic::field::FieldElement;
 use arithmetic::modular::Modular;
 
 use bigint::U256;
-use wasm_bindgen::prelude::*;
 
 pub trait Curve {
     const PRIME_MODULUS: U256;
@@ -24,6 +23,8 @@ impl Curve for TestWasmCurve {
     const GENERATOR_Y: U256 = U256::ZERO;
 }
 
+/*
+use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 pub fn wasm_build_test(bignum: String) -> String {
     let a = FieldElement::<TestWasmCurve>::new(U256::from_be_hex(&bignum));
@@ -31,3 +32,4 @@ pub fn wasm_build_test(bignum: String) -> String {
 
     format!("{:?}", a * b)
 }
+*/

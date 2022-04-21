@@ -65,8 +65,10 @@ mod test {
         const PRIME_MODULUS: U256 =
             U256::from_be_hex("fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f");
         const ORDER: U256 = U256::ONE;
-        const GENERATOR_X: U256 = U256::ZERO;
-        const GENERATOR_Y: U256 = U256::ZERO;
+        const GENERATOR_X: U256 =
+            U256::from_be_hex("79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798");
+        const GENERATOR_Y: U256 =
+            U256::from_be_hex("483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8");
     }
 
     type FeSmall = FieldElement<TestCurveSmallMod>;
@@ -83,5 +85,37 @@ mod test {
 
     #[test]
     fn operations_with_large_modulus() {
+        let a = FeLarge::new(U256::from_be_hex(
+            "000000000000000000000000000000000000000ffffaaaabbbb123456789eeee",
+        ));
+        let b = FeLarge::new(U256::from_be_hex(
+            "000000000000000000000000000012345678901234567890ffffddddeeee7890",
+        ));
+        assert_eq!(
+            a + b,
+            FeLarge::new(U256::from_be_hex(
+                "00000000000000000000000000001234567890223451233cbbb101235678677e"
+            ))
+        );
+        assert_eq!(
+            a * b,
+            FeLarge::new(U256::from_be_hex(
+                "000123450671f20a8b0a93d71f37ba2ec0d166be8a54889e735d97664ad9f5e0"
+            ))
+        );
+        let a = FeLarge::new(TestCurveLargeMod::GENERATOR_X);
+        let b = FeLarge::new(TestCurveLargeMod::GENERATOR_Y);
+        assert_eq!(
+            a + b,
+            FeLarge::new(U256::from_be_hex(
+                "c1f940f620808011b3455e91dc9813afffb3b123d4537cf2f63a51eb1208ec50"
+            ))
+        );
+        assert_eq!(
+            a * b,
+            FeLarge::new(U256::from_be_hex(
+                "fd3dc529c6eb60fb9d166034cf3c1a5a72324aa9dfd3428a56d7e1ce0179fd9b"
+            ))
+        );
     }
 }
