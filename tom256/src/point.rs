@@ -144,6 +144,10 @@ impl<C: Curve> Point<C> {
             z: sum_z,
         }
     }
+
+    pub fn to_affine(&mut self) {
+        todo!();
+    }
 }
 
 #[cfg(test)]
