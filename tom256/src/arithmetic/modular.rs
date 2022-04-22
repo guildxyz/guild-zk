@@ -8,7 +8,7 @@ pub trait Modular: Sized {
     fn inner(&self) -> &U256;
 
     fn add(&self, other: &Self) -> Self {
-        Self::new(self.inner().add_mod(&other.inner(), &Self::MODULUS))
+        Self::new(self.inner().add_mod(other.inner(), &Self::MODULUS))
     }
 
     fn neg(&self) -> Self {
@@ -16,7 +16,7 @@ pub trait Modular: Sized {
     }
 
     fn sub(&self, other: &Self) -> Self {
-        Self::new(self.inner().sub_mod(&other.inner(), &Self::MODULUS))
+        Self::new(self.inner().sub_mod(other.inner(), &Self::MODULUS))
     }
 
     fn mul(&self, other: &Self) -> Self {
@@ -27,7 +27,9 @@ pub trait Modular: Sized {
 pub fn mul_mod_u256(lhs: &U256, rhs: &U256, modulus: &U256) -> U256 {
     // NOTE modulus is never zero, so unwrap is fine here
     let mod512 = NonZero::new(U512::from((U256::ZERO, *modulus))).unwrap();
-    // U512::from((lo, hi))
+    // NOTE facepalm:
+    // U512::from((hi, lo))
+    // but split returns (lo, hi)
     let (lo, hi) = lhs.mul_wide(rhs);
     let product = U512::from((hi, lo));
     // split the remainder result of a % b into a (lo, hi) U256 pair

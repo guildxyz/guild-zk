@@ -45,7 +45,7 @@ impl<C: Curve> std::ops::Add for FieldElement<C> {
 
 impl<C: Curve> std::ops::AddAssign for FieldElement<C> {
     fn add_assign(&mut self, rhs: Self) {
-        *self = &*self + &rhs;
+        *self = *self + rhs;
     }
 }
 
@@ -71,7 +71,7 @@ impl<'a, 'b, C: Curve> std::ops::Sub<&'b FieldElement<C>> for &'a FieldElement<C
 
 impl<C: Curve> std::ops::SubAssign for FieldElement<C> {
     fn sub_assign(&mut self, rhs: Self) {
-        *self = &*self - &rhs;
+        *self = *self - rhs;
     }
 }
 
@@ -98,7 +98,7 @@ impl<'a, 'b, C: Curve> std::ops::Mul<&'b FieldElement<C>> for &'a FieldElement<C
 
 impl<C: Curve> std::ops::MulAssign for FieldElement<C> {
     fn mul_assign(&mut self, rhs: Self) {
-        *self = &*self * &rhs;
+        *self = *self * rhs;
     }
 }
 
