@@ -6,7 +6,7 @@ use arithmetic::modular::Modular;
 
 use bigint::U256;
 
-pub trait Curve {
+pub trait Curve: Clone + Copy + std::fmt::Debug + PartialEq + Eq {
     const PRIME_MODULUS: U256;
     const ORDER: U256;
     const GENERATOR_X: U256;
