@@ -3,6 +3,8 @@ use crate::arithmetic::modular::{mul_mod_u256, Modular};
 use crate::Curve;
 use bigint::U256;
 
+use std::marker::PhantomData;
+
 #[derive(Debug, Clone)]
 pub struct Point<C: Curve> {
     x: FieldElement<C>,
@@ -47,6 +49,18 @@ impl<'a, 'b, C: Curve> std::ops::Add<&'b Point<C>> for &'b Point<C> {
 }
 
 impl<C: Curve> Point<C> {
+    pub const GENERATOR: Self = Self {
+        x: FieldElement(C::GENERATOR_X, PhantomData),
+        y: FieldElement(C::GENERATOR_Y, PhantomData),
+        z: FieldElement::ONE,
+    };
+
+    pub const IDENTITY: Self = Self {
+        x: FieldElement::ZERO,
+        y: FieldElement::ONE,
+        z: FieldElement::ZERO,
+    };
+
     pub fn is_on_curve(&self) -> bool {
         let a = FieldElement::new(C::COEFF_A);
         let b = FieldElement::new(C::COEFF_B);
@@ -135,10 +149,14 @@ impl<C: Curve> Point<C> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::{Curve, Secp256k1, Tom256k1};
 
     #[test]
     fn on_curve_check() {
-        // TODO
+        assert!(Point::<Secp256k1>::GENERATOR.is_on_curve());
+        assert!(Point::<Tom256k1>::GENERATOR.is_on_curve());
+        assert!(Point::<Secp256k1>::GENERATOR.double().is_on_curve());
+        assert!(Point::<Tom256k1>::GENERATOR.double().is_on_curve());
     }
 
     #[test]

@@ -6,7 +6,12 @@ use bigint::{NonZero, U256};
 use std::marker::PhantomData;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct FieldElement<C: Curve>(U256, PhantomData<C>);
+pub struct FieldElement<C: Curve>(pub(crate) U256, pub(crate) PhantomData<C>);
+
+impl<C: Curve> FieldElement<C> {
+    pub const ONE: Self = Self(U256::ONE, PhantomData);
+    pub const ZERO: Self = Self(U256::ZERO, PhantomData);
+}
 
 impl<C: Curve> Modular for FieldElement<C> {
     const MODULUS: U256 = C::PRIME_MODULUS;
