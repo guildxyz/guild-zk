@@ -142,7 +142,7 @@ mod test {
     }
 
     #[test]
-    fn point_addition_test {
+    fn point_addition_test() {
         // TODO
     }
 }
