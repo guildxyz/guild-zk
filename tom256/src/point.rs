@@ -1,5 +1,5 @@
 use crate::arithmetic::field::FieldElement;
-use crate::arithmetic::modular::{Modular, mul_mod_u256};
+use crate::arithmetic::modular::{mul_mod_u256, Modular};
 use crate::Curve;
 use bigint::U256;
 
@@ -35,14 +35,14 @@ impl<C: Curve> std::ops::Neg for Point<C> {
 impl<C: Curve> std::ops::Add for Point<C> {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {
-        todo!();
+        self.geometric_add(&rhs)
     }
 }
 
 impl<'a, 'b, C: Curve> std::ops::Add<&'b Point<C>> for &'b Point<C> {
     type Output = Point<C>;
     fn add(self, rhs: &Point<C>) -> Self::Output {
-        todo!();
+        self.geometric_add(rhs)
     }
 }
 
@@ -61,12 +61,12 @@ impl<C: Curve> Point<C> {
             &C::COEFF_B,
             &C::PRIME_MODULUS,
         ));
-        let t0 = &self.x * &rhs.x;
-        let t1 = &self.y * &rhs.y;
-        let t2 = &self.z + &rhs.z;
+        let a = FieldElement::new(C::COEFF_A);
+        let mut t0 = &self.x * &rhs.x;
+        let mut t1 = &self.y * &rhs.y;
+        let mut t2 = &self.z * &rhs.z;
         let mut t3 = &self.x + &rhs.y;
         let mut t4 = &t0 + &t1;
-
         t3 *= t4;
         t4 = &t0 + &t1;
         t3 -= t4;
@@ -78,12 +78,33 @@ impl<C: Curve> Point<C> {
         t5 *= sum_x;
         sum_x = &t1 + &t2;
         t5 -= sum_x;
-
-        let mut sum_z = FieldElement::new(mul_mod_u256(&t2.inner(), &C::COEFF_A, &C::PRIME_MODULUS));
+        let mut sum_z = &a * &t4;
         sum_x = &b3 * &t2;
         sum_z += sum_x;
         sum_x = &t1 - &sum_z;
+        sum_z += t1;
+        let mut sum_y = &sum_x * &sum_z;
+        t1 = &t0 + &t0;
+        t1 += &t0;
+        t2 = &a * &t2;
+        t4 *= b3;
+        t1 += &t2;
+        t2 = &t0 - &t2;
+        t2 *= a;
+        t4 += t2;
+        t0 = &t1 * &t4;
+        sum_y += t0;
+        t0 = &t4 * &t5;
+        sum_x *= &t3;
+        sum_x -= t0;
+        t0 = &t1 * &t3;
+        sum_z *= t5;
+        sum_z += t0;
 
-        todo!();
+        Self {
+            x: sum_x,
+            y: sum_y,
+            z: sum_z,
+        }
     }
 }
