@@ -62,11 +62,13 @@ impl<C: Curve> Point<C> {
             &C::PRIME_MODULUS,
         ));
         let a = FieldElement::new(C::COEFF_A);
+        // TODO there are still some mistakes here, double check!
         let mut t0 = &self.x * &rhs.x;
         let mut t1 = &self.y * &rhs.y;
         let mut t2 = &self.z * &rhs.z;
-        let mut t3 = &self.x + &rhs.y;
-        let mut t4 = &t0 + &t1;
+        let mut t3 = &self.x + &self.y;
+        let mut t4 = &rhs.x + &rhs.y;
+
         t3 *= t4;
         t4 = &t0 + &t1;
         t3 -= t4;
@@ -76,6 +78,7 @@ impl<C: Curve> Point<C> {
         t5 = &self.y + &self.z;
         let mut sum_x = &rhs.y + &rhs.z;
         t5 *= sum_x;
+
         sum_x = &t1 + &t2;
         t5 -= sum_x;
         let mut sum_z = &a * &t4;
