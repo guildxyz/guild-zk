@@ -8,13 +8,26 @@ use std::marker::PhantomData;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Scalar<C: Curve>(U256, PhantomData<C>);
 
+/*
+impl<C: Curve> Scalar<C> {
+    pub fn to_padded_string(&self) -> String {
+        todo!();
+    }
+}
+*/
+
 impl<C: Curve> Modular for Scalar<C> {
     const MODULUS: U256 = C::ORDER;
 
     fn new(number: U256) -> Self {
-        // NOTE unwrap is fine here because the modulus
-        // can be safely assumed to be nonzero
-        Self(number % NonZero::new(Self::MODULUS).unwrap(), PhantomData)
+        let reduced = if number < Self::MODULUS {
+            number
+        } else {
+            // NOTE unwrap is fine here because the modulus
+            // can be safely assumed to be nonzero
+            number % NonZero::new(Self::MODULUS).unwrap()
+        };
+        Self(reduced, PhantomData)
     }
 
     fn inner(&self) -> &U256 {
@@ -47,6 +60,12 @@ impl<C: Curve> std::ops::Mul for Scalar<C> {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self::Output {
         Modular::mul(&self, &rhs)
+    }
+}
+
+impl<C: Curve> std::fmt::Display for Scalar<C> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
@@ -151,5 +170,26 @@ mod test {
         let a_min_b = a - b;
         let b_min_a = b - a;
         assert_eq!(a_min_b, -b_min_a);
+    }
+
+    #[test]
+    fn base16_display() {
+        let a = ScalarLarge::new(U256::from_u8(0xb1));
+        let b = ScalarLarge::new(U256::from_be_hex(
+            "00000000000000000000000000001234567890223451233cbbb101235678677e",
+        ));
+
+        let c = ScalarLarge::new(U256::from_be_hex(
+            "354880368b136b492e8cbce77a7b5ffc3dbef5087bc30537b87ca9d57648c840",
+        ));
+
+        assert_eq!(a.to_string(), "000b1".to_uppercase());
+        assert_eq!(b.to_string(), "01234567890223451233cbbb101235678677e".to_uppercase());
+        assert_eq!(
+            c.to_string(),
+            "354880368b136b492e8cbce77a7b5ffc3dbef5087bc30537b87ca9d57648c840".to_uppercase()
+        );
+
+        // TODO pad to equal lengths
     }
 }

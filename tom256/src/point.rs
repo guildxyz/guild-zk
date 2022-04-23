@@ -1,9 +1,14 @@
 use crate::arithmetic::field::FieldElement;
 use crate::arithmetic::modular::{mul_mod_u256, Modular};
+use crate::arithmetic::scalar::Scalar;
 use crate::Curve;
 use bigint::U256;
 
 use std::marker::PhantomData;
+
+const BASE_16_DIGITS: [char; 16] = [
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
+];
 
 #[derive(Debug, Clone)]
 pub struct Point<C: Curve> {
@@ -45,6 +50,13 @@ impl<'a, 'b, C: Curve> std::ops::Add<&'b Point<C>> for &'b Point<C> {
     type Output = Point<C>;
     fn add(self, rhs: &Point<C>) -> Self::Output {
         self.geometric_add(rhs)
+    }
+}
+
+impl<C: Curve> std::ops::Sub for Point<C> {
+    type Output = Point<C>;
+    fn sub(self, rhs: Self) -> Self {
+        self + (-rhs)
     }
 }
 
@@ -143,6 +155,14 @@ impl<C: Curve> Point<C> {
             y: sum_y,
             z: sum_z,
         }
+    }
+
+    pub fn scalar_mul(&self, scalar: &Scalar<C>) -> Self {
+        todo!()
+    }
+
+    pub fn double_mul(&self, scalar: &Scalar<C>, other: &Self, other_scalar: &Scalar<C>) -> Self {
+        todo!()
     }
 
     pub fn to_affine(&mut self) {

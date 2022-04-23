@@ -17,9 +17,15 @@ impl<C: Curve> Modular for FieldElement<C> {
     const MODULUS: U256 = C::PRIME_MODULUS;
 
     fn new(number: U256) -> Self {
-        // NOTE unwrap is fine here because the modulus
-        // can be safely assumed to be nonzero
-        Self(number % NonZero::new(Self::MODULUS).unwrap(), PhantomData)
+        let reduced = if number < Self::MODULUS {
+            number
+        } else {
+            // NOTE unwrap is fine here because the modulus
+            // can be safely assumed to be nonzero
+            number % NonZero::new(Self::MODULUS).unwrap()
+        };
+
+        Self(reduced, PhantomData)
     }
 
     fn inner(&self) -> &U256 {
@@ -152,18 +158,23 @@ mod test {
         let b = FeLarge::new(U256::from_be_hex(
             "000000000000000000000000000012345678901234567890ffffddddeeee7890",
         ));
+        let sum = a + b;
         assert_eq!(
-            a + b,
+            sum,
             FeLarge::new(U256::from_be_hex(
                 "00000000000000000000000000001234567890223451233cbbb101235678677e"
             ))
         );
+        assert!(sum.0 != U256::ZERO);
+        let prod = a * b;
         assert_eq!(
-            a * b,
+            prod,
             FeLarge::new(U256::from_be_hex(
                 "000123450671f20a8b0a93d71f37ba2ec0d166be8a54889e735d97664ad9f5e0"
             ))
         );
+        assert!(prod.0 != U256::ZERO);
+
         let a = FeLarge::new(Secp256k1::GENERATOR_X);
         let b = FeLarge::new(Secp256k1::GENERATOR_Y);
         assert_eq!(

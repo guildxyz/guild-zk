@@ -25,8 +25,7 @@ pub trait Modular: Sized {
 }
 
 pub fn mul_mod_u256(lhs: &U256, rhs: &U256, modulus: &U256) -> U256 {
-    // NOTE modulus is never zero, so unwrap is fine here
-    let mod512 = NonZero::new(U512::from((U256::ZERO, *modulus))).unwrap();
+    let mod512 = U512::from((U256::ZERO, *modulus));
     // NOTE facepalm:
     // U512::from((hi, lo))
     // but split returns (lo, hi)
@@ -34,7 +33,12 @@ pub fn mul_mod_u256(lhs: &U256, rhs: &U256, modulus: &U256) -> U256 {
     let product = U512::from((hi, lo));
     // split the remainder result of a % b into a (lo, hi) U256 pair
     // 'hi' should always be zero because the modulus is an U256 number
-    let (hi, lo) = (product % mod512).split();
+    let (hi, lo) = if product < mod512 {
+        product.split()
+    } else {
+        // NOTE modulus is never zero, so unwrap is fine here
+        (product % NonZero::new(mod512).unwrap()).split()
+    };
     debug_assert_eq!(hi, U256::ZERO);
     lo
 }
