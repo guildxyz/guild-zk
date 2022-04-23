@@ -4,10 +4,11 @@ use crate::arithmetic::scalar::Scalar;
 use crate::Curve;
 use bigint::U256;
 
+use std::collections::HashMap;
 use std::marker::PhantomData;
 
 const BASE_16_DIGITS: [char; 16] = [
-    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
 ];
 
 #[derive(Debug, Clone)]
@@ -50,6 +51,12 @@ impl<'a, 'b, C: Curve> std::ops::Add<&'b Point<C>> for &'b Point<C> {
     type Output = Point<C>;
     fn add(self, rhs: &Point<C>) -> Self::Output {
         self.geometric_add(rhs)
+    }
+}
+
+impl<C: Curve> std::ops::AddAssign<&Point<C>> for Point<C> {
+    fn add_assign(&mut self, rhs: &Self) {
+        *self = &*self + rhs
     }
 }
 
@@ -158,14 +165,58 @@ impl<C: Curve> Point<C> {
     }
 
     pub fn scalar_mul(&self, scalar: &Scalar<C>) -> Self {
-        todo!()
+        let mut q = Self::IDENTITY;
+        let mut current = Self::IDENTITY;
+        let mut lookup = HashMap::with_capacity(16);
+        for digit in &BASE_16_DIGITS {
+            lookup.insert(digit, current.clone());
+            current += self;
+        }
+        for ch in scalar.to_unpadded_string().chars() {
+            q = q.double();
+            q = q.double();
+            q = q.double();
+            q = q.double();
+            // NOTE: unwrap is fine because ch is definitely
+            // one of the keys in the map
+            q += lookup.get(&ch).unwrap()
+        }
+        q
     }
 
-    pub fn double_mul(&self, scalar: &Scalar<C>, other: &Self, other_scalar: &Scalar<C>) -> Self {
-        todo!()
+    pub fn double_mul(
+        &self,
+        this_scalar: &Scalar<C>,
+        other_point: &Self,
+        other_scalar: &Scalar<C>,
+    ) -> Self {
+        let mut q = Self::IDENTITY;
+        let mut this_current = Self::IDENTITY;
+        let mut other_current = Self::IDENTITY;
+        let mut this_lookup = HashMap::with_capacity(16);
+        let mut other_lookup = HashMap::with_capacity(16);
+        for digit in &BASE_16_DIGITS {
+            this_lookup.insert(digit, this_current.clone());
+            other_lookup.insert(digit, other_current.clone());
+            this_current += self;
+            other_current += other_point;
+        }
+
+        let (this_string, other_string) = this_scalar.pad_to_equal_len_strings(other_scalar);
+        for (this_ch, other_ch) in this_string.chars().zip(other_string.chars()) {
+            q = q.double();
+            q = q.double();
+            q = q.double();
+            q = q.double();
+            // NOTE: both unwraps are fine because chars are definitely
+            // one of the keys in the respective maps
+            q += this_lookup.get(&this_ch).unwrap();
+            q += other_lookup.get(&other_ch).unwrap();
+        }
+        q
     }
 
-    pub fn to_affine(&mut self) {
+    pub fn affine_coords(&self) -> (FieldElement<C>, FieldElement<C>) {
         todo!();
     }
 }
@@ -173,7 +224,7 @@ impl<C: Curve> Point<C> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{Curve, Secp256k1, Tom256k1};
+    use crate::{Secp256k1, Tom256k1};
 
     #[test]
     fn on_curve_check() {

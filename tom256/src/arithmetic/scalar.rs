@@ -10,13 +10,11 @@ pub struct Scalar<C: Curve>(U256, PhantomData<C>);
 
 impl<C: Curve> Scalar<C> {
     pub fn pad_to_equal_len_strings(&self, other: &Self) -> (String, String) {
-        let self_string = self.0.to_string();
-        let other_string = other.to_string();
+        let self_string = self.to_unpadded_string();
+        let other_string = other.to_unpadded_string();
         // string represetnation length is at most 64 characters, so it's safe to cast to isize
         let pad_len = (self_string.len() as isize - other_string.len() as isize).abs();
-        let mut padded = std::iter::repeat('0')
-            .take(pad_len as usize)
-            .collect::<String>();
+        let mut padded = "0".repeat(pad_len as usize);
         if self_string.len() < other_string.len() {
             padded.push_str(&self_string);
             (padded, other_string)
@@ -27,7 +25,11 @@ impl<C: Curve> Scalar<C> {
     }
 
     pub fn to_unpadded_string(&self) -> String {
-        self.0.to_string().chars().skip_while(|&c| c == '0').collect()
+        self.0
+            .to_string()
+            .chars()
+            .skip_while(|&c| c == '0')
+            .collect()
     }
 }
 
@@ -187,7 +189,6 @@ mod test {
         assert_eq!(a_min_b, -b_min_a);
     }
 
-
     #[test]
     fn unpad_display() {
         let a = ScalarLarge::new(U256::from_u8(0xb1));
@@ -209,7 +210,10 @@ mod test {
         );
 
         assert_eq!(a.to_unpadded_string(), "B1");
-        assert_eq!(b.to_unpadded_string(), "1234567890223451233cbbb101235678677e".to_uppercase());
+        assert_eq!(
+            b.to_unpadded_string(),
+            "1234567890223451233cbbb101235678677e".to_uppercase()
+        );
         assert_eq!(c.to_unpadded_string(), c.to_string());
     }
 
@@ -226,23 +230,23 @@ mod test {
         let (a_string, same_len_string) =
             a.pad_to_equal_len_strings(&ScalarLarge::new(U256::from_u8(0xfe)));
         assert_eq!(a_string.len(), same_len_string.len());
-        assert_eq!(a_string, "000B1");
-        assert_eq!(same_len_string, "000FE");
+        assert_eq!(a_string, "B1");
+        assert_eq!(same_len_string, "FE");
 
         let (a_string, b_string) = a.pad_to_equal_len_strings(&b);
         assert_eq!(a_string.len(), b_string.len());
-        assert_eq!(a_string, "00000000000000000000000000000000000B1");
+        assert_eq!(a_string, "0000000000000000000000000000000000B1");
         assert_eq!(
             b_string,
-            "01234567890223451233cbbb101235678677e".to_uppercase()
+            "1234567890223451233cbbb101235678677e".to_uppercase()
         );
 
         let (b_string, a_string) = b.pad_to_equal_len_strings(&a);
         assert_eq!(a_string.len(), b_string.len());
-        assert_eq!(a_string, "00000000000000000000000000000000000B1");
+        assert_eq!(a_string, "0000000000000000000000000000000000B1");
         assert_eq!(
             b_string,
-            "01234567890223451233cbbb101235678677e".to_uppercase()
+            "1234567890223451233cbbb101235678677e".to_uppercase()
         );
 
         let (b_string, c_string) = b.pad_to_equal_len_strings(&c);
