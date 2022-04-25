@@ -2,10 +2,14 @@ use crate::arithmetic::field::FieldElement;
 use crate::arithmetic::modular::{mul_mod_u256, Modular};
 use crate::arithmetic::scalar::Scalar;
 use crate::Curve;
+
+use bigint::prelude::Encoding;
 use bigint::U256;
 
 use std::collections::HashMap;
 use std::marker::PhantomData;
+
+use sha3::{Digest, Sha3_256};
 
 const BASE_16_DIGITS: [char; 16] = [
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
@@ -16,6 +20,22 @@ pub struct Point<C: Curve> {
     x: FieldElement<C>,
     y: FieldElement<C>,
     z: FieldElement<C>,
+}
+
+impl<C: Curve> Point<C> {
+    pub fn hash(&self) -> U256 {
+        // create a SHA3-256 object
+        let mut hasher = Sha3_256::new();
+
+        // write input message
+        hasher.update(self.x.inner().to_be_bytes());
+        hasher.update(self.y.inner().to_be_bytes());
+        hasher.update(self.z.inner().to_be_bytes());
+
+        // read hash digest
+        let result = hasher.finalize();
+        U256::from_be_bytes(result[0..32].try_into().unwrap())
+    }
 }
 
 impl<C: Curve + PartialEq> PartialEq for Point<C> {
@@ -237,5 +257,14 @@ mod test {
     #[test]
     fn point_addition_test() {
         // TODO
+    }
+
+    #[test]
+    fn point_hash_test() {
+        let expected_hash = "97FAA02BE4E7F5F9306261D1616841C83603E8699E86A0161ED8F8DDCEEAE0A8";
+        assert_eq!(Point::<Secp256k1>::GENERATOR.hash(), U256::from_be_hex(expected_hash));
+
+        let expected_hash = "FDC209252A1B98A0E4A6958FC0305A5A947D5FB6E066A171FBF22B612CB9C3D1";
+        assert_eq!(Point::<Tom256k1>::GENERATOR.hash(), U256::from_be_hex(expected_hash));
     }
 }

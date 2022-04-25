@@ -24,7 +24,6 @@ pub fn get_random_modular<T: Modular>() -> T {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -57,6 +56,7 @@ mod test {
 
     // assumed: mod_byte_number <= 4
     // Only for tests
+    #[allow(unused)]
     fn get_random_small_modular<T: Modular>(mod_byte_number: u8) -> T {
         let mut rng = ChaChaRng::from_entropy();
         loop {
