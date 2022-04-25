@@ -1,5 +1,6 @@
 pub mod arithmetic;
 mod point;
+mod utils;
 
 use arithmetic::field::FieldElement;
 use arithmetic::modular::Modular;

@@ -1,5 +1,6 @@
 use super::modular::Modular;
 use crate::Curve;
+use crate::utils::get_random_modular;
 
 use bigint::{NonZero, U256};
 
@@ -49,6 +50,12 @@ impl<C: Curve> Modular for Scalar<C> {
 
     fn inner(&self) -> &U256 {
         &self.0
+    }
+}
+
+impl<C: Curve> Scalar<C> {
+    pub fn random() -> Self {
+        get_random_modular::<Self>()
     }
 }
 
