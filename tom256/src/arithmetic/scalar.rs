@@ -1,8 +1,8 @@
-use super::modular::Modular;
+use super::modular::{Modular, mod_u256};
 use crate::Curve;
 use crate::utils::get_random_modular;
 
-use bigint::{NonZero, U256};
+use bigint::U256;
 
 use std::marker::PhantomData;
 
@@ -38,14 +38,7 @@ impl<C: Curve> Modular for Scalar<C> {
     const MODULUS: U256 = C::ORDER;
 
     fn new(number: U256) -> Self {
-        let reduced = if number < Self::MODULUS {
-            number
-        } else {
-            // NOTE unwrap is fine here because the modulus
-            // can be safely assumed to be nonzero
-            number % NonZero::new(Self::MODULUS).unwrap()
-        };
-        Self(reduced, PhantomData)
+        Self(mod_u256(&number, &Self::MODULUS), PhantomData)
     }
 
     fn inner(&self) -> &U256 {

@@ -26,9 +26,20 @@ pub trait Modular: Sized {
     }
 
     fn invert(&self) -> Self {
-        // TODO
         let mod_minus_two = Self::MODULUS.saturating_sub(&TWO);
         Self::new(exp_mod_u256(self.inner(), &mod_minus_two, &Self::MODULUS))
+    }
+}
+
+pub fn mod_u256(number: &U256, modulus: &U256) -> U256 {
+    // NOTE bigint's internal modulo operation
+    // returns zero instead of number if number < modulus
+    if number < modulus {
+        *number
+    } else {
+        // NOTE unwrap is fine here because the modulus
+        // can be safely assumed to be nonzero
+        number % NonZero::new(*modulus).unwrap()
     }
 }
 
@@ -51,25 +62,24 @@ pub fn mul_mod_u256(lhs: &U256, rhs: &U256, modulus: &U256) -> U256 {
     lo
 }
 
-pub fn exp_mod_u256(base: &U256, exponent: &U256, modulus: &U256) -> U256 {
+fn exp_mod_u256(base: &U256, exponent: &U256, modulus: &U256) -> U256 {
     let mut r = U256::ONE;
     let mut q = *base;
     let mut k = *exponent;
     while k > U256::ZERO {
-        // NOTE unwrap is fine because 2 is nonzero
-        if k % NonZero::new(TWO).unwrap() == U256::ONE {
+        if mod_u256(&k, &TWO) != U256::ZERO {
             // k is odd
             r = mul_mod_u256(&r, &q, modulus);
         }
         q = mul_mod_u256(&q, &q, modulus);
-        k = k.wrapping_div(&TWO)
+        k >>= 1; // division by 2
     }
     r
 }
 
 #[cfg(test)]
 mod test {
-    use super::{mul_mod_u256, U256};
+    use super::*;
 
     #[test]
     fn mul_mod_u256_small() {
@@ -178,5 +188,86 @@ mod test {
             mul_mod_u256(&a, &b, &modulus),
             U256::from_be_hex("72747f9ecbf73c44f9eec8071c9c53f1648db1bbca95fb19ed4f1cc62ccd4956")
         );
+    }
+
+    #[test]
+    fn exp_mod_small() {
+        let mut modulus = U256::from_u8(7);
+        let mut base = U256::from_u8(10);
+        let mut exponent = U256::ONE;
+        assert_eq!(
+            exp_mod_u256(&base, &exponent, &modulus),
+            U256::from_u32(10 % 7)
+        );
+
+        exponent = U256::from_u8(2);
+        assert_eq!(
+            exp_mod_u256(&base, &exponent, &modulus),
+            U256::from_u32(100 % 7)
+        );
+
+        exponent = U256::from_u8(3);
+        assert_eq!(
+            exp_mod_u256(&base, &exponent, &modulus),
+            U256::from_u32(1000 % 7)
+        );
+
+        exponent = U256::from_u8(4);
+        assert_eq!(
+            exp_mod_u256(&base, &exponent, &modulus),
+            U256::from_u32(10_000 % 7)
+        );
+
+        exponent = U256::from_u8(5);
+        assert_eq!(
+            exp_mod_u256(&base, &exponent, &modulus),
+            U256::from_u32(100_000 % 7)
+        );
+
+        base = U256::from_u8(7);
+        exponent = U256::from_u8(2);
+        assert_eq!(exp_mod_u256(&base, &exponent, &modulus), U256::ZERO);
+        exponent = U256::from_u8(117);
+        assert_eq!(exp_mod_u256(&base, &exponent, &modulus), U256::ZERO);
+
+        assert_eq!(exp_mod_u256(&U256::ZERO, &U256::ZERO, &modulus), U256::ONE);
+        assert_eq!(exp_mod_u256(&U256::ONE, &U256::ZERO, &modulus), U256::ONE);
+        assert_eq!(exp_mod_u256(&U256::ONE, &U256::ONE, &modulus), U256::ONE);
+
+        modulus = U256::from_u8(117);
+        exponent = U256::from_u8(2);
+        assert_eq!(exp_mod_u256(&base, &exponent, &modulus), U256::from_u8(49));
+    }
+
+    #[test]
+    fn exp_mod_large() {
+        let modulus =
+            U256::from_be_hex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");
+        let mut base =
+            U256::from_be_hex("0716da9a723d4b60c4c45e60e785752035fe89f3d8f02948f137dac24d194d7b");
+        let mut exponent =
+            U256::from_be_hex("dcd079dee8977487cef48f01438107be65e843c8ae97812936b682ef1e1bb7d6");
+        let mut expected =
+            U256::from_be_hex("3fc52238ecd8428f2436c8d0e821a1cd6f3585e8f844a889c5bf63954a23a42e");
+
+        assert_eq!(exp_mod_u256(&base, &exponent, &modulus), expected);
+
+        base =
+            U256::from_be_hex("f301bb587ec9213824e5877d3e46ef7f058a2a8aeca9bcd668e538baf6e83f1c");
+        exponent =
+            U256::from_be_hex("c2949e64cb2319b0b242b4ffc906db675770ac0063d29a6a3b693de8c56837ec");
+        expected =
+            U256::from_be_hex("ef361bc9c55de710dcebb4ca7a437d6c0267dd8b5afab7ca559081ea3fe5e234");
+
+        assert_eq!(exp_mod_u256(&base, &exponent, &modulus), expected);
+
+        base =
+            U256::from_be_hex("380dc1a2dfcdf757ffe8384181a528bf918312dca7f9fcaa24d72195aeb84316");
+        exponent =
+            U256::from_be_hex("3a3cd1cda068afd82bf6813ebac8390732542fe7701a90035da68771c5931c65");
+        expected =
+            U256::from_be_hex("7f2de0f2d89077f70b423feea263590266e38e24f229ad6039cdbc09b410e4d5");
+
+        assert_eq!(exp_mod_u256(&base, &exponent, &modulus), expected);
     }
 }

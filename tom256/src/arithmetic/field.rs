@@ -1,7 +1,7 @@
-use super::modular::Modular;
+use super::modular::{mod_u256, Modular};
 use crate::Curve;
 
-use bigint::{NonZero, U256};
+use bigint::{U256};
 
 use std::marker::PhantomData;
 
@@ -17,17 +17,7 @@ impl<C: Curve> Modular for FieldElement<C> {
     const MODULUS: U256 = C::PRIME_MODULUS;
 
     fn new(number: U256) -> Self {
-        // NOTE bigint's internal modulo operation
-        // returns zero instead of number if number < modulus
-        let reduced = if number < Self::MODULUS {
-            number
-        } else {
-            // NOTE unwrap is fine here because the modulus
-            // can be safely assumed to be nonzero
-            number % NonZero::new(Self::MODULUS).unwrap()
-        };
-
-        Self(reduced, PhantomData)
+        Self(mod_u256(&number, &Self::MODULUS), PhantomData)
     }
 
     fn inner(&self) -> &U256 {
