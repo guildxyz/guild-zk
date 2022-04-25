@@ -1,12 +1,12 @@
 use crate::common::*;
-use crate::{Root, SimplePath};
 use crate::pubkey::Pubkey;
+use crate::{Root, SimplePath};
 use ark_crypto_primitives::crh::{TwoToOneCRH, TwoToOneCRHGadget, CRH};
 use ark_crypto_primitives::merkle_tree::constraints::PathVar;
 use ark_crypto_primitives::merkle_tree::Path;
+use ark_r1cs_std::bits::ToBytesGadget;
 use ark_r1cs_std::prelude::*;
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
-use ark_r1cs_std::bits::ToBytesGadget;
 
 use ark_bls12_381::{Bls12_381, Fr};
 use ark_ff::One;
@@ -72,7 +72,10 @@ impl ConstraintSynthesizer<ConstraintF> for MerkleTreeVerification {
         let pubkey_vec = if let Some(pubkey) = self.leaf {
             pubkey.as_vec()
         } else {
-            Pubkey{secret_key: [0;32]}.as_vec()
+            Pubkey {
+                secret_key: [0; 32],
+            }
+            .as_vec()
         };
 
         let mut leaf_bytes = vec![];
@@ -81,7 +84,12 @@ impl ConstraintSynthesizer<ConstraintF> for MerkleTreeVerification {
             leaf_bytes.push(leaf_byte);
         }
 
-        let is_member = path_witness.verify_membership(&leaf_crh_params, &two_to_one_crh_params, &root, &leaf_bytes.as_slice())?;
+        let is_member = path_witness.verify_membership(
+            &leaf_crh_params,
+            &two_to_one_crh_params,
+            &root,
+            &leaf_bytes.as_slice(),
+        )?;
 
         is_member.enforce_equal(&Boolean::TRUE)?;
 
@@ -98,7 +106,7 @@ fn groth16_usage() {
     // First, let's sample the public parameters for the hash functions:
     let leaf_crh_params = <LeafHash as CRH>::setup(&mut rng).unwrap();
     let two_to_one_crh_params = <TwoToOneHash as TwoToOneCRH>::setup(&mut rng).unwrap();
-    
+
     let mut leaves = Vec::with_capacity(262144);
     for i in 0..262144_u32 {
         let mut bytes = [0_u8; 32];
@@ -106,7 +114,7 @@ fn groth16_usage() {
         for j in 0..4 {
             bytes[j] = index_bytes[j];
         }
-        leaves.push(Pubkey{secret_key: bytes});
+        leaves.push(Pubkey { secret_key: bytes });
     }
     let selected_leaf_idx = 42069 as usize;
 
@@ -153,7 +161,7 @@ fn groth16_usage() {
     let proof = {
         // This should be a proof for the membership of a leaf with value 9. Let's check that!
         let path = tree.generate_proof(selected_leaf_idx as usize).unwrap(); // we're 0-indexing!
-    
+
         let circuit = MerkleTreeVerification {
             // constants
             leaf_crh_params,
@@ -223,7 +231,9 @@ fn merkle_tree_constraints_correctness() {
         root,
 
         // witness
-        leaf: Some(Pubkey{secret_key: [9_u8; 32]}),
+        leaf: Some(Pubkey {
+            secret_key: [9_u8; 32],
+        }),
         authentication_path: Some(proof),
     };
     // First, some boilerplat that helps with debugging
@@ -291,7 +301,9 @@ fn merkle_tree_constraints_soundness() {
         root: wrong_root,
 
         // witness
-        leaf: Some(Pubkey{secret_key: [9_u8; 32]}),
+        leaf: Some(Pubkey {
+            secret_key: [9_u8; 32],
+        }),
         authentication_path: Some(proof),
     };
     // First, some boilerplate that helps with debugging

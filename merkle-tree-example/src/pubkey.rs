@@ -1,4 +1,3 @@
-
 use ark_ff::bytes::ToBytes;
 use ark_std::io::{Result as IoResult, Write};
 

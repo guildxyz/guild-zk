@@ -5,7 +5,7 @@ use crate::Curve;
 
 use bigint::U256;
 
-use rand_core::{RngCore, CryptoRng};
+use rand_core::{CryptoRng, RngCore};
 
 use std::marker::PhantomData;
 

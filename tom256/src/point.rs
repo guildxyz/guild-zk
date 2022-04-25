@@ -277,7 +277,6 @@ pub fn hash_points<C: Curve>(hash_id: &[u8], points: &Vec<Point<C>>) -> U256 {
         hasher.update(p.y.inner().to_be_bytes());
         hasher.update(p.z.inner().to_be_bytes());
     }
-    
 
     // read hash digest
     let result = hasher.finalize();
@@ -355,8 +354,14 @@ mod test {
     #[test]
     fn points_hash_test() {
         let hash_id = "test".as_bytes();
-        let points = vec![Point::<Secp256k1>::GENERATOR, Point::<Secp256k1>::GENERATOR.double()];
+        let points = vec![
+            Point::<Secp256k1>::GENERATOR,
+            Point::<Secp256k1>::GENERATOR.double(),
+        ];
         let expected_hash = "C9B5BD2009A84423D2CBCEB411CDDAF7423B372B5F63821DACFFFA0041A6B8F7";
-        assert_eq!(hash_points(&hash_id, &points), U256::from_be_hex(expected_hash));
+        assert_eq!(
+            hash_points(&hash_id, &points),
+            U256::from_be_hex(expected_hash)
+        );
     }
 }

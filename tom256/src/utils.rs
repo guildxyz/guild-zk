@@ -1,4 +1,4 @@
-use rand_core::{RngCore, CryptoRng};
+use rand_core::{CryptoRng, RngCore};
 
 use bigint::prelude::Encoding;
 use bigint::U256;
@@ -54,7 +54,10 @@ mod test {
     // assumed: mod_byte_number <= 4
     // Only for tests
     #[allow(unused)]
-    fn get_random_small_modular<T: Modular, R: CryptoRng + RngCore>(mod_byte_number: u8, rng: &mut R) -> T {
+    fn get_random_small_modular<T: Modular, R: CryptoRng + RngCore>(
+        mod_byte_number: u8,
+        rng: &mut R,
+    ) -> T {
         loop {
             let random_number_bytes = get_random_u256(rng).to_be_bytes();
 
