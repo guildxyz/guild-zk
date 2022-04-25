@@ -236,8 +236,33 @@ impl<C: Curve> Point<C> {
         q
     }
 
-    pub fn to_affine(&mut self) {
-        todo!();
+    pub fn is_identity(&self) -> bool {
+        self.x == FieldElement::ZERO && self.y != FieldElement::ZERO && self.z == FieldElement::ZERO
+    }
+
+    pub fn into_affine(self) -> Self {
+        if self.is_identity() {
+            Self::IDENTITY
+        } else {
+            let z_inv = self.z.inverse();
+            Self {
+                x: self.x * z_inv,
+                y: self.y * z_inv,
+                z: FieldElement::ONE,
+            }
+        }
+    }
+
+    pub fn x(&self) -> &FieldElement<C> {
+        &self.x
+    }
+
+    pub fn y(&self) -> &FieldElement<C> {
+        &self.x
+    }
+
+    pub fn z(&self) -> &FieldElement<C> {
+        &self.z
     }
 }
 
@@ -246,25 +271,66 @@ mod test {
     use super::*;
     use crate::{Secp256k1, Tom256k1};
 
+    type SecPoint = Point<Secp256k1>;
+    type TomPoint = Point<Tom256k1>;
+
+    type SecScalar = Scalar<Secp256k1>;
+    type TomScalar = Scalar<Tom256k1>;
+
     #[test]
     fn on_curve_check() {
-        assert!(Point::<Secp256k1>::GENERATOR.is_on_curve());
-        assert!(Point::<Tom256k1>::GENERATOR.is_on_curve());
-        assert!(Point::<Secp256k1>::GENERATOR.double().is_on_curve());
-        assert!(Point::<Tom256k1>::GENERATOR.double().is_on_curve());
+        assert!(SecPoint::GENERATOR.is_on_curve());
+        assert!(TomPoint::GENERATOR.is_on_curve());
+        assert!(SecPoint::GENERATOR.double().is_on_curve());
+        assert!(TomPoint::GENERATOR.double().is_on_curve());
+        let sec_scalar = SecScalar::new(U256::from_u32(123456));
+        let sec_point = SecPoint::GENERATOR.scalar_mul(&sec_scalar);
+        assert!(sec_point.is_on_curve());
+
+        let tom_scalar = TomScalar::new(U256::from_u32(678910));
+        let tom_point = TomPoint::GENERATOR.scalar_mul(&tom_scalar);
+        assert!(tom_point.is_on_curve());
     }
 
     #[test]
     fn point_addition_test() {
-        // TODO
+        let four = SecScalar::new(U256::from_u8(4));
+        let g2 = SecPoint::GENERATOR.double();
+        let g4 = SecPoint::GENERATOR.scalar_mul(&four);
+        assert_eq!(g2.double(), g4);
+        assert_eq!(&g2 + &g2, g4);
+    }
+
+    #[test]
+    fn affine_point() {
+        let g2 = SecPoint::GENERATOR.double();
+        let g2_affine = g2.into_affine();
+        assert_eq!(g2_affine.z(), &FieldElement::ONE);
+
+        let mut id = SecPoint::IDENTITY;
+        id = id.into_affine();
+        assert_eq!(id, SecPoint::IDENTITY);
+
+        let g5 = SecPoint::GENERATOR
+            .scalar_mul(&SecScalar::new(U256::from_u8(5)))
+            .into_affine();
+        let g2 = SecPoint::GENERATOR.double().into_affine();
+        let g4 = g2.double().into_affine();
+        assert_eq!((g4 + SecPoint::GENERATOR).into_affine(), g5);
     }
 
     #[test]
     fn point_hash_test() {
         let expected_hash = "97FAA02BE4E7F5F9306261D1616841C83603E8699E86A0161ED8F8DDCEEAE0A8";
-        assert_eq!(Point::<Secp256k1>::GENERATOR.hash(), U256::from_be_hex(expected_hash));
+        assert_eq!(
+            Point::<Secp256k1>::GENERATOR.hash(),
+            U256::from_be_hex(expected_hash)
+        );
 
         let expected_hash = "FDC209252A1B98A0E4A6958FC0305A5A947D5FB6E066A171FBF22B612CB9C3D1";
-        assert_eq!(Point::<Tom256k1>::GENERATOR.hash(), U256::from_be_hex(expected_hash));
+        assert_eq!(
+            Point::<Tom256k1>::GENERATOR.hash(),
+            U256::from_be_hex(expected_hash)
+        );
     }
 }

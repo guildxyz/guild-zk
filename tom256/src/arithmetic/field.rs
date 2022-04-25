@@ -1,7 +1,7 @@
 use super::modular::{mod_u256, Modular};
 use crate::Curve;
 
-use bigint::{U256};
+use bigint::U256;
 
 use std::marker::PhantomData;
 
@@ -135,7 +135,6 @@ mod test {
         assert_eq!(b - a, FeSmall::new(U256::from_u32(11)));
     }
 
-    
     #[test]
     fn operations_with_large_modulus() {
         let a = FeLarge::new(U256::from_be_hex(

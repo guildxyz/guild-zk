@@ -85,9 +85,15 @@ mod test {
     fn test_mod_u256() {
         assert_eq!(mod_u256(&U256::ONE, &U256::ONE), U256::ZERO);
         assert_eq!(mod_u256(&U256::from_u8(9), &U256::from_u8(2)), U256::ONE);
-        assert_eq!(mod_u256(&U256::from_u8(67), &U256::from_u8(17)), U256::from_u8(16));
+        assert_eq!(
+            mod_u256(&U256::from_u8(67), &U256::from_u8(17)),
+            U256::from_u8(16)
+        );
         assert_eq!(mod_u256(&U256::from_u8(178), &U256::from_u8(59)), U256::ONE);
-        assert_eq!(mod_u256(&U256::from_u8(59), &U256::from_u8(178)), U256::from_u8(59));
+        assert_eq!(
+            mod_u256(&U256::from_u8(59), &U256::from_u8(178)),
+            U256::from_u8(59)
+        );
 
         let a =
             U256::from_be_hex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");

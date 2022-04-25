@@ -1,8 +1,8 @@
 use rand::{ChaChaRng, FromEntropy};
-use rand_core::{RngCore, CryptoRng};
+use rand_core::{CryptoRng, RngCore};
 
-use bigint::U256;
 use bigint::prelude::Encoding;
+use bigint::U256;
 
 use subtle::ConstantTimeLess;
 
@@ -47,12 +47,11 @@ mod test {
             };
             Self(reduced)
         }
-    
+
         fn inner(&self) -> &U256 {
             &self.0
         }
     }
-
 
     // assumed: mod_byte_number <= 4
     // Only for tests
@@ -71,14 +70,11 @@ mod test {
                 if random_number.ct_lt(&T::MODULUS).into() {
                     return T::new(random_number);
                 }
-
             }
-            
-            
         }
     }
 
-    /* 
+    /*
     // Don't do this if you value your time
     // It works, just trust me
     #[test]

@@ -294,7 +294,7 @@ mod test {
         assert_eq!(b * b.inverse(), ScalarLarge::ONE);
 
         b = ScalarLarge::new(U256::from_be_hex(
-            "354880368b136b492e8cbce77a7b5ffc3dbef5087bc30537b87ca9d57648c840"
+            "354880368b136b492e8cbce77a7b5ffc3dbef5087bc30537b87ca9d57648c840",
         ));
         assert_eq!(b * b.inverse(), ScalarLarge::ONE);
         b = ScalarLarge::new(Tom256k1::ORDER);
