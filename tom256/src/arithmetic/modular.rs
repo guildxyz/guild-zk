@@ -25,7 +25,7 @@ pub trait Modular: Sized {
         Self::new(mul_mod_u256(self.inner(), other.inner(), &Self::MODULUS))
     }
 
-    fn invert(&self) -> Self {
+    fn inverse(&self) -> Self {
         let mod_minus_two = Self::MODULUS.saturating_sub(&TWO);
         Self::new(exp_mod_u256(self.inner(), &mod_minus_two, &Self::MODULUS))
     }
@@ -80,6 +80,25 @@ fn exp_mod_u256(base: &U256, exponent: &U256, modulus: &U256) -> U256 {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_mod_u256() {
+        assert_eq!(mod_u256(&U256::ONE, &U256::ONE), U256::ZERO);
+        assert_eq!(mod_u256(&U256::from_u8(9), &U256::from_u8(2)), U256::ONE);
+        assert_eq!(mod_u256(&U256::from_u8(67), &U256::from_u8(17)), U256::from_u8(16));
+        assert_eq!(mod_u256(&U256::from_u8(178), &U256::from_u8(59)), U256::ONE);
+        assert_eq!(mod_u256(&U256::from_u8(59), &U256::from_u8(178)), U256::from_u8(59));
+
+        let a =
+            U256::from_be_hex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");
+
+        let b =
+            U256::from_be_hex("fffffffffffffffffffffffffffffffeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
+
+        let expected = U256::from_u128(0x344012083fa64eb32f1c90621eb8adad);
+        assert_eq!(mod_u256(&a, &b), a);
+        assert_eq!(mod_u256(&b, &a), expected);
+    }
 
     #[test]
     fn mul_mod_u256_small() {
@@ -152,10 +171,8 @@ mod test {
 
         let mut a =
             U256::from_be_hex("617652b9bba98825bfe56f8632d46088bcbaf1dbac087c297682f9d2156e5139");
-        println!("{}", a.to_string());
         let mut b =
             U256::from_be_hex("e7d95f100dfa1650113d52cde817ae2bbde56dffbe69d1b6afc5d6884934fc4c");
-        println!("{}", b.to_string());
         assert_eq!(
             mul_mod_u256(&a, &b, &modulus),
             U256::from_be_hex("d0febbc44b1942b614c343706e565dd7679efce7d1a630d386f7effbf5d5cf90")

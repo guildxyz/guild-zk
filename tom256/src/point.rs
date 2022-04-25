@@ -236,7 +236,7 @@ impl<C: Curve> Point<C> {
         q
     }
 
-    pub fn affine_coords(&self) -> (FieldElement<C>, FieldElement<C>) {
+    pub fn to_affine(&mut self) {
         todo!();
     }
 }

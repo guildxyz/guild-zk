@@ -1,6 +1,6 @@
-use super::modular::{Modular, mod_u256};
-use crate::Curve;
+use super::modular::{mod_u256, Modular};
 use crate::utils::get_random_modular;
+use crate::Curve;
 
 use bigint::U256;
 
@@ -10,6 +10,9 @@ use std::marker::PhantomData;
 pub struct Scalar<C: Curve>(U256, PhantomData<C>);
 
 impl<C: Curve> Scalar<C> {
+    pub const ONE: Self = Self(U256::ONE, PhantomData);
+    pub const ZERO: Self = Self(U256::ZERO, PhantomData);
+
     pub fn pad_to_equal_len_strings(&self, other: &Self) -> (String, String) {
         let self_string = self.to_unpadded_string();
         let other_string = other.to_unpadded_string();
@@ -95,8 +98,8 @@ mod test {
     struct TestCurveSmallMod;
 
     impl Curve for TestCurveSmallMod {
-        const PRIME_MODULUS: U256 = U256::from_u32(17);
-        const ORDER: U256 = U256::ONE;
+        const PRIME_MODULUS: U256 = U256::ONE;
+        const ORDER: U256 = U256::from_u32(17);
         const GENERATOR_X: U256 = U256::ZERO;
         const GENERATOR_Y: U256 = U256::ZERO;
         const COEFF_A: U256 = U256::ZERO;
@@ -110,6 +113,8 @@ mod test {
     fn operations_with_small_modulus() {
         let a = ScalarSmall::new(U256::from_u32(15));
         let b = ScalarSmall::new(U256::from_u32(9));
+        assert!(a != ScalarSmall::ZERO);
+        assert!(b != ScalarSmall::ZERO);
         assert_eq!(a * b, ScalarSmall::new(U256::from_u32(16)));
         assert_eq!(a + b, ScalarSmall::new(U256::from_u32(7)));
         assert_eq!(a - b, ScalarSmall::new(U256::from_u32(6)));
@@ -124,6 +129,8 @@ mod test {
         let b = ScalarLarge::new(U256::from_be_hex(
             "000000000000000000000000000012345678901234567890ffffddddeeee7890",
         ));
+        assert!(a != ScalarLarge::ZERO);
+        assert!(b != ScalarLarge::ZERO);
         assert_eq!(
             a + b,
             ScalarLarge::new(U256::from_be_hex(
@@ -270,5 +277,29 @@ mod test {
             c_string,
             "354880368b136b492e8cbce77a7b5ffc3dbef5087bc30537b87ca9d57648c840".to_uppercase()
         );
+    }
+
+    #[test]
+    fn inverse() {
+        let mut a = ScalarSmall::new(U256::from_u8(10));
+        assert!(a != ScalarSmall::ZERO);
+        assert_eq!(a * a.inverse(), ScalarSmall::ONE);
+        a = ScalarSmall::new(U256::from_u8(59));
+        assert_eq!(a * a.inverse(), ScalarSmall::ONE);
+
+        let mut b = ScalarLarge::new(U256::from_be_hex(
+            "c1f940f620808011b3455e91dc9813afffb3b123d4537cf2f63a51eb1208ec50",
+        ));
+        assert!(b != ScalarLarge::ZERO);
+        assert_eq!(b * b.inverse(), ScalarLarge::ONE);
+
+        b = ScalarLarge::new(U256::from_be_hex(
+            "354880368b136b492e8cbce77a7b5ffc3dbef5087bc30537b87ca9d57648c840"
+        ));
+        assert_eq!(b * b.inverse(), ScalarLarge::ONE);
+        b = ScalarLarge::new(Tom256k1::ORDER);
+        assert_eq!(b * b.inverse(), ScalarLarge::ONE);
+        b = ScalarLarge::new(Secp256k1::GENERATOR_X);
+        assert_eq!(b * b.inverse(), ScalarLarge::ONE);
     }
 }
