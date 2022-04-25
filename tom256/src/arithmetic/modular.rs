@@ -1,5 +1,7 @@
 use bigint::{NonZero, Split, U256, U512};
 
+const TWO: U256 = U256::from_u8(2);
+
 pub trait Modular: Sized {
     const MODULUS: U256;
 
@@ -22,6 +24,12 @@ pub trait Modular: Sized {
     fn mul(&self, other: &Self) -> Self {
         Self::new(mul_mod_u256(self.inner(), other.inner(), &Self::MODULUS))
     }
+
+    fn invert(&self) -> Self {
+        // TODO
+        let mod_minus_two = Self::MODULUS.saturating_sub(&TWO);
+        Self::new(exp_mod_u256(self.inner(), &mod_minus_two, &Self::MODULUS))
+    }
 }
 
 pub fn mul_mod_u256(lhs: &U256, rhs: &U256, modulus: &U256) -> U256 {
@@ -41,6 +49,22 @@ pub fn mul_mod_u256(lhs: &U256, rhs: &U256, modulus: &U256) -> U256 {
     };
     debug_assert_eq!(hi, U256::ZERO);
     lo
+}
+
+pub fn exp_mod_u256(base: &U256, exponent: &U256, modulus: &U256) -> U256 {
+    let mut r = U256::ONE;
+    let mut q = *base;
+    let mut k = *exponent;
+    while k > U256::ZERO {
+        // NOTE unwrap is fine because 2 is nonzero
+        if k % NonZero::new(TWO).unwrap() == U256::ONE {
+            // k is odd
+            r = mul_mod_u256(&r, &q, modulus);
+        }
+        q = mul_mod_u256(&q, &q, modulus);
+        k = k.wrapping_div(&TWO)
+    }
+    r
 }
 
 #[cfg(test)]

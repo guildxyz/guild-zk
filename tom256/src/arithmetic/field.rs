@@ -17,6 +17,8 @@ impl<C: Curve> Modular for FieldElement<C> {
     const MODULUS: U256 = C::PRIME_MODULUS;
 
     fn new(number: U256) -> Self {
+        // NOTE bigint's internal modulo operation
+        // returns zero instead of number if number < modulus
         let reduced = if number < Self::MODULUS {
             number
         } else {
@@ -32,13 +34,6 @@ impl<C: Curve> Modular for FieldElement<C> {
         &self.0
     }
 }
-
-// NOTE might use this if we want to save the additional modulo operation in `new`
-//impl<C: Curve> FieldElement<C> {
-//    pub(crate) fn new_no_mod(number: U256) -> Self {
-//        Self(number, PhantomData)
-//    }
-//}
 
 impl<'a, 'b, C: Curve> std::ops::Add<&'b FieldElement<C>> for &'a FieldElement<C> {
     type Output = FieldElement<C>;
