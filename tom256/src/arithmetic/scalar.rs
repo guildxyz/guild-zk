@@ -1,8 +1,11 @@
 use super::modular::{mod_u256, Modular};
-use crate::utils::get_random_modular;
+
+use crate::utils::random_mod_u256;
 use crate::Curve;
 
 use bigint::U256;
+
+use rand_core::{RngCore, CryptoRng};
 
 use std::marker::PhantomData;
 
@@ -50,8 +53,8 @@ impl<C: Curve> Modular for Scalar<C> {
 }
 
 impl<C: Curve> Scalar<C> {
-    pub fn random() -> Self {
-        get_random_modular::<Self>()
+    pub fn random<R: CryptoRng + RngCore>(rng: &mut R) -> Self {
+        random_mod_u256::<Self, R>(rng)
     }
 }
 
