@@ -311,8 +311,39 @@ mod test {
 
     #[test]
     fn point_addition_test() {
+        //let random_double = SecPoint {
+        //    x: FieldElement::new(U256::from_be_hex(
+        //        "B8F0170E293FCC9291BEE2665E9CA9B25D3B11810ED68D9EA0CB440D7064E4DA",
+        //    )),
+        //    y: FieldElement::new(U256::from_be_hex(
+        //        "0691AA44502212591132AA6F27582B78F9976998DE355C4EE5960DB05AC0A2A3",
+        //    )),
+        //    z: FieldElement::ONE,
+        //}
+        //.double()
+        //.into_affine();
+        //assert!(random_double.is_on_curve());
+        //assert_eq!(
+        //    random_double.x().inner(),
+        //    &U256::from_be_hex("d99bdf80fe99540ed7c33669cc43ac72fa2fa2c14b731ae6758c1c17eaf7b26e")
+        //);
+        //assert_eq!(
+        //    random_double.y().inner(),
+        //    &U256::from_be_hex("cac2c38a379655150567315c7cf7f596585b577b28e03108b0d2df2b9c83af52")
+        //);
+        //assert_eq!(random_double.z().inner(), &U256::ONE);
+
+        let g2 = SecPoint::GENERATOR.double().into_affine();
+        assert_eq!(
+            g2.x().inner(),
+            &U256::from_be_hex("c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5")
+        );
+        assert_eq!(
+            g2.y().inner(),
+            &U256::from_be_hex("1ae168fea63dc339a3c58419466ceaeef7f632653266d0e1236431a950cfe52a")
+        );
+
         let four = SecScalar::new(U256::from_u8(4));
-        let g2 = SecPoint::GENERATOR.double();
         let g4 = SecPoint::GENERATOR.scalar_mul(&four);
         assert_eq!(g2.double(), g4);
         assert_eq!(&g2 + &g2, g4);
