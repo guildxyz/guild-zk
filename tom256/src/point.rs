@@ -1,6 +1,4 @@
-use crate::arithmetic::field::FieldElement;
-use crate::arithmetic::modular::{mul_mod_u256, Modular};
-use crate::arithmetic::scalar::Scalar;
+use crate::arithmetic::{mul_mod_u256, FieldElement, Modular, Scalar};
 use crate::Curve;
 
 use bigint::prelude::Encoding;
@@ -60,6 +58,17 @@ impl<C: Curve> std::ops::Neg for Point<C> {
     }
 }
 
+impl<C: Curve> std::ops::Neg for &Point<C> {
+    type Output = Point<C>;
+    fn neg(self) -> Self::Output {
+        Point {
+            x: self.x,
+            y: -self.y,
+            z: self.z,
+        }
+    }
+}
+
 impl<C: Curve> std::ops::Add for Point<C> {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {
@@ -67,9 +76,9 @@ impl<C: Curve> std::ops::Add for Point<C> {
     }
 }
 
-impl<'a, 'b, C: Curve> std::ops::Add<&'b Point<C>> for &'b Point<C> {
+impl<'a, 'b, C: Curve> std::ops::Add<&'b Point<C>> for &'a Point<C> {
     type Output = Point<C>;
-    fn add(self, rhs: &Point<C>) -> Self::Output {
+    fn add(self, rhs: &'b Point<C>) -> Self::Output {
         self.geometric_add(rhs)
     }
 }
@@ -84,6 +93,27 @@ impl<C: Curve> std::ops::Sub for Point<C> {
     type Output = Point<C>;
     fn sub(self, rhs: Self) -> Self {
         self + (-rhs)
+    }
+}
+
+impl<'a, 'b, C: Curve> std::ops::Sub<&'b Point<C>> for &'a Point<C> {
+    type Output = Point<C>;
+    fn sub(self, rhs: &'b Point<C>) -> Self::Output {
+        self + &(-rhs)
+    }
+}
+
+impl<C: Curve> std::ops::Mul<Scalar<C>> for &Point<C> {
+    type Output = Point<C>;
+    fn mul(self, rhs: Scalar<C>) -> Self::Output {
+        self.scalar_mul(&rhs)
+    }
+}
+
+impl<'a, 'b, C: Curve> std::ops::Mul<&'b Scalar<C>> for &'a Point<C> {
+    type Output = Point<C>;
+    fn mul(self, rhs: &'b Scalar<C>) -> Self::Output {
+        self.scalar_mul(rhs)
     }
 }
 

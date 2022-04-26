@@ -1,4 +1,6 @@
-use bigint::{NonZero, Split, U256, U512};
+use bigint::{Encoding, NonZero, Split, U256, U512};
+use rand_core::{CryptoRng, RngCore};
+use subtle::ConstantTimeLess;
 
 const TWO: U256 = U256::from_u8(2);
 
@@ -75,6 +77,21 @@ fn exp_mod_u256(base: &U256, exponent: &U256, modulus: &U256) -> U256 {
         k >>= 1; // division by 2
     }
     r
+}
+
+fn get_random_u256<R: CryptoRng + RngCore>(rng: &mut R) -> U256 {
+    let mut bytes = [0_u8; 32];
+    rng.fill_bytes(&mut bytes);
+    U256::from_be_bytes(bytes)
+}
+
+pub fn random_mod_u256<T: Modular, R: CryptoRng + RngCore>(rng: &mut R) -> T {
+    loop {
+        let random_number = get_random_u256(rng);
+        if random_number.ct_lt(&T::MODULUS).into() {
+            return T::new(random_number);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -292,5 +309,72 @@ mod test {
             U256::from_be_hex("7f2de0f2d89077f70b423feea263590266e38e24f229ad6039cdbc09b410e4d5");
 
         assert_eq!(exp_mod_u256(&base, &exponent, &modulus), expected);
+    }
+}
+
+#[cfg(test)]
+mod random_test {
+    use super::*;
+    use rand::{ChaChaRng, FromEntropy};
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub struct TestModular(U256);
+
+    // assumed to be < 255
+    const MOD: u32 = 17;
+
+    impl Modular for TestModular {
+        const MODULUS: U256 = U256::from_u32(MOD);
+        fn new(number: U256) -> Self {
+            let reduced = if number < Self::MODULUS {
+                number
+            } else {
+                // NOTE unwrap is fine here because the modulus
+                // can be safely assumed to be nonzero
+                number % NonZero::new(Self::MODULUS).unwrap()
+            };
+            Self(reduced)
+        }
+
+        fn inner(&self) -> &U256 {
+            &self.0
+        }
+    }
+
+    // assumed: mod_byte_number <= 4
+    // Only for tests
+    fn get_random_small_modular<T: Modular, R: CryptoRng + RngCore>(
+        mod_byte_number: u8,
+        rng: &mut R,
+    ) -> T {
+        loop {
+            let random_number_bytes = get_random_u256(rng).to_be_bytes();
+
+            for small_bytes in random_number_bytes.chunks_exact(mod_byte_number as usize) {
+                let mut random_number = 0_u32;
+                for i in 0..mod_byte_number as usize {
+                    random_number = (random_number << 8) + (small_bytes[i] as u32);
+                }
+                let random_number = U256::from_u32(random_number);
+
+                if random_number.ct_lt(&T::MODULUS).into() {
+                    return T::new(random_number);
+                }
+            }
+        }
+    }
+
+    // Don't do this if you value your time
+    // It works, just trust me
+    #[ignore]
+    #[test]
+    fn test_rand() {
+        let mut vec = vec![0; MOD as usize];
+        let mut rng = ChaChaRng::from_entropy();
+        for _ in 0..1000000 {
+            let rand_num = get_random_small_modular::<TestModular, ChaChaRng>(1, &mut rng);
+            vec[rand_num.inner().into_limbs()[0].0 as usize] += 1;
+        }
+        println!("{:?}", vec);
     }
 }
