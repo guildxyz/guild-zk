@@ -352,8 +352,8 @@ mod random_test {
 
             for small_bytes in random_number_bytes.chunks_exact(mod_byte_number as usize) {
                 let mut random_number = 0_u32;
-                for i in 0..mod_byte_number as usize {
-                    random_number = (random_number << 8) + (small_bytes[i] as u32);
+                for i in small_bytes.iter().take(mod_byte_number as usize) {
+                    random_number = (random_number << 8) + (*i as u32);
                 }
                 let random_number = U256::from_u32(random_number);
 

@@ -1,9 +1,9 @@
-mod arithmetic;
-mod pedersen;
-mod point;
+pub mod arithmetic;
+pub mod pedersen;
+pub mod utils;
 
 use arithmetic::{FieldElement, Modular};
-use bigint::U256;
+pub use bigint::U256;
 
 pub trait Curve: Clone + Copy + std::fmt::Debug + PartialEq + Eq {
     const PRIME_MODULUS: U256;

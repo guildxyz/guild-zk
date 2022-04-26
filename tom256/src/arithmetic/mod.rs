@@ -1,7 +1,9 @@
 mod field;
 mod modular;
+mod point;
 mod scalar;
 
 pub use field::FieldElement;
-pub use modular::{mul_mod_u256, Modular};
+pub use modular::Modular;
+pub use point::Point;
 pub use scalar::Scalar;

@@ -1,5 +1,4 @@
-use crate::arithmetic::Scalar;
-use crate::point::Point;
+use crate::arithmetic::{Point, Scalar};
 use crate::Curve;
 
 use rand_core::{CryptoRng, RngCore};
