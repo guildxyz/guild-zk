@@ -6,11 +6,25 @@ use crate::Curve;
 use bigint::U256;
 
 use rand_core::{CryptoRng, RngCore};
+use std::cmp::{Eq, PartialEq, PartialOrd, Ord, Ordering};
 
 use std::marker::PhantomData;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Scalar<C: Curve>(U256, PhantomData<C>);
+
+impl<C: Curve> PartialOrd for Scalar<C> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        // NOTE: Constant time comparation could be used for further security
+        Some(self.0.cmp(&other.0))
+    }
+}
+
+impl<C: Curve> Ord for Scalar<C> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.0.cmp(&other.0)
+    }
+}
 
 impl<C: Curve> Scalar<C> {
     pub const ONE: Self = Self(U256::ONE, PhantomData);
