@@ -38,6 +38,10 @@ impl<C: Curve> Scalar<C> {
             .skip_while(|&c| c == '0')
             .collect()
     }
+
+    pub fn random<R: CryptoRng + RngCore>(rng: &mut R) -> Self {
+        random_mod_u256::<Self, R>(rng)
+    }
 }
 
 impl<C: Curve> Modular for Scalar<C> {
@@ -49,12 +53,6 @@ impl<C: Curve> Modular for Scalar<C> {
 
     fn inner(&self) -> &U256 {
         &self.0
-    }
-}
-
-impl<C: Curve> Scalar<C> {
-    pub fn random<R: CryptoRng + RngCore>(rng: &mut R) -> Self {
-        random_mod_u256::<Self, R>(rng)
     }
 }
 

@@ -266,7 +266,7 @@ impl<C: Curve> Point<C> {
     }
 }
 
-pub fn hash_points<C: Curve>(hash_id: &[u8], points: &Vec<Point<C>>) -> U256 {
+pub fn hash_points<C: Curve>(hash_id: &[u8], points: &[Point<C>]) -> U256 {
     // create a SHA3-256 object
     let mut hasher = Sha3_256::new();
 
@@ -324,7 +324,7 @@ mod test {
     }
 
     #[test]
-    fn point_addition_test() {
+    fn point_addition() {
         let g2 = SecPoint::GENERATOR.double();
         assert_eq!(
             g2.x().inner(),
@@ -391,6 +391,41 @@ mod test {
         let g2 = SecPoint::GENERATOR.double().into_affine();
         let g4 = g2.double().into_affine();
         assert_eq!((g4 + SecPoint::GENERATOR).into_affine(), g5);
+    }
+
+    #[test]
+    fn scalar_multiplication() {
+        let d = TomScalar::new(U256::from_be_hex(
+            "c51e4753afdec1e6b6c6a5b992f43f8dd0c7a8933072708b6522468b2ffb06fd",
+        ));
+        let e = TomScalar::new(U256::from_be_hex(
+            "d37f628ece72a462f0145cbefe3f0b355ee8332d37acdd83a358016aea029db7",
+        ));
+        let f = TomScalar::new(U256::from_be_hex(
+            "B8F0170E293FCC9291BEE2665E9CA9B25D3B11810ED68D9EA0CB440D7064E4DA",
+        ));
+
+        let t = TomPoint::GENERATOR.scalar_mul(&d).into_affine();
+        assert!(t.is_on_curve());
+        assert_eq!(
+            t.x().inner(),
+            &U256::from_be_hex("3758fd961003dc291e21523313f0b4329d732b84e52f0159b2d6627bca8d2db2")
+        );
+        assert_eq!(
+            t.y().inner(),
+            &U256::from_be_hex("0c21e4f939a5d91c1473416bb936e61bd688dd91db2778f832a54cdacc207deb")
+        );
+
+        let r = TomPoint::GENERATOR.double_mul(&e, &t, &f).into_affine();
+        assert!(r.is_on_curve());
+        assert_eq!(
+            r.x().inner(),
+            &U256::from_be_hex("8fdb6195754109cc23c635f41f799fd6e1f6078eb94fe0d9cde1eb80d36e5e31")
+        );
+        assert_eq!(
+            r.y().inner(),
+            &U256::from_be_hex("fddd45b8f6f633074edddcf1394a1c9498e6f7b5847b744adf01833f38553c01")
+        );
     }
 
     #[test]
