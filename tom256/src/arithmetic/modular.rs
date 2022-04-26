@@ -315,7 +315,7 @@ mod test {
 #[cfg(test)]
 mod random_test {
     use super::*;
-    use rand::{ChaChaRng, FromEntropy};
+    use rand_core::OsRng;
 
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     pub struct TestModular(U256);
@@ -370,9 +370,9 @@ mod random_test {
     #[test]
     fn test_rand() {
         let mut vec = vec![0; MOD as usize];
-        let mut rng = ChaChaRng::from_entropy();
+        let mut rng = OsRng;
         for _ in 0..1000000 {
-            let rand_num = get_random_small_modular::<TestModular, ChaChaRng>(1, &mut rng);
+            let rand_num = get_random_small_modular::<TestModular, OsRng>(1, &mut rng);
             vec[rand_num.inner().into_limbs()[0].0 as usize] += 1;
         }
         println!("{:?}", vec);
