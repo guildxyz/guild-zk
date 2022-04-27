@@ -1,10 +1,7 @@
-use super::modular::{mod_u256, Modular};
-
-use crate::utils::random_mod_u256;
+use super::modular::{mod_u256, random_mod_u256, Modular};
 use crate::Curve;
 
 use bigint::U256;
-
 use rand_core::{CryptoRng, RngCore};
 use std::cmp::{Eq, PartialEq, PartialOrd, Ord, Ordering};
 
@@ -95,6 +92,13 @@ impl<C: Curve> std::ops::Mul for Scalar<C> {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self::Output {
         Modular::mul(&self, &rhs)
+    }
+}
+
+impl<'a, 'b, C: Curve> std::ops::Mul<&'b Scalar<C>> for &'a Scalar<C> {
+    type Output = Scalar<C>;
+    fn mul(self, rhs: &'b Scalar<C>) -> Self::Output {
+        Modular::mul(self, rhs)
     }
 }
 

@@ -128,7 +128,6 @@ mod test {
     fn operations_with_small_modulus() {
         let a = FeSmall::new(U256::from_u32(15));
         let b = FeSmall::new(U256::from_u32(9));
-        assert_eq!(&a + &b, FeSmall::new(U256::from_u32(7)));
         assert_eq!(a * b, FeSmall::new(U256::from_u32(16)));
         assert_eq!(a + b, FeSmall::new(U256::from_u32(7)));
         assert_eq!(a - b, FeSmall::new(U256::from_u32(6)));

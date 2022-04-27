@@ -1,92 +1,36 @@
-use rand_core::{CryptoRng, RngCore};
+use crate::arithmetic::{Modular, Point};
+use crate::Curve;
 
-use bigint::prelude::Encoding;
-use bigint::U256;
+use bigint::{Encoding, U256};
+use sha3::{Digest, Sha3_256};
 
-use subtle::ConstantTimeLess;
+pub fn hash_points<C: Curve>(hash_id: &[u8], points: &[Point<C>]) -> U256 {
+    // create a SHA3-256 object
+    let mut hasher = Sha3_256::new();
 
-use crate::arithmetic::modular::Modular;
+    hasher.update(hash_id);
+    for p in points {
+        // write input message
+        hasher.update(p.x().inner().to_be_bytes());
+        hasher.update(p.y().inner().to_be_bytes());
+        hasher.update(p.z().inner().to_be_bytes());
+    }
 
-fn get_random_u256<R: CryptoRng + RngCore>(rng: &mut R) -> U256 {
-    let mut bytes = [0_u8; 32];
-    rng.fill_bytes(&mut bytes);
-    U256::from_be_bytes(bytes)
+    // read hash digest
+    let result = hasher.finalize();
+    U256::from_be_bytes(result[0..32].try_into().unwrap())
 }
 
-pub fn random_mod_u256<T: Modular, R: CryptoRng + RngCore>(rng: &mut R) -> T {
-    loop {
-        let random_number = get_random_u256(rng);
-        if random_number.ct_lt(&T::MODULUS).into() {
-            return T::new(random_number);
-        }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use bigint::NonZero;
-
-    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-    pub struct TestModular(U256);
-
-    // assumed to be < 255
-    const MOD: u32 = 17;
-
-    impl Modular for TestModular {
-        const MODULUS: U256 = U256::from_u32(MOD);
-        fn new(number: U256) -> Self {
-            let reduced = if number < Self::MODULUS {
-                number
-            } else {
-                // NOTE unwrap is fine here because the modulus
-                // can be safely assumed to be nonzero
-                number % NonZero::new(Self::MODULUS).unwrap()
-            };
-            Self(reduced)
-        }
-
-        fn inner(&self) -> &U256 {
-            &self.0
-        }
-    }
-
-    // assumed: mod_byte_number <= 4
-    // Only for tests
-    #[allow(unused)]
-    fn get_random_small_modular<T: Modular, R: CryptoRng + RngCore>(
-        mod_byte_number: u8,
-        rng: &mut R,
-    ) -> T {
-        loop {
-            let random_number_bytes = get_random_u256(rng).to_be_bytes();
-
-            for small_bytes in random_number_bytes.chunks_exact(mod_byte_number as usize) {
-                let mut random_number = 0_u32;
-                for i in 0..mod_byte_number as usize {
-                    random_number = (random_number << 8) + (small_bytes[i] as u32);
-                }
-                let random_number = U256::from_u32(random_number);
-
-                if random_number.ct_lt(&T::MODULUS).into() {
-                    return T::new(random_number);
-                }
-            }
-        }
-    }
-
-    /*
-    // Don't do this if you value your time
-    // It works, just trust me
-    #[test]
-    fn test_rand() {
-        let mut vec = vec![0; MOD as usize];
-        let mut rng = ChaChaRng::from_entropy();
-        for i in 0..1000000 {
-            let rand_num = get_random_small_modular::<TestModular, ChaChaRng>(1, &mut rng);
-            vec[rand_num.inner().into_limbs()[0].0 as usize] += 1;
-        }
-        println!("{:?}", vec);
-    }
-    */
+#[test]
+fn points_hash_test() {
+    let hash_id = "test".as_bytes();
+    let points = vec![
+        Point::<crate::Secp256k1>::GENERATOR,
+        Point::<crate::Secp256k1>::GENERATOR.double(),
+    ];
+    let expected_hash = "C9B5BD2009A84423D2CBCEB411CDDAF7423B372B5F63821DACFFFA0041A6B8F7";
+    assert_eq!(
+        hash_points(hash_id, &points),
+        U256::from_be_hex(expected_hash)
+    );
 }

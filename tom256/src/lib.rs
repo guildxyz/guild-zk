@@ -1,12 +1,10 @@
 pub mod arithmetic;
 mod multimult;
-mod point;
-mod utils;
+pub mod pedersen;
+pub mod utils;
 
-use arithmetic::field::FieldElement;
-use arithmetic::modular::Modular;
-
-use bigint::U256;
+use arithmetic::{FieldElement, Modular};
+pub use bigint::U256;
 
 pub trait Curve: Clone + Copy + std::fmt::Debug + PartialEq + Eq {
     const PRIME_MODULUS: U256;

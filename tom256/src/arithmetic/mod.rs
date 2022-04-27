@@ -1,3 +1,9 @@
-pub mod field;
-pub mod modular;
-pub mod scalar;
+mod field;
+mod modular;
+mod point;
+mod scalar;
+
+pub use field::FieldElement;
+pub use modular::Modular;
+pub use point::Point;
+pub use scalar::Scalar;
