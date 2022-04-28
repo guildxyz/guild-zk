@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { MISSING_REFLECT_CONF_MSG } from 'typedjson/lib/types/helpers'
 import { Group } from './group'
 
 class Pair {
@@ -68,14 +69,18 @@ export class MultiMult {
         }
         heapify(this.pairs)
         // eslint-disable-next-line no-constant-condition
+        let num_of_steps = 0;
         while (true) {
+            num_of_steps += 1;
             if (this.pairs.length === 1) {
                 const a = this.pairs[0]
+                console.log(num_of_steps);
                 return a.pt.mul(a.scalar)
             }
             const a = extractMax(this.pairs),
                 b = this.pairs[0]
             if (b.scalar.isZero()) {
+                console.log(num_of_steps);
                 return a.pt.mul(a.scalar)
             }
             const c = new Pair(a.pt, a.scalar.sub(b.scalar)),
@@ -86,6 +91,7 @@ export class MultiMult {
                 bubbleup(this.pairs, this.pairs.length)
             }
         }
+        
     }
 }
 

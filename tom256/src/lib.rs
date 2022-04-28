@@ -1,5 +1,4 @@
 pub mod arithmetic;
-mod multimult;
 pub mod pedersen;
 pub mod utils;
 

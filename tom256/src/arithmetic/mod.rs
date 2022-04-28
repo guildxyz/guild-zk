@@ -1,5 +1,6 @@
 mod field;
 mod modular;
+mod multimult;
 mod point;
 mod scalar;
 

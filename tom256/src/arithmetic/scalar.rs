@@ -3,7 +3,7 @@ use crate::Curve;
 
 use bigint::U256;
 use rand_core::{CryptoRng, RngCore};
-use std::cmp::{Eq, PartialEq, PartialOrd, Ord, Ordering};
+use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 
 use std::marker::PhantomData;
 

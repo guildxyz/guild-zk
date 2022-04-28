@@ -422,5 +422,15 @@ mod test {
             r.y().inner(),
             &U256::from_be_hex("fddd45b8f6f633074edddcf1394a1c9498e6f7b5847b744adf01833f38553c01")
         );
+
+        let mut g12 = TomPoint::IDENTITY;
+        for _ in 0..12 {
+            g12 = g12 + TomPoint::GENERATOR;
+        }
+
+        assert_eq!(
+            TomPoint::GENERATOR.scalar_mul(&TomScalar::new(U256::from_u32(12))),
+            g12
+        );
     }
 }
