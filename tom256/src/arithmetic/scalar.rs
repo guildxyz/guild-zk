@@ -285,6 +285,22 @@ mod test {
     }
 
     #[test]
+    fn random_pad_to_equal_len() {
+        let long = ScalarLarge::new(U256::from_be_hex(
+            "c1f940f620808011b3455e91dc9813afffb3b123d4537cf2f63a51eb1208ec50",
+        ));
+        let mut rng = rand_core::OsRng;
+        for _ in 0..50 {
+            let random = ScalarLarge::random(&mut rng);
+            let (long_string, random_string) = long.pad_to_equal_len_strings(&random);
+            let random_expected = U256::from_be_hex(&random_string);
+            let long_expected = U256::from_be_hex(&long_string);
+            assert_eq!(long.inner(), &long_expected);
+            assert_eq!(random.inner(), &random_expected);
+        }
+    }
+
+    #[test]
     fn inverse() {
         let mut a = ScalarSmall::new(U256::from_u8(10));
         assert!(a != ScalarSmall::ZERO);
