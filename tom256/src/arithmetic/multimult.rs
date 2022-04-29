@@ -1,4 +1,4 @@
-use super::{FieldElement, Modular, Point, Scalar};
+use super::{Point, Scalar};
 
 use crate::Curve;
 
@@ -21,6 +21,12 @@ pub struct Known<C: Curve> {
 pub struct MultiMult<C: Curve> {
     pairs: Vec<Pair<C>>,
     known: Vec<Known<C>>,
+}
+
+impl<C: Curve> Default for MultiMult<C> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<C: Curve> MultiMult<C> {
@@ -53,7 +59,7 @@ impl<C: Curve> MultiMult<C> {
     }
 
     pub fn evaluate(self) -> Point<C> {
-        if self.pairs.len() == 0 {
+        if self.pairs.is_empty() {
             return Point::<C>::IDENTITY;
         }
         if self.pairs.len() == 1 {
@@ -101,6 +107,12 @@ pub struct Relation<C: Curve> {
     pairs: Vec<Pair<C>>,
 }
 
+impl<C: Curve> Default for Relation<C> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<C: Curve> Relation<C> {
     pub fn new() -> Self {
         Self { pairs: vec![] }
@@ -144,6 +156,7 @@ impl<C: Curve> Ord for Pair<C> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::arithmetic::{FieldElement, Modular};
     use crate::Secp256k1;
 
     use bigint::U256;
@@ -176,7 +189,7 @@ mod test {
 
     #[test]
     fn multimult_empty() {
-        let mut multimult = MultiMult::<Secp256k1>::new();
+        let multimult = MultiMult::<Secp256k1>::new();
         assert_eq!(multimult.evaluate(), SecPoint::IDENTITY);
     }
 
@@ -211,18 +224,18 @@ mod test {
             scalars.push(SecScalar::random(&mut rng));
         }
 
-        for i in 0..summa_len {
+        for (i, scalar) in scalars.iter().enumerate() {
             let mut pt = SecPoint::GENERATOR;
             for _ in 0..i {
                 pt = pt.double();
             }
 
             let now = Instant::now();
-            let new_term = pt.scalar_mul(&scalars[i]);
+            let new_term = pt.scalar_mul(scalar);
             expected = expected + new_term;
             normal_time += now.elapsed();
 
-            multimult.insert(pt, scalars[i]);
+            multimult.insert(pt, *scalar);
         }
 
         let now = Instant::now();
@@ -246,19 +259,23 @@ mod test {
             scalars.push(SecScalar::random(&mut rng));
         }
 
-        for i in 0..summa_len {
+        for (i, scalar) in scalars.iter().enumerate() {
             let mut pt = SecPoint::GENERATOR;
             for _ in 0..i {
                 pt = pt.double();
             }
-            rel.insert(pt, scalars[i]);
+            rel.insert(pt, *scalar);
         }
 
         let multimult = rel.drain(&mut rng);
         let sum = multimult.evaluate();
         let expected = SecPoint::new(
-            FieldElement::new(U256::from_be_hex("9913e57053c21be1383b08242483c1f245864bbd02b5f111b09dfbe9fe12ec7c")),
-            FieldElement::new(U256::from_be_hex("5ccacf75bbae45598b952f580ba6906072efb914dd751a04182583884750d46a")),
+            FieldElement::new(U256::from_be_hex(
+                "9913e57053c21be1383b08242483c1f245864bbd02b5f111b09dfbe9fe12ec7c",
+            )),
+            FieldElement::new(U256::from_be_hex(
+                "5ccacf75bbae45598b952f580ba6906072efb914dd751a04182583884750d46a",
+            )),
             FieldElement::ONE,
         );
         assert_eq!(sum, expected);

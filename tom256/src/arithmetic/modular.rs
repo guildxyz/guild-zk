@@ -1,4 +1,4 @@
-use bigint::{Encoding, NonZero, Split, U256, U512};
+use bigint::{NonZero, Split, U256, U512};
 use rand_core::{CryptoRng, RngCore};
 use subtle::ConstantTimeLess;
 
@@ -316,6 +316,8 @@ mod test {
 mod random_test {
     use super::*;
     use rand_core::OsRng;
+
+    use bigint::Encoding;
 
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     pub struct TestModular(U256);
