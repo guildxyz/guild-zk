@@ -96,11 +96,11 @@ mod test {
         let c = commitment.commitment.into_affine();
         assert_eq!(
             c.x().inner(),
-            &U256::from_be_hex("52ceb5ec5cdb13c87b87e60b709b8ad1b8f6b258e5a32f836028651bb9e093fc")
+            &U256::from_be_hex("0c4606f42cfd890d7ab5cba7ab084c47e0b39f156930d3c4ded8774f70d7cbee")
         );
         assert_eq!(
             c.y().inner(),
-            &U256::from_be_hex("8edd2b609ccf7c5b942359e7916308062a53a1bda87fb5d2066d71a2751da247")
+            &U256::from_be_hex("45194d6562509b86a80c6dcc5f7a71fd594ef0f4400f73a852074ea52c9c58f3")
         );
         assert_eq!(c.z().inner(), &U256::ONE);
     }

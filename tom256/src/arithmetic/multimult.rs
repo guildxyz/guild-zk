@@ -151,11 +151,14 @@ mod test {
         assert_eq!(multimult.evaluate(), expected);
     }
 
-    use bigint::{U256, Encoding,  Split};
+    use bigint::{Encoding, Split, U256};
 
     #[test]
     fn multimult_single_hard() {
-        let mut rng = ChaChaRng::from_seed([54, 1, 63, 153, 89, 49, 228, 122, 166, 230, 220, 138, 243, 90, 252, 212, 162, 48, 105, 3, 140, 12, 169, 247, 176, 212, 208, 179, 38, 62, 94, 172]);
+        let mut rng = ChaChaRng::from_seed([
+            54, 1, 63, 153, 89, 49, 228, 122, 166, 230, 220, 138, 243, 90, 252, 212, 162, 48, 105,
+            3, 140, 12, 169, 247, 176, 212, 208, 179, 38, 62, 94, 172,
+        ]);
         //let mut rng = ChaChaRng::from_entropy();
 
         //println!("{:?}", rng.get_seed());
@@ -166,7 +169,6 @@ mod test {
         let mut multimult = MultiMult::<Secp256k1>::new();
         let mut expected = SecPoint::IDENTITY;
 
-        
         let scalars_r = vec![
             SecScalar::random(&mut rng),
             SecScalar::random(&mut rng),
@@ -182,16 +184,21 @@ mod test {
             SecScalar::random(&mut rng),
             */
         ];
-        
-        
-        
+
         let scalars = vec![
-            SecScalar::new(U256::from_be_hex("83fec693ac341a0f8f3f0e6a5b18af130f3fbc2b06a00ea55743fa89e031cb5e")),
-            SecScalar::new(U256::from_be_hex("d125353892a829607afcb23febb06e84c9745f1bf040bc6d1b64672a3b9148fd")),
-            SecScalar::new(U256::from_be_hex("f76c1fa7e623e38096a97fa0af4d19cce9a6d2cf62451f38d60245aed85e425f")),
-            SecScalar::new(U256::from_be_hex("7fc351545f19ec3aecd29b4a5149a2fa56c0731cf34031e90eed16e2b78f1fa3")),
+            SecScalar::new(U256::from_be_hex(
+                "83fec693ac341a0f8f3f0e6a5b18af130f3fbc2b06a00ea55743fa89e031cb5e",
+            )),
+            SecScalar::new(U256::from_be_hex(
+                "d125353892a829607afcb23febb06e84c9745f1bf040bc6d1b64672a3b9148fd",
+            )),
+            SecScalar::new(U256::from_be_hex(
+                "f76c1fa7e623e38096a97fa0af4d19cce9a6d2cf62451f38d60245aed85e425f",
+            )),
+            SecScalar::new(U256::from_be_hex(
+                "7fc351545f19ec3aecd29b4a5149a2fa56c0731cf34031e90eed16e2b78f1fa3",
+            )),
         ];
-        
 
         /*
         let scalars = vec![
@@ -199,15 +206,13 @@ mod test {
             SecScalar::new(U256::from_be_hex("0DAD136B4C4628B9BADC425E7ED90FEB95D47D0B35EAC27C2E00AEA848DEB943")),
         ];
         */
-        
+
         /*
         let scalars = vec![
             SecScalar::new(U256::from_be_hex("000000000000000000000000000000000000000000000000000000000000e031")),
             SecScalar::new(U256::from_be_hex("0000000000000000000000000000000000000000000000000000000000000a05")),
         ];
         */
-        
-        
 
         /*
         println!("Scalars:");
@@ -222,7 +227,7 @@ mod test {
         assert_eq!(scalars_r[1], scalars[1]);
         assert_eq!(scalars_r[2], scalars[2]);
         assert_eq!(scalars_r[3], scalars[3]);
-        
+
         for i in 0..4 {
             let mut pt = SecPoint::GENERATOR;
             for _ in 0..i {
