@@ -19,3 +19,4 @@ wasm-bindgen = "0.2.80"
 
 [dev-dependencies]
 rand = { version = "0.8.5", features = ["std"] }
+rand_chacha = "0.3.1"

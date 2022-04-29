@@ -3,11 +3,25 @@ use crate::Curve;
 
 use bigint::U256;
 use rand_core::{CryptoRng, RngCore};
+use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 
 use std::marker::PhantomData;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Scalar<C: Curve>(U256, PhantomData<C>);
+
+impl<C: Curve> PartialOrd for Scalar<C> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        // NOTE: Constant time comparation could be used for further security
+        Some(self.0.cmp(&other.0))
+    }
+}
+
+impl<C: Curve> Ord for Scalar<C> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.0.cmp(&other.0)
+    }
+}
 
 impl<C: Curve> Scalar<C> {
     pub const ONE: Self = Self(U256::ONE, PhantomData);
@@ -201,6 +215,10 @@ mod test {
         assert_eq!(a_min_b, -b_min_a);
     }
 
+    fn pad_to_64(string: &str) -> String {
+        format!("{:0>64}", string)
+    }
+
     #[test]
     fn unpad_display() {
         let a = ScalarLarge::new(U256::from_u8(0xb1));
@@ -211,10 +229,10 @@ mod test {
             "354880368b136b492e8cbce77a7b5ffc3dbef5087bc30537b87ca9d57648c840",
         ));
 
-        assert_eq!(a.to_string(), "000b1".to_uppercase());
+        assert_eq!(a.to_string(), pad_to_64("b1").to_uppercase());
         assert_eq!(
             b.to_string(),
-            "01234567890223451233cbbb101235678677e".to_uppercase()
+            pad_to_64("01234567890223451233cbbb101235678677e").to_uppercase()
         );
         assert_eq!(
             c.to_string(),

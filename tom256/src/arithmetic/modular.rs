@@ -82,7 +82,7 @@ fn exp_mod_u256(base: &U256, exponent: &U256, modulus: &U256) -> U256 {
 fn get_random_u256<R: CryptoRng + RngCore>(rng: &mut R) -> U256 {
     let mut bytes = [0_u8; 32];
     rng.fill_bytes(&mut bytes);
-    U256::from_be_bytes(bytes)
+    U256::from_be_slice(&bytes)
 }
 
 pub fn random_mod_u256<T: Modular, R: CryptoRng + RngCore>(rng: &mut R) -> T {
