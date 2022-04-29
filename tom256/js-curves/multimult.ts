@@ -180,4 +180,14 @@ export class Relation {
             m.insert(this.pairs[i as number].pt, this.pairs[i as number].scalar.mul(randomizer))
         }
     }
+
+    public drain_with_randomizer(m: MultiMult, r: Group.Scalar): void {
+        //const randomizer = this.group.randomScalar()
+        // TODO add a seedable rng value from rust (print it there first)
+        // that's always has the same value due to the seed
+        const randomizer = r
+        for (let i = 0; i < this.pairs.length; i++) {
+            m.insert(this.pairs[i as number].pt, this.pairs[i as number].scalar.mul(randomizer))
+        }
+    }
 }

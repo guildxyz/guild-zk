@@ -113,6 +113,10 @@ impl<C: Curve> Point<C> {
         z: FieldElement::ZERO,
     };
 
+    pub fn new(x: FieldElement<C>, y: FieldElement<C>, z: FieldElement<C>) -> Self {
+        Self { x, y, z }
+    }
+
     pub fn is_on_curve(&self) -> bool {
         let a = FieldElement::new(C::COEFF_A);
         let b = FieldElement::new(C::COEFF_B);
