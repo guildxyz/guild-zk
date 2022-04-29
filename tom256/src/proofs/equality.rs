@@ -1,3 +1,4 @@
+use crate::arithmetic::multimult::{Multimult, Relation};
 use crate::arithmetic::{Modular, Scalar};
 use crate::pedersen::*;
 use crate::utils::hash_points;
@@ -52,8 +53,9 @@ impl<C: Curve> EqualityProof<C> {
         }
     }
 
-    pub fn verify(
+    pub fn verify<R: CryptoRng + RngCore>(
         &self,
+        rng: &mut R,
         pedersen_generator: &PedersenGenerator<C>,
         commitment_1: PedersenCommitment<C>,
         commitment_2: PedersenCommitment<C>,
@@ -68,6 +70,28 @@ impl<C: Curve> EqualityProof<C> {
             ],
         );
         let challenge_scalar = Scalar::new(challenge);
-        todo!()
+        let mut relation_1 = Relation::new();
+        let mut relation_2 = Relation::new();
+        relation_1.insert(Point::<C>::GENERATOR, self.mask_secret);
+        relation_1.insert(
+            pedersen_generator.generator().clone(),
+            self.commitment_to_random_1,
+        );
+        relation_1.insert(*commitment_1.commitment(), challenge_scalar);
+        relation_1.insert(self.commitment_to_random_1.commitment().neg(), Scalar::ONE);
+
+        relation_2.insert(Point::<C>::GENERATOR, self.mask_secret);
+        relation_2.insert(
+            pedersen_generator.generator().clone(),
+            self.commitment_to_random_2,
+        );
+        relation_2.insert(*commitment_2.commitment(), challenge_scalar);
+        relation_2.insert(self.commitment_to_random_1.commitment().neg(), Scalar::ONE);
+
+        let mut multimult = Multimult::new();
+        relation_1.drain(rng, &mut multimult);
+        relation_2.drain(rng, &mut multimult);
+
+        multimult.evaluate() == Point::<C>::IDENTITY
     }
 }
