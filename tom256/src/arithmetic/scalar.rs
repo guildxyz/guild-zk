@@ -303,6 +303,16 @@ mod test {
     }
 
     #[test]
+    fn random_pad_to_equal_len() {
+        let mut rng = rand_core::OsRng;
+        for _ in 0..50 {
+            let random = ScalarLarge::random(&mut rng);
+            let random_expected = U256::from_be_hex(&random.to_string());
+            assert_eq!(random.inner(), &random_expected);
+        }
+    }
+
+    #[test]
     fn inverse() {
         let mut a = ScalarSmall::new(U256::from_u8(10));
         assert!(a != ScalarSmall::ZERO);

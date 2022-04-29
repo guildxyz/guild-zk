@@ -2,7 +2,7 @@ pub mod arithmetic;
 pub mod pedersen;
 pub mod utils;
 
-use arithmetic::{FieldElement, Modular};
+use arithmetic::Modular;
 pub use bigint::U256;
 
 pub trait Curve: Clone + Copy + std::fmt::Debug + PartialEq + Eq {
@@ -47,23 +47,14 @@ impl Curve for Tom256k1 {
     const COEFF_B: U256 = U256::from_u8(7);
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct TestWasmCurve;
-
-impl Curve for TestWasmCurve {
-    const PRIME_MODULUS: U256 = U256::from_u32(1783242237);
-    const ORDER: U256 = U256::ONE;
-    const GENERATOR_X: U256 = U256::ZERO;
-    const GENERATOR_Y: U256 = U256::ZERO;
-    const COEFF_A: U256 = U256::ZERO;
-    const COEFF_B: U256 = U256::from_u8(7);
-}
-
 use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 pub fn wasm_build_test(bignum: String) -> String {
-    let a = FieldElement::<TestWasmCurve>::new(U256::from_be_hex(&bignum));
-    let b = FieldElement::<TestWasmCurve>::new(U256::from_u32(134));
+    let parsed = u32::from_str_radix(&bignum, 16).unwrap_or_else(|_| 0xe2);
+    let mut rng = rand_core::OsRng;
+    let p = pedersen::PedersenGenerator::<Tom256k1>::new(&mut rng);
+    let s = arithmetic::Scalar::new(U256::from_u32(parsed));
+    let commitment = p.commit(&mut rng, s);
 
-    format!("{:?}", a * b)
+    format!("{}", commitment.randomness().inner())
 }
