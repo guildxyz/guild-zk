@@ -1,9 +1,11 @@
-use super::{FieldElement, Modular, Point, Scalar};
+use super::{Point, Scalar};
 
 use crate::Curve;
 
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::collections::binary_heap::BinaryHeap;
+
+use rand_core::{CryptoRng, RngCore};
 
 #[derive(Debug, Clone)]
 pub struct Pair<C: Curve> {
@@ -19,6 +21,12 @@ pub struct Known<C: Curve> {
 pub struct MultiMult<C: Curve> {
     pairs: Vec<Pair<C>>,
     known: Vec<Known<C>>,
+}
+
+impl<C: Curve> Default for MultiMult<C> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<C: Curve> MultiMult<C> {
@@ -46,27 +54,27 @@ impl<C: Curve> MultiMult<C> {
         }
     }
 
-    pub fn evaluate(&mut self) -> Point<C> {
-        if self.pairs.len() == 0 {
+    pub fn insert_pair(&mut self, pair: Pair<C>) {
+        self.pairs.push(pair);
+    }
+
+    pub fn evaluate(self) -> Point<C> {
+        if self.pairs.is_empty() {
             return Point::<C>::IDENTITY;
         }
         if self.pairs.len() == 1 {
             return self.pairs[0].point.scalar_mul(&self.pairs[0].scalar);
         }
 
-        let mut pairs_heap = heapify_vec(self.pairs.clone());
-        //dbg!(&pairs_heap);
-        let mut num_of_steps = 0;
+        let mut pairs_heap = heapify_vec(self.pairs);
         loop {
-            num_of_steps += 1;
-            //println!("{:?}", pairs_heap);
             // unwrap is fine here because peeking and pre-loop checks guarantee len is at least 1
             let a = pairs_heap.pop().unwrap();
+
             let c: Pair<C>;
             // If b_option is None -> the heap only has one element
             if let Some(mut b) = pairs_heap.peek_mut() {
                 if b.scalar == Scalar::<C>::ZERO {
-                    dbg!("Num of steps: {}", num_of_steps);
                     return a.point.scalar_mul(&a.scalar);
                 }
 
@@ -81,7 +89,6 @@ impl<C: Curve> MultiMult<C> {
 
                 *b = d;
             } else {
-                dbg!("Num of steps: {}", num_of_steps);
                 return a.point.scalar_mul(&a.scalar);
             }
 
@@ -94,6 +101,34 @@ impl<C: Curve> MultiMult<C> {
 
 pub fn heapify_vec<T: Ord>(vec: Vec<T>) -> BinaryHeap<T> {
     vec.into_iter().collect()
+}
+
+pub struct Relation<C: Curve> {
+    pairs: Vec<Pair<C>>,
+}
+
+impl<C: Curve> Default for Relation<C> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<C: Curve> Relation<C> {
+    pub fn new() -> Self {
+        Self { pairs: vec![] }
+    }
+
+    pub fn insert(&mut self, point: Point<C>, scalar: Scalar<C>) {
+        self.pairs.push(Pair { point, scalar })
+    }
+    pub fn drain<R: RngCore + CryptoRng>(self, rng: &mut R) -> MultiMult<C> {
+        let randomizer = Scalar::<C>::random(rng);
+        let mut multimult = MultiMult::<C>::new();
+        for pair in self.pairs {
+            multimult.insert(pair.point, pair.scalar * randomizer);
+        }
+        multimult
+    }
 }
 
 // *************************************** TRAITS ***************************************** //
@@ -121,9 +156,10 @@ impl<C: Curve> Ord for Pair<C> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::arithmetic::{FieldElement, Modular};
     use crate::Secp256k1;
 
-    use rand::rngs::StdRng;
+    use bigint::U256;
     use rand_chacha::ChaChaRng;
     use rand_core::SeedableRng;
 
@@ -132,14 +168,33 @@ mod test {
     type SecPoint = Point<Secp256k1>;
     type SecScalar = Scalar<Secp256k1>;
 
+    // Get seeded CSPRNG for reproducible tests, usually for scalars
+    // First 10 "random" scalars:
+    // 83FEC693AC341A0F8F3F0E6A5B18AF130F3FBC2B06A00EA55743FA89E031CB5E
+    // D125353892A829607AFCB23FEBB06E84C9745F1BF040BC6D1B64672A3B9148FD
+    // F76C1FA7E623E38096A97FA0AF4D19CCE9A6D2CF62451F38D60245AED85E425F
+    // 7FC351545F19EC3AECD29B4A5149A2FA56C0731CF34031E90EED16E2B78F1FA3
+    // 1789EB7E7FC9BD1B0F2A7D6E9965DB607BE82D151E839727E4A28E37FB0E5F54
+    // 14DBF7A81C7BFB869073A35D316923F137D530100A9981DC15206D2E14D61279
+    // 9DD8AB9E34DCBD921BDE9156B0FDA2B845CD54F93FE0A6D0DA64B2D1F29457BA
+    // A88D12AF2D2E7E71145176FFB5B954815EDF645B870FFBB5F4EDCC431380F116
+    // 74BFB64E75EACFCDE34F877FDD224367AEC82A757D186B72FDECD37A43414231
+    // 2F71C031C572EC94AC5F033233974EEA5E56698BA2DF9AF6F53D2C97A466D96A
+    fn get_test_rng() -> ChaChaRng {
+        ChaChaRng::from_seed([
+            54, 1, 63, 153, 89, 49, 228, 122, 166, 230, 220, 138, 243, 90, 252, 212, 162, 48, 105,
+            3, 140, 12, 169, 247, 176, 212, 208, 179, 38, 62, 94, 172,
+        ])
+    }
+
     #[test]
     fn multimult_empty() {
-        let mut multimult = MultiMult::<Secp256k1>::new();
+        let multimult = MultiMult::<Secp256k1>::new();
         assert_eq!(multimult.evaluate(), SecPoint::IDENTITY);
     }
 
     #[test]
-    fn multimult_single_easy() {
+    fn multimult_single() {
         let pt = SecPoint::GENERATOR;
         let scalar = SecScalar::ONE;
 
@@ -151,17 +206,11 @@ mod test {
         assert_eq!(multimult.evaluate(), expected);
     }
 
-    use bigint::{Encoding, Split, U256};
-
     #[test]
-    fn multimult_single_hard() {
-        let mut rng = ChaChaRng::from_seed([
-            54, 1, 63, 153, 89, 49, 228, 122, 166, 230, 220, 138, 243, 90, 252, 212, 162, 48, 105,
-            3, 140, 12, 169, 247, 176, 212, 208, 179, 38, 62, 94, 172,
-        ]);
-        //let mut rng = ChaChaRng::from_entropy();
-
-        //println!("{:?}", rng.get_seed());
+    fn multimult_multiple() {
+        // Both work (true random / seeded random)
+        // let mut rng = ChaChaRng::from_entropy();
+        let mut rng = get_test_rng();
 
         let mut mm_time = Duration::new(0, 0);
         let mut normal_time = Duration::new(0, 0);
@@ -169,114 +218,66 @@ mod test {
         let mut multimult = MultiMult::<Secp256k1>::new();
         let mut expected = SecPoint::IDENTITY;
 
-        let scalars_r = vec![
-            SecScalar::random(&mut rng),
-            SecScalar::random(&mut rng),
-            SecScalar::random(&mut rng),
-            SecScalar::random(&mut rng),
-            /*
-            SecScalar::random(&mut rng),
+        let summa_len = 10;
+        let mut scalars = Vec::with_capacity(summa_len);
+        for _ in 0..summa_len {
+            scalars.push(SecScalar::random(&mut rng));
+        }
 
-            SecScalar::random(&mut rng),
-            SecScalar::random(&mut rng),
-            SecScalar::random(&mut rng),
-            SecScalar::random(&mut rng),
-            SecScalar::random(&mut rng),
-            */
-        ];
-
-        let scalars = vec![
-            SecScalar::new(U256::from_be_hex(
-                "83fec693ac341a0f8f3f0e6a5b18af130f3fbc2b06a00ea55743fa89e031cb5e",
-            )),
-            SecScalar::new(U256::from_be_hex(
-                "d125353892a829607afcb23febb06e84c9745f1bf040bc6d1b64672a3b9148fd",
-            )),
-            SecScalar::new(U256::from_be_hex(
-                "f76c1fa7e623e38096a97fa0af4d19cce9a6d2cf62451f38d60245aed85e425f",
-            )),
-            SecScalar::new(U256::from_be_hex(
-                "7fc351545f19ec3aecd29b4a5149a2fa56c0731cf34031e90eed16e2b78f1fa3",
-            )),
-        ];
-
-        /*
-        let scalars = vec![
-            SecScalar::new(U256::from_be_hex("09E06E901916B0EFE2587BE65D2600EC231EB0A69B1F03F94A258621D0D8584B")),
-            SecScalar::new(U256::from_be_hex("0DAD136B4C4628B9BADC425E7ED90FEB95D47D0B35EAC27C2E00AEA848DEB943")),
-        ];
-        */
-
-        /*
-        let scalars = vec![
-            SecScalar::new(U256::from_be_hex("000000000000000000000000000000000000000000000000000000000000e031")),
-            SecScalar::new(U256::from_be_hex("0000000000000000000000000000000000000000000000000000000000000a05")),
-        ];
-        */
-
-        /*
-        println!("Scalars:");
-        println!("random bytes: {:?}", scalars_r[3].inner().to_be_bytes());
-        println!("normal bytes: {:?}", scalars[3].inner().to_be_bytes());
-        println!("random hex: {}", scalars_r[3].inner());
-        println!("normal hex: {}", scalars[3].inner());
-        println!("");
-        */
-
-        assert_eq!(scalars_r[0], scalars[0]);
-        assert_eq!(scalars_r[1], scalars[1]);
-        assert_eq!(scalars_r[2], scalars[2]);
-        assert_eq!(scalars_r[3], scalars[3]);
-
-        for i in 0..4 {
+        for (i, scalar) in scalars.iter().enumerate() {
             let mut pt = SecPoint::GENERATOR;
             for _ in 0..i {
                 pt = pt.double();
             }
 
-            let pt_affine = pt.clone().into_affine();
-            println!("\nPt {}", i);
-            println!("x: {}", pt_affine.x().inner());
-            println!("y: {}", pt_affine.y().inner());
-            println!("z: {}", pt_affine.z().inner());
-
-            //let scalar = SecScalar::random(&mut rng);
-            let scalar = scalars[i];
-
-            println!("\nScalar {}", i);
-            println!("{}", scalar.inner());
-
             let now = Instant::now();
-            let new_term = pt.scalar_mul(&scalar);
-            let new_term_affine = new_term.clone().into_affine();
-            println!("\nTerm {}", i);
-            println!("x: {}", new_term_affine.x().inner());
-            println!("y: {}", new_term_affine.y().inner());
-            println!("z: {}", new_term_affine.z().inner());
+            let new_term = pt.scalar_mul(scalar);
             expected = expected + new_term;
             normal_time += now.elapsed();
 
-            multimult.insert(pt, scalar);
+            multimult.insert(pt, *scalar);
         }
 
         let now = Instant::now();
         let actual = multimult.evaluate().into_affine();
         mm_time += now.elapsed();
 
-        println!("\nActual");
-        println!("x: {}", actual.x().inner());
-        println!("y: {}", actual.y().inner());
-        println!("z: {}", actual.z().inner());
-
-        println!("\nExpected");
-        let expected = expected.into_affine();
-        println!("x: {}", expected.x().inner());
-        println!("y: {}", expected.y().inner());
-        println!("z: {}", expected.z().inner());
-
         println!("Normal time: {:?}", normal_time);
         println!("Multimult time: {:?}", mm_time);
 
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn relations() {
+        let mut rng = get_test_rng();
+        let mut rel = Relation::<Secp256k1>::new();
+
+        let summa_len = 3;
+        let mut scalars = Vec::with_capacity(summa_len);
+        for _ in 0..summa_len {
+            scalars.push(SecScalar::random(&mut rng));
+        }
+
+        for (i, scalar) in scalars.iter().enumerate() {
+            let mut pt = SecPoint::GENERATOR;
+            for _ in 0..i {
+                pt = pt.double();
+            }
+            rel.insert(pt, *scalar);
+        }
+
+        let multimult = rel.drain(&mut rng);
+        let sum = multimult.evaluate();
+        let expected = SecPoint::new(
+            FieldElement::new(U256::from_be_hex(
+                "9913e57053c21be1383b08242483c1f245864bbd02b5f111b09dfbe9fe12ec7c",
+            )),
+            FieldElement::new(U256::from_be_hex(
+                "5ccacf75bbae45598b952f580ba6906072efb914dd751a04182583884750d46a",
+            )),
+            FieldElement::ONE,
+        );
+        assert_eq!(sum, expected);
     }
 }
