@@ -50,7 +50,7 @@ impl Curve for Tom256k1 {
 use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 pub fn wasm_build_test(bignum: String) -> String {
-    let parsed = u32::from_str_radix(&bignum, 16).unwrap_or_else(|_| 0xe2);
+    let parsed = u32::from_str_radix(&bignum, 16).unwrap_or(0xe2);
     let mut rng = rand_core::OsRng;
     let p = pedersen::PedersenGenerator::<Tom256k1>::new(&mut rng);
     let s = arithmetic::Scalar::new(U256::from_u32(parsed));
