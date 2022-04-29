@@ -12,6 +12,10 @@ impl<C: Curve> PedersenGenerator<C> {
         Self(&Point::<C>::GENERATOR * random_scalar)
     }
 
+    pub fn generator(&self) -> &Point<C> {
+        &self.0
+    }
+
     pub fn commit<R: CryptoRng + RngCore>(
         &self,
         rng: &mut R,

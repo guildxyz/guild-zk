@@ -4,7 +4,7 @@ use crate::Curve;
 use bigint::{Encoding, U256};
 use sha3::{Digest, Sha3_256};
 
-pub fn hash_points<C: Curve>(hash_id: &[u8], points: &[Point<C>]) -> U256 {
+pub fn hash_points<C: Curve>(hash_id: &[u8], points: &[&Point<C>]) -> U256 {
     // create a SHA3-256 object
     let mut hasher = Sha3_256::new();
 
@@ -25,8 +25,8 @@ pub fn hash_points<C: Curve>(hash_id: &[u8], points: &[Point<C>]) -> U256 {
 fn points_hash_test() {
     let hash_id = "test".as_bytes();
     let points = vec![
-        Point::<crate::Secp256k1>::GENERATOR,
-        Point::<crate::Secp256k1>::GENERATOR.double(),
+        &Point::<crate::Secp256k1>::GENERATOR,
+        &Point::<crate::Secp256k1>::GENERATOR.double(),
     ];
     let expected_hash = "C9B5BD2009A84423D2CBCEB411CDDAF7423B372B5F63821DACFFFA0041A6B8F7";
     assert_eq!(

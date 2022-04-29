@@ -1,5 +1,6 @@
 pub mod arithmetic;
 pub mod pedersen;
+pub mod proofs;
 pub mod utils;
 
 use arithmetic::Modular;
