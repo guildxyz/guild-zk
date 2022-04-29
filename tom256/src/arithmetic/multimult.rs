@@ -226,8 +226,7 @@ mod test {
         for i in 0..4 {
             let mut pt = SecPoint::GENERATOR;
             for _ in 0..i {
-                //pt = pt.double();
-                pt = &pt + &pt;
+                pt = pt.double();
             }
 
             let pt_affine = pt.clone().into_affine();

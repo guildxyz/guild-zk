@@ -10,7 +10,7 @@ crate-type = ["cdylib", "rlib"]
 wasm-opt = false
 
 [dependencies]
-bigint = { package = "crypto-bigint", version = "0.3.2", default-features = false }
+bigint = { package = "crypto-bigint", git = "https://github.com/PopcornPaws/crypto-bigint", default-features = false }
 rand_core = { version = "0.6.3", default-features = false }
 getrandom = { version = "0.2", features = ["js"] }
 sha3 = "0.10.1"
