@@ -59,14 +59,14 @@ impl<C: Curve> EqualityProof<C> {
         &self,
         rng: &mut R,
         pedersen_generator: &PedersenGenerator<C>,
-        commitment_1: &PedersenCommitment<C>,
-        commitment_2: &PedersenCommitment<C>,
+        commitment_1: &Point<C>,
+        commitment_2: &Point<C>,
     ) -> bool {
         let challenge = hash_points(
             Self::HASH_ID,
             &[
-                commitment_1.commitment(),
-                commitment_2.commitment(),
+                commitment_1,
+                commitment_2,
                 &self.commitment_to_random_1,
                 &self.commitment_to_random_2,
             ],
@@ -76,12 +76,12 @@ impl<C: Curve> EqualityProof<C> {
         let mut relation_2 = Relation::new();
         relation_1.insert(Point::<C>::GENERATOR, self.mask_secret);
         relation_1.insert(pedersen_generator.generator().clone(), self.mask_random_1);
-        relation_1.insert(commitment_1.commitment().clone(), challenge_scalar);
+        relation_1.insert(commitment_1.clone(), challenge_scalar);
         relation_1.insert((&self.commitment_to_random_1).neg(), Scalar::ONE);
 
         relation_2.insert(Point::<C>::GENERATOR, self.mask_secret);
         relation_2.insert(pedersen_generator.generator().clone(), self.mask_random_2);
-        relation_2.insert(commitment_2.commitment().clone(), challenge_scalar);
+        relation_2.insert(commitment_2.clone(), challenge_scalar);
         relation_2.insert((&self.commitment_to_random_2).neg(), Scalar::ONE);
 
         let mut multimult = MultiMult::new();
@@ -118,8 +118,8 @@ mod test {
         assert!(equality_proof.verify(
             &mut rng,
             &pedersen_generator,
-            &secret_commitment_1,
-            &secret_commitment_2,
+            secret_commitment_1.commitment(),
+            secret_commitment_2.commitment(),
         ));
     }
 
@@ -143,8 +143,8 @@ mod test {
         assert!(!equality_proof.verify(
             &mut rng,
             &invalid_pedersen_generator,
-            &secret_commitment_1,
-            &secret_commitment_2,
+            secret_commitment_1.commitment(),
+            secret_commitment_2.commitment(),
         ));
 
         let invalid_secret = Scalar::<Tom256k1>::random(&mut rng);
@@ -154,8 +154,8 @@ mod test {
         assert!(!equality_proof.verify(
             &mut rng,
             &pedersen_generator,
-            &invalid_secret_commitment_1,
-            &invalid_secret_commitment_2,
+            invalid_secret_commitment_1.commitment(),
+            invalid_secret_commitment_2.commitment(),
         ));
     }
 }
