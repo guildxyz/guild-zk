@@ -44,6 +44,10 @@ impl<C: Curve> PedersenCommitment<C> {
         &self.commitment
     }
 
+    pub fn into_commitment(self) -> Point<C> {
+        self.commitment
+    }
+
     pub fn randomness(&self) -> &Scalar<C> {
         &self.randomness
     }

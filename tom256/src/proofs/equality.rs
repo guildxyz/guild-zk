@@ -10,8 +10,8 @@ use std::ops::Neg;
 
 #[derive(Clone, Debug)]
 pub struct EqualityProof<C: Curve> {
-    commitment_to_random_1: PedersenCommitment<C>,
-    commitment_to_random_2: PedersenCommitment<C>,
+    commitment_to_random_1: Point<C>,
+    commitment_to_random_2: Point<C>,
     mask_secret: Scalar<C>,
     mask_random_1: Scalar<C>,
     mask_random_2: Scalar<C>,
@@ -27,9 +27,9 @@ impl<C: Curve> EqualityProof<C> {
         commitment_2: &PedersenCommitment<C>,
         secret: Scalar<C>,
     ) -> Self {
-        let k = Scalar::random(rng);
-        let commitment_to_random_1 = pedersen_generator.commit(rng, k);
-        let commitment_to_random_2 = pedersen_generator.commit(rng, k);
+        let random_scalar = Scalar::random(rng);
+        let commitment_to_random_1 = pedersen_generator.commit(rng, random_scalar);
+        let commitment_to_random_2 = pedersen_generator.commit(rng, random_scalar);
         let challenge = hash_points(
             Self::HASH_ID,
             &[
@@ -40,14 +40,15 @@ impl<C: Curve> EqualityProof<C> {
             ],
         );
         let challenge_scalar = Scalar::new(challenge);
-        let mask_secret = k - challenge_scalar * secret;
+        let mask_secret = random_scalar - challenge_scalar * secret;
         let mask_random_1 =
             *commitment_to_random_1.randomness() - &challenge_scalar * commitment_1.randomness();
         let mask_random_2 =
             *commitment_to_random_2.randomness() - &challenge_scalar * commitment_2.randomness();
+
         Self {
-            commitment_to_random_1,
-            commitment_to_random_2,
+            commitment_to_random_1: commitment_to_random_1.into_commitment(),
+            commitment_to_random_2: commitment_to_random_2.into_commitment(),
             mask_secret,
             mask_random_1,
             mask_random_2,
@@ -66,8 +67,8 @@ impl<C: Curve> EqualityProof<C> {
             &[
                 commitment_1.commitment(),
                 commitment_2.commitment(),
-                self.commitment_to_random_1.commitment(),
-                self.commitment_to_random_2.commitment(),
+                &self.commitment_to_random_1,
+                &self.commitment_to_random_2,
             ],
         );
         let challenge_scalar = Scalar::new(challenge);
@@ -76,12 +77,12 @@ impl<C: Curve> EqualityProof<C> {
         relation_1.insert(Point::<C>::GENERATOR, self.mask_secret);
         relation_1.insert(pedersen_generator.generator().clone(), self.mask_random_1);
         relation_1.insert(commitment_1.commitment().clone(), challenge_scalar);
-        relation_1.insert(self.commitment_to_random_1.commitment().neg(), Scalar::ONE);
+        relation_1.insert((&self.commitment_to_random_1).neg(), Scalar::ONE);
 
         relation_2.insert(Point::<C>::GENERATOR, self.mask_secret);
         relation_2.insert(pedersen_generator.generator().clone(), self.mask_random_2);
         relation_2.insert(commitment_2.commitment().clone(), challenge_scalar);
-        relation_2.insert(self.commitment_to_random_2.commitment().neg(), Scalar::ONE);
+        relation_2.insert((&self.commitment_to_random_2).neg(), Scalar::ONE);
 
         let mut multimult = MultiMult::new();
         relation_1.drain(rng, &mut multimult);
