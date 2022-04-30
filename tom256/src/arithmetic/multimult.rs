@@ -121,13 +121,12 @@ impl<C: Curve> Relation<C> {
     pub fn insert(&mut self, point: Point<C>, scalar: Scalar<C>) {
         self.pairs.push(Pair { point, scalar })
     }
-    pub fn drain<R: RngCore + CryptoRng>(self, rng: &mut R) -> MultiMult<C> {
+
+    pub fn drain<R: RngCore + CryptoRng>(self, rng: &mut R, multimult: &mut MultiMult<C>) {
         let randomizer = Scalar::<C>::random(rng);
-        let mut multimult = MultiMult::<C>::new();
         for pair in self.pairs {
             multimult.insert(pair.point, pair.scalar * randomizer);
         }
-        multimult
     }
 }
 
@@ -160,7 +159,7 @@ mod test {
     use crate::Secp256k1;
 
     use bigint::U256;
-    use rand_chacha::ChaChaRng;
+    use rand::rngs::StdRng;
     use rand_core::SeedableRng;
 
     use std::time::{Duration, Instant};
@@ -168,20 +167,8 @@ mod test {
     type SecPoint = Point<Secp256k1>;
     type SecScalar = Scalar<Secp256k1>;
 
-    // Get seeded CSPRNG for reproducible tests, usually for scalars
-    // First 10 "random" scalars:
-    // 83FEC693AC341A0F8F3F0E6A5B18AF130F3FBC2B06A00EA55743FA89E031CB5E
-    // D125353892A829607AFCB23FEBB06E84C9745F1BF040BC6D1B64672A3B9148FD
-    // F76C1FA7E623E38096A97FA0AF4D19CCE9A6D2CF62451F38D60245AED85E425F
-    // 7FC351545F19EC3AECD29B4A5149A2FA56C0731CF34031E90EED16E2B78F1FA3
-    // 1789EB7E7FC9BD1B0F2A7D6E9965DB607BE82D151E839727E4A28E37FB0E5F54
-    // 14DBF7A81C7BFB869073A35D316923F137D530100A9981DC15206D2E14D61279
-    // 9DD8AB9E34DCBD921BDE9156B0FDA2B845CD54F93FE0A6D0DA64B2D1F29457BA
-    // A88D12AF2D2E7E71145176FFB5B954815EDF645B870FFBB5F4EDCC431380F116
-    // 74BFB64E75EACFCDE34F877FDD224367AEC82A757D186B72FDECD37A43414231
-    // 2F71C031C572EC94AC5F033233974EEA5E56698BA2DF9AF6F53D2C97A466D96A
-    fn get_test_rng() -> ChaChaRng {
-        ChaChaRng::from_seed([
+    fn get_test_rng() -> StdRng {
+        StdRng::from_seed([
             54, 1, 63, 153, 89, 49, 228, 122, 166, 230, 220, 138, 243, 90, 252, 212, 162, 48, 105,
             3, 140, 12, 169, 247, 176, 212, 208, 179, 38, 62, 94, 172,
         ])
@@ -267,17 +254,30 @@ mod test {
             rel.insert(pt, *scalar);
         }
 
-        let multimult = rel.drain(&mut rng);
+        let mut multimult = MultiMult::new();
+        rel.drain(&mut rng, &mut multimult);
         let sum = multimult.evaluate();
         let expected = SecPoint::new(
             FieldElement::new(U256::from_be_hex(
-                "9913e57053c21be1383b08242483c1f245864bbd02b5f111b09dfbe9fe12ec7c",
+                "AC1EA4D9096C3AC59CE21AABA8274668063AFAE8866EA9F74194E20781E18C7F",
             )),
             FieldElement::new(U256::from_be_hex(
-                "5ccacf75bbae45598b952f580ba6906072efb914dd751a04182583884750d46a",
+                "94BAF15809C67FAE550ED36AEFA30186BE3622312329804AB9F464EC3599D0D3",
             )),
-            FieldElement::ONE,
+            FieldElement::new(U256::from_be_hex(
+                "23D0C43CF071603BFF1856436776FFB3DB919BAE58AD1F3972F6D36BA0A7DAD5",
+            )),
         );
+        // NOTE these were the values with rand chacha
+        //let expected = SecPoint::new(
+        //    FieldElement::new(U256::from_be_hex(
+        //        "9913e57053c21be1383b08242483c1f245864bbd02b5f111b09dfbe9fe12ec7c",
+        //    )),
+        //    FieldElement::new(U256::from_be_hex(
+        //        "5ccacf75bbae45598b952f580ba6906072efb914dd751a04182583884750d46a",
+        //    )),
+        //    FieldElement::ONE,
+        //);
         assert_eq!(sum, expected);
     }
 }

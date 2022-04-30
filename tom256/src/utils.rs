@@ -24,10 +24,9 @@ pub fn hash_points<C: Curve>(hash_id: &[u8], points: &[&Point<C>]) -> U256 {
 #[test]
 fn points_hash_test() {
     let hash_id = "test".as_bytes();
-    let points = vec![
-        &Point::<crate::Secp256k1>::GENERATOR,
-        &Point::<crate::Secp256k1>::GENERATOR.double(),
-    ];
+    let g = Point::<crate::Secp256k1>::GENERATOR;
+    let g2 = Point::<crate::Secp256k1>::GENERATOR.double();
+    let points = vec![&g, &g2];
     let expected_hash = "C9B5BD2009A84423D2CBCEB411CDDAF7423B372B5F63821DACFFFA0041A6B8F7";
     assert_eq!(
         hash_points(hash_id, &points),
