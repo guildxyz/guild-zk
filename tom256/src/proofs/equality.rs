@@ -121,4 +121,40 @@ mod test {
             &secret_commitment_2,
         ));
     }
+
+    #[test]
+    fn invalid_equality_proof() {
+        let mut rng = StdRng::from_seed([1; 32]);
+        let secret = Scalar::<Tom256k1>::random(&mut rng);
+        let pedersen_generator = PedersenGenerator::new(&mut rng);
+        let secret_commitment_1 = pedersen_generator.commit(&mut rng, secret);
+        let secret_commitment_2 = pedersen_generator.commit(&mut rng, secret);
+
+        let equality_proof = EqualityProof::construct(
+            &mut rng,
+            &pedersen_generator,
+            &secret_commitment_1,
+            &secret_commitment_2,
+            secret,
+        );
+
+        let invalid_pedersen_generator = PedersenGenerator::new(&mut rng);
+        assert!(!equality_proof.verify(
+            &mut rng,
+            &invalid_pedersen_generator,
+            &secret_commitment_1,
+            &secret_commitment_2,
+        ));
+
+        let invalid_secret = Scalar::<Tom256k1>::random(&mut rng);
+        let invalid_secret_commitment_1 = pedersen_generator.commit(&mut rng, invalid_secret);
+        let invalid_secret_commitment_2 = pedersen_generator.commit(&mut rng, invalid_secret);
+
+        assert!(!equality_proof.verify(
+            &mut rng,
+            &pedersen_generator,
+            &invalid_secret_commitment_1,
+            &invalid_secret_commitment_2,
+        ));
+    }
 }
