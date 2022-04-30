@@ -156,7 +156,7 @@ impl<C: Curve> Ord for Pair<C> {
 mod test {
     use super::*;
     use crate::arithmetic::{FieldElement, Modular};
-    use crate::Secp256k1;
+    use crate::{Secp256k1, Tom256k1};
 
     use bigint::U256;
     use rand::rngs::StdRng;
@@ -166,6 +166,9 @@ mod test {
 
     type SecPoint = Point<Secp256k1>;
     type SecScalar = Scalar<Secp256k1>;
+
+    type TomPoint = Point<Tom256k1>;
+    type TomScalar = Scalar<Tom256k1>;
 
     fn get_test_rng() -> StdRng {
         StdRng::from_seed([
@@ -195,8 +198,6 @@ mod test {
 
     #[test]
     fn multimult_multiple() {
-        // Both work (true random / seeded random)
-        // let mut rng = ChaChaRng::from_entropy();
         let mut rng = get_test_rng();
 
         let mut mm_time = Duration::new(0, 0);
@@ -236,22 +237,21 @@ mod test {
     }
 
     #[test]
-    fn relations() {
+    fn secp_relations() {
         let mut rng = get_test_rng();
         let mut rel = Relation::<Secp256k1>::new();
 
         let summa_len = 3;
         let mut scalars = Vec::with_capacity(summa_len);
         for _ in 0..summa_len {
-            scalars.push(SecScalar::random(&mut rng));
+            let scalar = SecScalar::random(&mut rng);
+            scalars.push(scalar);
         }
 
-        for (i, scalar) in scalars.iter().enumerate() {
-            let mut pt = SecPoint::GENERATOR;
-            for _ in 0..i {
-                pt = pt.double();
-            }
-            rel.insert(pt, *scalar);
+        let mut pt = SecPoint::GENERATOR;
+        for scalar in scalars.iter() {
+            pt = pt.double().into_affine();
+            rel.insert(pt.clone(), *scalar);
         }
 
         let mut multimult = MultiMult::new();
@@ -259,25 +259,48 @@ mod test {
         let sum = multimult.evaluate();
         let expected = SecPoint::new(
             FieldElement::new(U256::from_be_hex(
-                "AC1EA4D9096C3AC59CE21AABA8274668063AFAE8866EA9F74194E20781E18C7F",
+                "cf2de7b2e687085c14a39bb01457edfcac2cbadf67906de73d3251c6569d3089",
             )),
             FieldElement::new(U256::from_be_hex(
-                "94BAF15809C67FAE550ED36AEFA30186BE3622312329804AB9F464EC3599D0D3",
+                "3fb1eb3907871809c1c46ba8d20b01798384cb6f9926d386c0456b7b01e4cbd5",
             )),
-            FieldElement::new(U256::from_be_hex(
-                "23D0C43CF071603BFF1856436776FFB3DB919BAE58AD1F3972F6D36BA0A7DAD5",
-            )),
+            FieldElement::ONE,
         );
-        // NOTE these were the values with rand chacha
-        //let expected = SecPoint::new(
-        //    FieldElement::new(U256::from_be_hex(
-        //        "9913e57053c21be1383b08242483c1f245864bbd02b5f111b09dfbe9fe12ec7c",
-        //    )),
-        //    FieldElement::new(U256::from_be_hex(
-        //        "5ccacf75bbae45598b952f580ba6906072efb914dd751a04182583884750d46a",
-        //    )),
-        //    FieldElement::ONE,
-        //);
+
+        assert_eq!(sum, expected);
+    }
+
+    #[test]
+    fn tom_relations() {
+        let mut rng = get_test_rng();
+        let mut rel = Relation::<Tom256k1>::new();
+
+        let summa_len = 3;
+        let mut scalars = Vec::with_capacity(summa_len);
+        for _ in 0..summa_len {
+            let scalar = TomScalar::random(&mut rng);
+            scalars.push(scalar);
+        }
+
+        let mut pt = TomPoint::GENERATOR;
+        for scalar in scalars.iter() {
+            pt = pt.double().into_affine();
+            rel.insert(pt.clone(), *scalar);
+        }
+
+        let mut multimult = MultiMult::new();
+        rel.drain(&mut rng, &mut multimult);
+        let sum = multimult.evaluate();
+        let expected = TomPoint::new(
+            FieldElement::new(U256::from_be_hex(
+                "cccb91596829355ee5ab3682180025da88f0f93384149db1a2dca1c8c1011127",
+            )),
+            FieldElement::new(U256::from_be_hex(
+                "f7b4bc3b8ccc4296ac43ce053b9fc375d889dae6b15511253a2431def4edb6d1",
+            )),
+            FieldElement::ONE,
+        );
+
         assert_eq!(sum, expected);
     }
 }

@@ -40,7 +40,6 @@ impl<C: Curve> EqualityProof<C> {
             ],
         );
         let challenge_scalar = Scalar::new(challenge);
-        println!("{}", challenge_scalar.inner());
         let mask_secret = k - challenge_scalar * secret;
         let mask_random_1 =
             *commitment_to_random_1.randomness() - &challenge_scalar * commitment_1.randomness();
@@ -72,7 +71,6 @@ impl<C: Curve> EqualityProof<C> {
             ],
         );
         let challenge_scalar = Scalar::new(challenge);
-        println!("{}", challenge_scalar.inner());
         let mut relation_1 = Relation::new();
         let mut relation_2 = Relation::new();
         relation_1.insert(Point::<C>::GENERATOR, self.mask_secret);
@@ -83,7 +81,7 @@ impl<C: Curve> EqualityProof<C> {
         relation_2.insert(Point::<C>::GENERATOR, self.mask_secret);
         relation_2.insert(pedersen_generator.generator().clone(), self.mask_random_2);
         relation_2.insert(commitment_2.commitment().clone(), challenge_scalar);
-        relation_2.insert(self.commitment_to_random_1.commitment().neg(), Scalar::ONE);
+        relation_2.insert(self.commitment_to_random_2.commitment().neg(), Scalar::ONE);
 
         let mut multimult = MultiMult::new();
         relation_1.drain(rng, &mut multimult);
