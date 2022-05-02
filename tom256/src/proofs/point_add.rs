@@ -5,36 +5,49 @@ use crate::Curve;
 use super::equality::EqualityProof;
 use super::multiplication::MultiplicationProof;
 
-pub struct CommittedPoint<C: Curve> {
-    affine: Point<C>,
-    commitment_to_x: PedersenCommitment<C>,
-    commitment_to_y: PedersenCommitment<C>,
+pub struct PointAddSecrets<C: Curve> {
+    p: Point<C>,
+    q: Point<C>,
+    r: Point<C>,
 }
 
-impl<C: Curve> CommittedPoint<C> {
+pub struct PointAddCommitments<C: Curve> {
+    px: PedersenCommitment<C>,
+    py: PedersenCommitment<C>,
+    qx: PedersenCommitment<C>,
+    qy: PedersenCommitment<C>,
+    rx: PedersenCommitment<C>,
+    ry: PedersenCommitment<C>,
+}
+
+impl<C: Curve> PointAddSecrets<C> {
     // TODO: using `AffinePoint` this could be implied
     /// Ensures that the stored point is affine.
-    pub fn new<R: CryptoRng + RngCore>(
-        rng: &mut R,
-        pedersen_generator: &PedersenGenerator,
-        point: &Point<C>,
-    ) -> Self {
-        let affine = point.into_affine();
-        let commitment_to_x = pedersen_generator.commit(affine.x());
-        let commitment_to_y = pedersen_generator.commit(affine.y());
+    pub fn new(p: Point<C>, q: Point<C>, r: Point<C>) -> Self {
+        // TODO debug_assert!(p + q = r) ?
         Self {
-            affine,
-            commitment_to_x,
-            commitment_to_y,
+            p: p.into_affine(),
+            q: q.into_affine(),
+            r: r.into_affine(),
         }
     }
-}
 
-/// Represents commitments to P + Q = R
-pub struct PointAddInput<C: Curve> {
-    p: CommittedPoint<C>,
-    q: CommittedPoint<C>,
-    r: CommittedPoint<C>,
+    pub fn commitments<R: CryptoRng + RngCore>(
+        &self,
+        rng: &mut R,
+        pedersen_generator: &PedersenGenerator,
+    ) -> PointAddCommitments {
+        // NOTE -> commitments must be on tom curve because we are committing to field elements
+        // TODO -> point field element should be converted into another curve's scalar field
+        PointAddCommitments {
+            px: pedersen_generator.commit(rng, self.p.x()),
+            py: pedersen_generator.commit(rng, self.p.y()),
+            qx: pedersen_generator.commit(rng, self.q.x()),
+            qy: pedersen_generator.commit(rng, self.q.y()),
+            rx: pedersen_generator.commit(rng, self.r.x()),
+            ry: pedersen_generator.commit(rng, self.r.y()),
+        }
+    }
 }
 
 pub struct MultCommitProof<C: Curve> {
@@ -61,25 +74,26 @@ impl<C: Curve> PointAddProof<C> {
     pub fn construct<R: CryptoRng + RngCore>(
         rng: &mut R,
         pedersen_generator: &PedersenGenerator,
-        input: PointAddInput,
+        points: &PointAddSecrets,
+        commitments: &PointAddCommitments,
     ) -> Self {
         // P + Q = R
         // P: (x1, y1)
         // Q: (x2, y2)
         // R: (x3, y3)
         // auxiliary variables (i8 is a type, so use aux8)
-        let aux_8 = (input.q.affine.x() - input.p.affine.x()).inverse();
-        let aux_9 = input.q.affine.y() - input.p.affine.y();
+        let aux_8 = (points.q.x() - points.p.x()).inverse();
+        let aux_9 = points.q.y() - points.p.y();
         let aux_10 = aux_8 * aux_9;
         let aux_11 = aux_10 * aux_10;
-        let aux_12 = input.p.affine.x() - input.r.affine.x();
+        let aux_12 = points.p.x() - points.r.x();
         let aux_13 = i10 * i12;
-        let commitment_7 = input.q.commitment_to_x() - input.p.commitment_to_x();
+        let commitment_7 = &commitments.qx - &commitments.px;
         let commitment_8 = pedersen_generator.commit(rng, aux_8);
-        let commitment_9 = input.q.commitment_to_y() - input.p.commitment_to_y();
+        let commitment_9 = &commitments.qy - &commitments.py;
         let commitment_10 = pedersen_generator.commit(rng, aux_10);
         let commitment_11 = pedersen_generator.commit(rng, aux_11);
-        let commitment_12 = input.p.commitment_to_x() - input.r.commitment_to_x();
+        let commitment_12 = &commitments.px - &commitments.rx;
         let commitment_13 = pedersen_generator.commit(rng, aux_13);
         let commitment_14 = PedersenCommitment::new(Point::<C>::GENERATOR, Scalar::<C>::ZERO);
 
@@ -87,8 +101,7 @@ impl<C: Curve> PointAddProof<C> {
         let mult_proof_10 = MultiplicationProof::construct(todo!());
         let mult_proof_11 = MultiplicationProof::construct(todo!());
 
-        let aux_commitment =
-            input.r.commitment_to_x() + input.p.commitment_to_x() + input.q.commitment_to_x();
+        let mut aux_commitment = &(&commitments.rx + &commitments.px) + &commitments.qx;
         let equality_proof_x = EqualityProof::construct(
             rng,
             pedersen_generator,
@@ -98,7 +111,7 @@ impl<C: Curve> PointAddProof<C> {
         );
         let mult_proof_13 = MultiplicationProof::construct(todo!());
 
-        let aux_commitment = input.r.commitment_to_y() + input.p.commitment_to_y();
+        let aux_commitment = &commitments.ry + &commitments.py;
         let equality_proof_x = EqualityProof::construct(
             rng,
             pedersen_generator,
