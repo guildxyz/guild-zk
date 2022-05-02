@@ -6,6 +6,7 @@ pub mod utils;
 use arithmetic::Modular;
 pub use bigint::U256;
 
+// TODO is const equality test possible
 pub trait Cycle<C: Curve>: Curve {
     fn is_cycle() -> bool {
         Self::PRIME_MODULUS == C::ORDER
@@ -56,6 +57,7 @@ impl Curve for Tom256k1 {
 
 impl Cycle<Secp256k1> for Tom256k1 {}
 
+// TODO add feature flag for wasm stuff
 use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 pub fn wasm_build_test(bignum: String) -> String {
