@@ -1,10 +1,16 @@
 pub mod arithmetic;
 pub mod pedersen;
-pub mod proofs;
+//pub mod proofs;
 pub mod utils;
 
 use arithmetic::Modular;
 pub use bigint::U256;
+
+pub trait Cycle<C: Curve>: Curve {
+    fn is_cycle() -> bool {
+        Self::PRIME_MODULUS == C::ORDER
+    }
+}
 
 pub trait Curve: Clone + Copy + std::fmt::Debug + PartialEq + Eq {
     const PRIME_MODULUS: U256;
@@ -48,6 +54,8 @@ impl Curve for Tom256k1 {
     const COEFF_B: U256 = U256::from_u8(7);
 }
 
+impl Cycle<Secp256k1> for Tom256k1 {}
+
 use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 pub fn wasm_build_test(bignum: String) -> String {
@@ -58,4 +66,31 @@ pub fn wasm_build_test(bignum: String) -> String {
     let commitment = p.commit(&mut rng, s);
 
     format!("{}", commitment.randomness().inner())
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    struct TestCurve;
+
+    impl Curve for TestCurve {
+        const PRIME_MODULUS: U256 =
+            U256::from_be_hex("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+        const ORDER: U256 = U256::ONE;
+        const GENERATOR_X: U256 = U256::ONE;
+
+        const GENERATOR_Y: U256 = U256::ONE;
+        const COEFF_A: U256 = U256::ONE;
+        const COEFF_B: U256 = U256::ONE;
+    }
+
+    impl Cycle<TestCurve> for Tom256k1 {}
+
+    #[test]
+    fn cycle_check() {
+        assert!(<Tom256k1 as Cycle<Secp256k1>>::is_cycle());
+        assert!(!<Tom256k1 as Cycle<TestCurve>>::is_cycle());
+    }
 }
