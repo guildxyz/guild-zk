@@ -1,3 +1,4 @@
+use crate::arithmetic::multimult::MultiMult;
 use crate::arithmetic::{Modular, Point, Scalar};
 use crate::pedersen::*;
 use crate::{Curve, Cycle};
@@ -58,16 +59,25 @@ pub struct PointAddCommitments<C> {
 }
 
 impl<C: Curve> PointAddCommitments<C> {
-    pub fn commitments(&self) -> [&Point<C>; 6] {
-        [
-            self.px.commitment(),
-            self.py.commitment(),
-            self.qx.commitment(),
-            self.qx.commitment(),
-            self.rx.commitment(),
-            self.rx.commitment(),
-        ]
+    pub fn into_commitments(self) -> PointAddCommitmentPoints<C> {
+        PointAddCommitmentPoints {
+            px: self.px.into_commitment(),
+            py: self.py.into_commitment(),
+            qx: self.qx.into_commitment(),
+            qy: self.qy.into_commitment(),
+            rx: self.rx.into_commitment(),
+            ry: self.ry.into_commitment(),
+        }
     }
+}
+
+pub struct PointAddCommitmentPoints<C> {
+    px: Point<C>,
+    py: Point<C>,
+    qx: Point<C>,
+    qy: Point<C>,
+    rx: Point<C>,
+    ry: Point<C>,
 }
 
 pub struct MultCommitProof<C> {
@@ -187,5 +197,82 @@ impl<C: Cycle<CC>, CC: Cycle<C>> PointAddProof<C, CC> {
             equality_proof_y,
             cycle: PhantomData,
         }
+    }
+
+    pub fn aggregate<R: CryptoRng + RngCore>(
+        &self,
+        rng: &mut R,
+        pedersen_generator: &PedersenGenerator<C>,
+        commitments: &PointAddCommitmentPoints<C>,
+        multimult: &mut MultiMult<C>,
+    ) {
+        let commitment_7 = &commitments.qx - &commitments.px;
+        let commitment_9 = &commitments.qy - &commitments.py;
+        let commitment_12 = &commitments.px - &commitments.rx;
+
+        self.mult_proof_8.proof.aggregate(
+            rng,
+            pedersen_generator,
+            &commitment_7,
+            &self.mult_proof_8.commitment,
+            &Point::<C>::GENERATOR,
+            multimult,
+        );
+
+        self.mult_proof_10.proof.aggregate(
+            rng,
+            pedersen_generator,
+            &self.mult_proof_8.commitment,
+            &commitment_9,
+            &self.mult_proof_10.commitment,
+            multimult,
+        );
+
+        self.mult_proof_11.proof.aggregate(
+            rng,
+            pedersen_generator,
+            &self.mult_proof_10.commitment,
+            &self.mult_proof_10.commitment,
+            &self.mult_proof_11.commitment,
+            multimult,
+        );
+
+        self.mult_proof_13.proof.aggregate(
+            rng,
+            pedersen_generator,
+            &self.mult_proof_10.commitment,
+            &commitment_12,
+            &self.mult_proof_13.commitment,
+            multimult,
+        );
+
+        let aux_commitment = &(&commitments.rx + &commitments.px) + &commitments.qx;
+        self.equality_proof_x.aggregate(
+            rng,
+            pedersen_generator,
+            &self.mult_proof_11.commitment,
+            &aux_commitment,
+            multimult,
+        );
+
+        let aux_commitment = &commitments.py + &commitments.ry;
+        self.equality_proof_y.aggregate(
+            rng,
+            pedersen_generator,
+            &self.mult_proof_13.commitment,
+            &aux_commitment,
+            multimult,
+        );
+    }
+
+    pub fn verify<R: CryptoRng + RngCore>(
+        &self,
+        rng: &mut R,
+        pedersen_generator: &PedersenGenerator<C>,
+        commitments: &PointAddCommitmentPoints<C>,
+    ) -> bool {
+        let mut multimult = MultiMult::new();
+        self.aggregate(rng, pedersen_generator, commitments, &mut multimult);
+        multimult.evaluate() == Point::<C>::IDENTITY
     }
 }

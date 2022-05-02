@@ -101,14 +101,15 @@ impl<C: Curve> MultiplicationProof<C> {
         }
     }
 
-    pub fn verify<R: CryptoRng + RngCore>(
+    pub fn aggregate<R: CryptoRng + RngCore>(
         &self,
         rng: &mut R,
         pedersen_generator: &PedersenGenerator<C>,
         commitment_to_x: &Point<C>,
         commitment_to_y: &Point<C>,
         commitment_to_z: &Point<C>,
-    ) -> bool {
+        multimult: &mut MultiMult<C>,
+    ) {
         let challenge = hash_points(
             Self::HASH_ID,
             &[
@@ -155,13 +156,31 @@ impl<C: Curve> MultiplicationProof<C> {
         relation_a4_2.insert(self.c4.clone(), challenge_scalar);
         relation_a4_2.insert((&self.a4_2).neg(), Scalar::<C>::ONE);
 
-        let mut multimult = MultiMult::new();
-        relation_x.drain(rng, &mut multimult);
-        relation_y.drain(rng, &mut multimult);
-        relation_z.drain(rng, &mut multimult);
-        relation_a4_1.drain(rng, &mut multimult);
-        relation_a4_2.drain(rng, &mut multimult);
+        relation_x.drain(rng, multimult);
+        relation_y.drain(rng, multimult);
+        relation_z.drain(rng, multimult);
+        relation_a4_1.drain(rng, multimult);
+        relation_a4_2.drain(rng, multimult);
+    }
 
+    #[cfg(test)]
+    pub fn verify<R: CryptoRng + RngCore>(
+        &self,
+        rng: &mut R,
+        pedersen_generator: &PedersenGenerator<C>,
+        commitment_to_x: &Point<C>,
+        commitment_to_y: &Point<C>,
+        commitment_to_z: &Point<C>,
+    ) -> bool {
+        let mut multimult = MultiMult::new();
+        self.aggregate(
+            rng,
+            pedersen_generator,
+            commitment_to_x,
+            commitment_to_y,
+            commitment_to_z,
+            &mut multimult,
+        );
         multimult.evaluate() == Point::<C>::IDENTITY
     }
 }

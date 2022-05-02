@@ -55,13 +55,14 @@ impl<C: Curve> EqualityProof<C> {
         }
     }
 
-    pub fn verify<R: CryptoRng + RngCore>(
+    pub fn aggregate<R: CryptoRng + RngCore>(
         &self,
         rng: &mut R,
         pedersen_generator: &PedersenGenerator<C>,
         commitment_1: &Point<C>,
         commitment_2: &Point<C>,
-    ) -> bool {
+        multimult: &mut MultiMult<C>,
+    ) {
         let challenge = hash_points(
             Self::HASH_ID,
             &[
@@ -84,10 +85,26 @@ impl<C: Curve> EqualityProof<C> {
         relation_2.insert(commitment_2.clone(), challenge_scalar);
         relation_2.insert((&self.commitment_to_random_2).neg(), Scalar::ONE);
 
-        let mut multimult = MultiMult::new();
-        relation_1.drain(rng, &mut multimult);
-        relation_2.drain(rng, &mut multimult);
+        relation_1.drain(rng, multimult);
+        relation_2.drain(rng, multimult);
+    }
 
+    #[cfg(test)]
+    pub fn verify<R: CryptoRng + RngCore>(
+        &self,
+        rng: &mut R,
+        pedersen_generator: &PedersenGenerator<C>,
+        commitment_1: &Point<C>,
+        commitment_2: &Point<C>,
+    ) -> bool {
+        let mut multimult = MultiMult::new();
+        self.aggregate(
+            rng,
+            pedersen_generator,
+            commitment_1,
+            commitment_2,
+            &mut multimult,
+        );
         multimult.evaluate() == Point::<C>::IDENTITY
     }
 }
