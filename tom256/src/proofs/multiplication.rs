@@ -1,5 +1,5 @@
 use crate::arithmetic::multimult::{MultiMult, Relation};
-use crate::arithmetic::{Point, Scalar, Modular};
+use crate::arithmetic::{Modular, Point, Scalar};
 use crate::pedersen::*;
 use crate::utils::hash_points;
 use crate::Curve;
@@ -28,6 +28,7 @@ pub struct MultiplicationProof<C: Curve> {
 impl<C: Curve> MultiplicationProof<C> {
     const HASH_ID: &'static [u8] = b"multiplication-proof";
 
+    #[allow(clippy::too_many_arguments)]
     pub fn construct<R: CryptoRng + RngCore>(
         rng: &mut R,
         pedersen_generator: &PedersenGenerator<C>,
@@ -72,18 +73,24 @@ impl<C: Curve> MultiplicationProof<C> {
         let mask_y = random_scalar_2 - challenge_scalar * y;
         let mask_z = random_scalar_3 - challenge_scalar * z;
 
-        let mask_random_x = commitment_to_random_1.randomness().sub(&(&challenge_scalar * commitment_to_x.randomness()));
-        let mask_random_y = commitment_to_random_2.randomness().sub(&(&challenge_scalar * commitment_to_y.randomness()));
-        let mask_random_z = commitment_to_random_3.randomness().sub(&(&challenge_scalar * commitment_to_z.randomness()));
-        let mask_r4 = a4_1.randomness().sub(&(&challenge_scalar * &r4));
+        let mask_random_x = commitment_to_random_1
+            .randomness()
+            .sub(&(&challenge_scalar * commitment_to_x.randomness()));
+        let mask_random_y = commitment_to_random_2
+            .randomness()
+            .sub(&(&challenge_scalar * commitment_to_y.randomness()));
+        let mask_random_z = commitment_to_random_3
+            .randomness()
+            .sub(&(&challenge_scalar * commitment_to_z.randomness()));
+        let mask_r4 = a4_1.randomness().sub(&(challenge_scalar * r4));
 
-        Self{
-            c4: c4,
-            commitment_to_random_1: commitment_to_random_1.into_commitment(), 
-            commitment_to_random_2: commitment_to_random_2.into_commitment(), 
-            commitment_to_random_3: commitment_to_random_3.into_commitment(), 
-            a4_1: a4_1.into_commitment(), 
-            a4_2, 
+        Self {
+            c4,
+            commitment_to_random_1: commitment_to_random_1.into_commitment(),
+            commitment_to_random_2: commitment_to_random_2.into_commitment(),
+            commitment_to_random_3: commitment_to_random_3.into_commitment(),
+            a4_1: a4_1.into_commitment(),
+            a4_2,
             mask_x,
             mask_y,
             mask_z,
@@ -158,7 +165,6 @@ impl<C: Curve> MultiplicationProof<C> {
         multimult.evaluate() == Point::<C>::IDENTITY
     }
 }
-
 
 #[cfg(test)]
 mod test {
