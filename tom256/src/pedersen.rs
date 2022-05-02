@@ -40,6 +40,13 @@ pub struct PedersenCommitment<C: Curve> {
 }
 
 impl<C: Curve> PedersenCommitment<C> {
+    pub fn new(commitment: Point<C>, randomness: Scalar<C>) -> Self {
+        Self {
+            commitment,
+            randomness,
+        }
+    }
+
     pub fn commitment(&self) -> &Point<C> {
         &self.commitment
     }
