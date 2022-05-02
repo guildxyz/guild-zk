@@ -1,16 +1,23 @@
 use super::modular::{mod_u256, Modular};
-use crate::Curve;
+use super::Scalar;
+use crate::{Curve, Cycle};
 
 use bigint::U256;
 
 use std::marker::PhantomData;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct FieldElement<C: Curve>(pub(crate) U256, pub(crate) PhantomData<C>);
+pub struct FieldElement<C>(pub(crate) U256, pub(crate) PhantomData<C>);
 
-impl<C: Curve> FieldElement<C> {
+impl<C> FieldElement<C> {
     pub const ONE: Self = Self(U256::ONE, PhantomData);
     pub const ZERO: Self = Self(U256::ZERO, PhantomData);
+}
+
+impl<C: Curve> FieldElement<C> {
+    pub fn to_cycle_scalar<CC: Cycle<C>>(&self) -> Scalar<CC> {
+        Scalar::<CC>::new(self.0)
+    }
 }
 
 impl<C: Curve> Modular for FieldElement<C> {

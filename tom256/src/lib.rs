@@ -1,6 +1,6 @@
 pub mod arithmetic;
 pub mod pedersen;
-//pub mod proofs;
+pub mod proofs;
 pub mod utils;
 
 use arithmetic::Modular;
@@ -55,7 +55,9 @@ impl Curve for Tom256k1 {
     const COEFF_B: U256 = U256::from_u8(7);
 }
 
+// TODO (proc)macro that automatically derives these for any two types?
 impl Cycle<Secp256k1> for Tom256k1 {}
+impl Cycle<Tom256k1> for Secp256k1 {}
 
 // TODO add feature flag for wasm stuff
 use wasm_bindgen::prelude::*;

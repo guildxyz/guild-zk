@@ -8,7 +8,7 @@ use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::marker::PhantomData;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Scalar<C: Curve>(U256, PhantomData<C>);
+pub struct Scalar<C>(U256, PhantomData<C>);
 
 impl<C: Curve> PartialOrd for Scalar<C> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {

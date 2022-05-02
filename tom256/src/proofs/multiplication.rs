@@ -9,7 +9,7 @@ use std::ops::Neg;
 use rand_core::{CryptoRng, RngCore};
 
 #[derive(Clone, Debug)]
-pub struct MultiplicationProof<C: Curve> {
+pub struct MultiplicationProof<C> {
     c4: Point<C>,
     commitment_to_random_1: Point<C>,
     commitment_to_random_2: Point<C>,

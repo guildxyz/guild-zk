@@ -13,7 +13,7 @@ const BASE_16_DIGITS: [char; 16] = [
 ];
 
 #[derive(Debug, Clone)]
-pub struct Point<C: Curve> {
+pub struct Point<C> {
     x: FieldElement<C>,
     y: FieldElement<C>,
     z: FieldElement<C>,
