@@ -91,22 +91,22 @@ impl<C: Curve> MultCommitProof<C> {
     }
 }
 
-pub struct PointAddProof<C, CC> {
-    mult_proof_8: MultCommitProof<C>,
-    mult_proof_10: MultCommitProof<C>,
-    mult_proof_11: MultCommitProof<C>,
-    mult_proof_13: MultCommitProof<C>,
-    equality_proof_x: EqualityProof<C>,
-    equality_proof_y: EqualityProof<C>,
-    cycle: PhantomData<CC>,
+pub struct PointAddProof<CC, C> {
+    mult_proof_8: MultCommitProof<CC>,
+    mult_proof_10: MultCommitProof<CC>,
+    mult_proof_11: MultCommitProof<CC>,
+    mult_proof_13: MultCommitProof<CC>,
+    equality_proof_x: EqualityProof<CC>,
+    equality_proof_y: EqualityProof<CC>,
+    base_curve: PhantomData<C>,
 }
 
-impl<C: Cycle<CC>, CC: Cycle<C>> PointAddProof<C, CC> {
+impl<CC: Cycle<C>, C: Curve> PointAddProof<CC, C> {
     pub fn construct<R: CryptoRng + RngCore>(
         rng: &mut R,
-        pedersen_generator: &PedersenGenerator<C>,
-        commitments: &PointAddCommitments<C>,
-        points: &PointAddSecrets<CC>,
+        pedersen_generator: &PedersenGenerator<CC>,
+        commitments: &PointAddCommitments<CC>,
+        points: &PointAddSecrets<C>,
     ) -> Self {
         // P + Q = R
         // P: (x1, y1)
@@ -127,7 +127,7 @@ impl<C: Cycle<CC>, CC: Cycle<C>> PointAddProof<C, CC> {
         let commitment_11 = pedersen_generator.commit(rng, aux_11.to_cycle_scalar());
         let commitment_12 = &commitments.px - &commitments.rx;
         let commitment_13 = pedersen_generator.commit(rng, aux_13.to_cycle_scalar());
-        let commitment_14 = PedersenCommitment::new(Point::<C>::GENERATOR, Scalar::<C>::ZERO);
+        let commitment_14 = PedersenCommitment::new(Point::<CC>::GENERATOR, Scalar::<CC>::ZERO);
 
         let mult_proof_8 = MultiplicationProof::construct(
             rng,
@@ -137,7 +137,7 @@ impl<C: Cycle<CC>, CC: Cycle<C>> PointAddProof<C, CC> {
             &commitment_14,
             aux_7.to_cycle_scalar(),
             aux_8.to_cycle_scalar(),
-            Scalar::<C>::ONE,
+            Scalar::<CC>::ONE,
         );
         let mult_proof_10 = MultiplicationProof::construct(
             rng,
@@ -195,16 +195,16 @@ impl<C: Cycle<CC>, CC: Cycle<C>> PointAddProof<C, CC> {
             mult_proof_13: MultCommitProof::new(commitment_13.into_commitment(), mult_proof_13),
             equality_proof_x,
             equality_proof_y,
-            cycle: PhantomData,
+            base_curve: PhantomData,
         }
     }
 
     pub fn aggregate<R: CryptoRng + RngCore>(
         &self,
         rng: &mut R,
-        pedersen_generator: &PedersenGenerator<C>,
-        commitments: &PointAddCommitmentPoints<C>,
-        multimult: &mut MultiMult<C>,
+        pedersen_generator: &PedersenGenerator<CC>,
+        commitments: &PointAddCommitmentPoints<CC>,
+        multimult: &mut MultiMult<CC>,
     ) {
         let commitment_7 = &commitments.qx - &commitments.px;
         let commitment_9 = &commitments.qy - &commitments.py;
@@ -216,7 +216,7 @@ impl<C: Cycle<CC>, CC: Cycle<C>> PointAddProof<C, CC> {
             pedersen_generator,
             &commitment_7,
             &self.mult_proof_8.commitment,
-            &Point::<C>::GENERATOR,
+            &Point::<CC>::GENERATOR,
             multimult,
         );
 
@@ -270,12 +270,12 @@ impl<C: Cycle<CC>, CC: Cycle<C>> PointAddProof<C, CC> {
     pub fn verify<R: CryptoRng + RngCore>(
         &self,
         rng: &mut R,
-        pedersen_generator: &PedersenGenerator<C>,
-        commitments: &PointAddCommitmentPoints<C>,
+        pedersen_generator: &PedersenGenerator<CC>,
+        commitments: &PointAddCommitmentPoints<CC>,
     ) -> bool {
         let mut multimult = MultiMult::new();
         self.aggregate(rng, pedersen_generator, commitments, &mut multimult);
-        multimult.evaluate() == Point::<C>::IDENTITY
+        multimult.evaluate() == Point::<CC>::IDENTITY
     }
 }
 
