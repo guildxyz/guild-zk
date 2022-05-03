@@ -1,3 +1,4 @@
+#![feature(int_log)]
 pub mod arithmetic;
 pub mod pedersen;
 pub mod proofs;
