@@ -31,6 +31,21 @@ impl<C: Curve> PedersenGenerator<C> {
             randomness,
         }
     }
+
+    pub fn commit_with_randomness(
+        &self,
+        secret: Scalar<C>,
+        randomness: Scalar<C>,
+    ) -> PedersenCommitment<C> {
+        let commitment = self
+            .0
+            .double_mul(&randomness, &Point::<C>::GENERATOR, &secret);
+
+        PedersenCommitment {
+            commitment,
+            randomness,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

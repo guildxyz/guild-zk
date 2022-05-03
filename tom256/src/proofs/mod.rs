@@ -1,4 +1,5 @@
 mod equality;
+mod membership;
 mod multiplication;
 mod point_add;
 
