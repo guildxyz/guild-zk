@@ -1,7 +1,7 @@
+use super::utils::*;
 use crate::arithmetic::{Modular, Point, Scalar};
 use crate::pedersen::*;
 use crate::{Curve, Cycle, U256};
-use super::utils::*;
 
 use rand_core::{CryptoRng, RngCore};
 use std::marker::PhantomData;

@@ -87,6 +87,12 @@ impl<C: Curve> std::ops::Sub for Scalar<C> {
     }
 }
 
+impl<C: Curve> std::ops::SubAssign for Scalar<C> {
+    fn sub_assign(&mut self, rhs: Self) {
+        *self = *self - rhs;
+    }
+}
+
 impl<C: Curve> std::ops::Neg for Scalar<C> {
     type Output = Self;
     fn neg(self) -> Self::Output {
