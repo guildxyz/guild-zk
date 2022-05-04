@@ -10,7 +10,7 @@ pub use bigint::U256;
 // TODO is const equality test possible
 pub trait Cycle<C: Curve>: Curve {
     fn is_cycle() -> bool {
-        Self::PRIME_MODULUS == C::ORDER
+        Self::ORDER == C::PRIME_MODULUS
     }
 }
 

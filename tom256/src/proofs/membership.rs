@@ -29,20 +29,30 @@ impl<CC: Cycle<C>, C: Curve, const SEC: usize> MembershipProof<CC, C, SEC> {
         mut ring: Vec<Scalar<CC>>,
     ) -> Result<Self, String> {
         let n = pad_ring_to_2n(&mut ring)?; // log2(ring.len())
-                                            //
-        let mut a_vec = Vec::<Scalar<CC>>::with_capacity(n);
-        let mut l_vec = Vec::<Scalar<CC>>::with_capacity(n);
-        let mut r_vec = Vec::<Scalar<CC>>::with_capacity(n);
-        let mut s_vec = Vec::<Scalar<CC>>::with_capacity(n);
-        let mut t_vec = Vec::<Scalar<CC>>::with_capacity(n);
+        
+        // NOTE since all of these vectors are filled with
+        // "bigint" values modulo CC::ORDER
+        // random scalar storages
+        //let mut a_vec = Vec::<Scalar<C>>::with_capacity(n);
+        //let mut l_vec = Vec::<Scalar<C>>::with_capacity(n);
+        //let mut r_vec = Vec::<Scalar<C>>::with_capacity(n);
+        //let mut s_vec = Vec::<Scalar<C>>::with_capacity(n);
+        //let mut t_vec = Vec::<Scalar<C>>::with_capacity(n);
+        //let mut rho_vec = Vec::<Scalar<C>>::with_capacity(n);
 
-        let mut tmp_index = index;
-        for i in 0..n {
-            l_vec.push(tmp_index % 2);
-            tmp_index /= 2;
-            // TODO fill a, r, s, t with Scalars (?) modulo CC::ORDER (?)
-            // CC::ORDER == C::PRIME_MODULUS -> cast Scalar<C> into Scalar<CC> ????
-        }
+        //// commitment storages
+        //let mut ca = Vec::<Scalar<C>>::with_capacity(n);
+        //let mut cb = Vec::<Scalar<C>>::with_capacity(n);
+        //let mut cd = Vec::<Scalar<C>>::with_capacity(n);
+        //let mut cl = Vec::<Scalar<C>>::with_capacity(n);
+
+        //let mut omegas = Vec::<Scalar<C>>::with_capacity(n);
+
+        //let mut tmp_index = index;
+        //for i in 0..n {
+        //    l_vec.push(tmp_index % 2);
+        //    tmp_index /= 2;
+        //}
         todo!();
     }
 }
