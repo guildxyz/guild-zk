@@ -74,6 +74,12 @@ impl<C: Curve> std::ops::Add for Scalar<C> {
     }
 }
 
+impl<C: Curve> std::ops::AddAssign for Scalar<C> {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = *self + rhs;
+    }
+}
+
 impl<C: Curve> std::ops::Sub for Scalar<C> {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self::Output {
@@ -99,6 +105,12 @@ impl<'a, 'b, C: Curve> std::ops::Mul<&'b Scalar<C>> for &'a Scalar<C> {
     type Output = Scalar<C>;
     fn mul(self, rhs: &'b Scalar<C>) -> Self::Output {
         Modular::mul(self, rhs)
+    }
+}
+
+impl<C: Curve> std::ops::MulAssign for Scalar<C> {
+    fn mul_assign(&mut self, rhs: Self) {
+        *self = *self * rhs;
     }
 }
 
