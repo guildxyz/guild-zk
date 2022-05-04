@@ -29,8 +29,9 @@ impl<CC: Cycle<C>, C: Curve> MembershipProof<CC, C> {
         // NOTE this is just the public address represented as a scalar (only
         // 160 bit, so it should fit unless C::PRIME_MODULUS is less than
         // 2^160)
-        mut ring: Vec<Scalar<CC>>,
+        ring: &[Scalar<CC>],
     ) -> Result<Self, String> {
+        let mut ring = ring.to_vec();
         let n = pad_ring_to_2n(&mut ring)?; // log2(ring.len())
 
         // random scalar storages
@@ -78,7 +79,7 @@ impl<CC: Cycle<C>, C: Curve> MembershipProof<CC, C> {
             omegas.push(Scalar::new(U256::from_u64(i as u64)));
         }
 
-        let mut dv = Vec::<Scalar<CC>>::new();
+        let mut poly_vals = Vec::<Scalar<CC>>::new();
         for omega in omegas.iter() {
             let mut f0j = Vec::<Scalar<CC>>::with_capacity(n);
             let mut f1j = Vec::<Scalar<CC>>::with_capacity(n);
@@ -102,12 +103,57 @@ impl<CC: Cycle<C>, C: Curve> MembershipProof<CC, C> {
                 }
             }
 
-            let mut dval = Scalar::ZERO;
+            let mut poly_val = Scalar::ZERO;
             for i in 0..n {
-                dval += (ring[index] - ring[i]) * prod_vec[i];
+                poly_val += (ring[index] - ring[i]) * prod_vec[i];
             }
-            dv.push(dval);
+            poly_vals.push(poly_val);
         }
-        todo!();
+
+        let coeffs = interpolate(&omegas, &poly_vals)?;
+        for i in 0..n {
+            cd.push(
+                pedersen_generator
+                    .commit_with_randomness(coeffs[i], rho_vec[i])
+                    .into_commitment(),
+            );
+        }
+
+        // TODO hash points
+        let challenge = Scalar::ZERO; // TODO
+        let mut fi = Vec::<Scalar<CC>>::with_capacity(n);
+        let mut za = Vec::<Scalar<CC>>::with_capacity(n);
+        let mut zb = Vec::<Scalar<CC>>::with_capacity(n);
+        let mut zd =
+            commitment_to_key.randomness() * &challenge.pow(&Scalar::new(U256::from_u64(n as u64)));
+
+        for i in 0..n {
+            fi[i] = l_vec[i] * challenge + a_vec[i];
+            za[i] = r_vec[i] * challenge + s_vec[i];
+            zb[i] = r_vec[i] * (challenge - fi[i]) + t_vec[i];
+            zd -= rho_vec[i] * challenge.pow(&Scalar::new(U256::from_u64(i as u64)));
+        }
+
+        Ok(Self {
+            cl,
+            ca,
+            cb,
+            cd,
+            fi,
+            za,
+            zb,
+            zd,
+            base_curve: PhantomData,
+        })
+    }
+
+    pub fn verify(
+        &self,
+        pedersen_generator: &PedersenGenerator,
+        commitment: &Point<CC>,
+        ring: &[Scalar<CC>],
+    ) -> Result<(), String> {
+        // TODO
+        Ok(())
     }
 }

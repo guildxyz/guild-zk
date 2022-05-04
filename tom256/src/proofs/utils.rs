@@ -122,6 +122,11 @@ mod test {
 
     #[test]
     fn interpolate_polynomial() {
+        // not equal length inputs
+        let x = vec![Scalar::<Tom256k1>::new(U256::from_u8(3)); 3];
+        let y = vec![Scalar::<Tom256k1>::new(U256::from_u8(5)); 4];
+        assert!(interpolate(&x, &y).is_err());
+
         // constant polynomial (y = 53)
         let x = vec![Scalar::<Tom256k1>::new(U256::from_u8(3)); 1];
         let y = vec![Scalar::<Tom256k1>::new(U256::from_u8(53)); 1];
