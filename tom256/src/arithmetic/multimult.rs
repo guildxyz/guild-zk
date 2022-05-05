@@ -1,4 +1,4 @@
-use super::{Point, Scalar};
+use super::{Modular, Point, Scalar};
 
 use crate::Curve;
 
@@ -19,8 +19,8 @@ pub struct Known<C> {
 }
 
 pub struct MultiMult<C> {
-    pairs: Vec<Pair<C>>,
-    known: Vec<Known<C>>,
+    pub pairs: Vec<Pair<C>>,
+    pub known: Vec<Known<C>>,
 }
 
 impl<C: Curve> Default for MultiMult<C> {
@@ -39,9 +39,13 @@ impl<C: Curve> MultiMult<C> {
 
     pub fn add_known(&mut self, pt: Point<C>) {
         if !self.known.iter().any(|known| known.point == pt) {
+            self.pairs.push(Pair {
+                point: pt.clone(),
+                scalar: Scalar::ZERO,
+            });
             self.known.push(Known {
                 point: pt,
-                index: self.known.len(),
+                index: self.pairs.len() - 1,
             });
         }
     }

@@ -123,6 +123,7 @@ mod test {
         ));
 
         let commitment = p.commit(&mut rng, secret);
+        let randomness = commitment.randomness().to_owned();
         let c = commitment.commitment.into_affine();
         assert_eq!(
             c.x().inner(),
@@ -133,5 +134,9 @@ mod test {
             &U256::from_be_hex("45194d6562509b86a80c6dcc5f7a71fd594ef0f4400f73a852074ea52c9c58f3")
         );
         assert_eq!(c.z().inner(), &U256::ONE);
+
+        let commitment_with_randomness = p.commit_with_randomness(secret, randomness);
+        let cr = commitment_with_randomness.into_commitment().into_affine();
+        assert_eq!(c, cr);
     }
 }

@@ -8,49 +8,52 @@ use crate::{Curve, Cycle, U256};
 use rand_core::{CryptoRng, RngCore};
 use std::marker::PhantomData;
 
-pub struct MembershipProof<CC, C> {
-    cl: Vec<Point<CC>>,
-    ca: Vec<Point<CC>>,
-    cb: Vec<Point<CC>>,
-    cd: Vec<Point<CC>>,
-    fi: Vec<Scalar<CC>>,
-    za: Vec<Scalar<CC>>,
-    zb: Vec<Scalar<CC>>,
-    zd: Scalar<CC>,
-    base_curve: PhantomData<C>,
+pub struct MembershipProof<C> {
+    cl: Vec<Point<C>>,
+    ca: Vec<Point<C>>,
+    cb: Vec<Point<C>>,
+    cd: Vec<Point<C>>,
+    fi: Vec<Scalar<C>>,
+    za: Vec<Scalar<C>>,
+    zb: Vec<Scalar<C>>,
+    zd: Scalar<C>,
 }
 
-impl<CC: Cycle<C>, C: Curve> MembershipProof<CC, C> {
+impl<C: Curve> MembershipProof<C> {
     const HASH_ID: &'static [u8] = b"membership-proof";
 
     pub fn construct<R: CryptoRng + RngCore>(
         rng: &mut R,
-        pedersen_generator: &PedersenGenerator<CC>,
-        commitment_to_key: &PedersenCommitment<CC>,
+        pedersen_generator: &PedersenGenerator<C>,
+        commitment_to_key: &PedersenCommitment<C>,
         index: usize,
         // NOTE this is just the public address represented as a scalar (only
         // 160 bit, so it should fit unless C::PRIME_MODULUS is less than
         // 2^160)
-        ring: &[Scalar<CC>],
+        ring: &[Scalar<C>],
     ) -> Result<Self, String> {
+        if index >= ring.len() {
+            return Err("invalid index".to_string());
+        }
+
         let mut ring = ring.to_vec();
         let n = pad_ring_to_2n(&mut ring)?; // log2(ring.len())
 
         // random scalar storages
-        let mut a_vec = Vec::<Scalar<CC>>::with_capacity(n);
-        let mut l_vec = Vec::<Scalar<CC>>::with_capacity(n);
-        let mut r_vec = Vec::<Scalar<CC>>::with_capacity(n);
-        let mut s_vec = Vec::<Scalar<CC>>::with_capacity(n);
-        let mut t_vec = Vec::<Scalar<CC>>::with_capacity(n);
-        let mut rho_vec = Vec::<Scalar<CC>>::with_capacity(n);
+        let mut a_vec = Vec::<Scalar<C>>::with_capacity(n);
+        let mut l_vec = Vec::<Scalar<C>>::with_capacity(n);
+        let mut r_vec = Vec::<Scalar<C>>::with_capacity(n);
+        let mut s_vec = Vec::<Scalar<C>>::with_capacity(n);
+        let mut t_vec = Vec::<Scalar<C>>::with_capacity(n);
+        let mut rho_vec = Vec::<Scalar<C>>::with_capacity(n);
 
         // commitment storages
-        let mut ca = Vec::<Point<CC>>::with_capacity(n);
-        let mut cb = Vec::<Point<CC>>::with_capacity(n);
-        let mut cd = Vec::<Point<CC>>::with_capacity(n);
-        let mut cl = Vec::<Point<CC>>::with_capacity(n);
+        let mut ca = Vec::<Point<C>>::with_capacity(n);
+        let mut cb = Vec::<Point<C>>::with_capacity(n);
+        let mut cd = Vec::<Point<C>>::with_capacity(n);
+        let mut cl = Vec::<Point<C>>::with_capacity(n);
 
-        let mut omegas = Vec::<Scalar<CC>>::with_capacity(n);
+        let mut omegas = Vec::<Scalar<C>>::with_capacity(n);
 
         let mut tmp_index = index;
         for i in 0..n {
@@ -81,17 +84,17 @@ impl<CC: Cycle<C>, C: Curve> MembershipProof<CC, C> {
             omegas.push(Scalar::new(U256::from_u64(i as u64)));
         }
 
-        let mut poly_vals = Vec::<Scalar<CC>>::new();
+        let mut poly_vals = Vec::<Scalar<C>>::new();
         for omega in omegas.iter() {
-            let mut f0j = Vec::<Scalar<CC>>::with_capacity(n);
-            let mut f1j = Vec::<Scalar<CC>>::with_capacity(n);
-            let mut ratio = Vec::<Scalar<CC>>::with_capacity(n);
+            let mut f0j = Vec::<Scalar<C>>::with_capacity(n);
+            let mut f1j = Vec::<Scalar<C>>::with_capacity(n);
+            let mut ratio = Vec::<Scalar<C>>::with_capacity(n);
 
             let mut product = Scalar::ONE;
             for j in 0..n {
-                f0j[j] = &(Scalar::ONE - l_vec[j]) * omega - a_vec[j];
-                f1j[j] = &l_vec[j] * omega + a_vec[j];
-                ratio[j] = f1j[j] * f0j[j].inverse();
+                f0j.push(&(Scalar::ONE - l_vec[j]) * omega - a_vec[j]);
+                f1j.push(&l_vec[j] * omega + a_vec[j]);
+                ratio.push(f1j[j] * f0j[j].inverse());
                 product *= f0j[j];
             }
 
@@ -124,17 +127,19 @@ impl<CC: Cycle<C>, C: Curve> MembershipProof<CC, C> {
             return Err("invalid commitment lengths".to_owned());
         }
 
-        let challenge = Self::hash_commitments(&ca, &cb, &cd, &cl);
-        let mut fi = Vec::<Scalar<CC>>::with_capacity(n);
-        let mut za = Vec::<Scalar<CC>>::with_capacity(n);
-        let mut zb = Vec::<Scalar<CC>>::with_capacity(n);
+        // TODO
+        let challenge = Scalar::new(U256::from_u8(5));
+        //let challenge = Self::hash_commitments(&ca, &cb, &cd, &cl);
+        let mut fi = Vec::<Scalar<C>>::with_capacity(n);
+        let mut za = Vec::<Scalar<C>>::with_capacity(n);
+        let mut zb = Vec::<Scalar<C>>::with_capacity(n);
         let mut zd =
             commitment_to_key.randomness() * &challenge.pow(&Scalar::new(U256::from_u64(n as u64)));
 
         for i in 0..n {
-            fi[i] = l_vec[i] * challenge + a_vec[i];
-            za[i] = r_vec[i] * challenge + s_vec[i];
-            zb[i] = r_vec[i] * (challenge - fi[i]) + t_vec[i];
+            fi.push(l_vec[i] * challenge + a_vec[i]);
+            za.push(r_vec[i] * challenge + s_vec[i]);
+            zb.push(r_vec[i] * (challenge - fi[i]) + t_vec[i]);
             zd -= rho_vec[i] * challenge.pow(&Scalar::new(U256::from_u64(i as u64)));
         }
 
@@ -151,24 +156,25 @@ impl<CC: Cycle<C>, C: Curve> MembershipProof<CC, C> {
             za,
             zb,
             zd,
-            base_curve: PhantomData,
         })
     }
 
     pub fn verify<R: CryptoRng + RngCore>(
         &self,
         rng: &mut R,
-        pedersen_generator: &PedersenGenerator<CC>,
-        commitment_to_key: &Point<CC>,
-        ring: &[Scalar<CC>],
+        pedersen_generator: &PedersenGenerator<C>,
+        commitment_to_key: &Point<C>,
+        ring: &[Scalar<C>],
     ) -> Result<(), String> {
         let mut ring = ring.to_vec();
         let n = pad_ring_to_2n(&mut ring)?; // log2(ring.len())
 
-        let challenge = Self::hash_commitments(&self.ca, &self.cb, &self.cd, &self.cl);
+        // TODO
+        //let challenge = Self::hash_commitments(&self.ca, &self.cb, &self.cd, &self.cl);
+        let challenge = Scalar::new(U256::from_u8(5));
 
         let mut multimult = MultiMult::new();
-        multimult.add_known(Point::<CC>::GENERATOR);
+        multimult.add_known(Point::<C>::GENERATOR);
         multimult.add_known(pedersen_generator.generator().clone());
 
         // NOTE unwraps here are fine because of length checks
@@ -179,7 +185,7 @@ impl<CC: Cycle<C>, C: Curve> MembershipProof<CC, C> {
 
             rel_0.insert(self.cl.get(i).unwrap().clone(), challenge);
             rel_0.insert(self.ca.get(i).unwrap().clone(), Scalar::ONE);
-            rel_0.insert(Point::<CC>::GENERATOR, -self.fi[i]);
+            rel_0.insert(Point::<C>::GENERATOR, -self.fi[i]);
             rel_0.insert(pedersen_generator.generator().clone(), -self.za[i]);
 
             rel_1.insert(self.cl.get(i).unwrap().clone(), challenge - self.fi[i]);
@@ -195,9 +201,9 @@ impl<CC: Cycle<C>, C: Curve> MembershipProof<CC, C> {
             let mut pix = Scalar::ONE;
             for j in 0..n {
                 if i & (1 << j) == 0 {
-                    pix *= challenge - self.fi[j]
+                    pix *= challenge - self.fi[j];
                 } else {
-                    pix *= self.fi[j]
+                    pix *= self.fi[j];
                 }
             }
             total += key * &pix;
@@ -210,13 +216,33 @@ impl<CC: Cycle<C>, C: Curve> MembershipProof<CC, C> {
                 -challenge.pow(&Scalar::new(U256::from_u64(i as u64))),
             );
         }
+
         rel_final.insert(
-            commitment_to_key.clone(),
+            // TODO
+            //commitment_to_key.clone(),
+            Point::GENERATOR.double(),
             challenge.pow(&Scalar::new(U256::from_u64(n as u64))),
         );
-        rel_final.insert(Point::<CC>::GENERATOR, -total);
+        rel_final.insert(Point::<C>::GENERATOR, -total);
         rel_final.insert(pedersen_generator.generator().clone(), -self.zd);
         rel_final.drain(rng, &mut multimult);
+
+        for p in multimult.pairs.iter() {
+            let shit = p.point.clone().into_affine();
+            println!("{}", shit.x().inner());
+            println!("{}", shit.y().inner());
+            println!("{}\n", shit.z().inner());
+        }
+
+        // TODO stuff:
+        // - scalar random
+        // - random_mod_u256 (simply modulo?)
+        // - hash points construct
+        // - hash points verify
+        // - println stuff
+        // - rel_final insert commitment
+        // - multimult private fields
+        panic!();
 
         if multimult.evaluate() == Point::IDENTITY {
             Ok(())
@@ -226,11 +252,11 @@ impl<CC: Cycle<C>, C: Curve> MembershipProof<CC, C> {
     }
 
     fn hash_commitments(
-        ca: &[Point<CC>],
-        cb: &[Point<CC>],
-        cd: &[Point<CC>],
-        cl: &[Point<CC>],
-    ) -> Scalar<CC> {
+        ca: &[Point<C>],
+        cb: &[Point<C>],
+        cd: &[Point<C>],
+        cl: &[Point<C>],
+    ) -> Scalar<C> {
         let mut hasher = PointHasher::new(Self::HASH_ID);
         // NOTE we are assuming that all input slices have the same length
         // it is important to use this function in both `contruct` and `verify`
@@ -241,6 +267,51 @@ impl<CC: Cycle<C>, C: Curve> MembershipProof<CC, C> {
             hasher.insert_point(cl.get(i).unwrap());
         }
 
-        Scalar::<CC>::new(hasher.finalize())
+        Scalar::<C>::new(hasher.finalize())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::Tom256k1;
+    use rand::rngs::StdRng;
+    use rand_core::SeedableRng;
+
+    #[test]
+    fn valid_membership_proof() {
+        let mut rng = StdRng::from_seed([117; 32]);
+        let pedersen_generator = PedersenGenerator::<Tom256k1>::new(&mut rng);
+        let ring = vec![
+            Scalar::<Tom256k1>::new(U256::from_u8(0)),
+            Scalar::<Tom256k1>::new(U256::from_u8(1)),
+            Scalar::<Tom256k1>::new(U256::from_u8(2)),
+            //Scalar::<Tom256k1>::new(U256::from_u8(3)),
+            //Scalar::<Tom256k1>::new(U256::from_u8(4)),
+            //Scalar::<Tom256k1>::new(U256::from_u8(5)),
+            //Scalar::<Tom256k1>::new(U256::from_u8(6)),
+            //Scalar::<Tom256k1>::new(U256::from_u8(7)),
+        ];
+
+        let index = 1_usize;
+        let commitment_to_key = pedersen_generator.commit(&mut rng, ring[index]);
+
+        let proof = MembershipProof::construct(
+            &mut rng,
+            &pedersen_generator,
+            &commitment_to_key,
+            index,
+            &ring,
+        )
+        .unwrap();
+
+        assert!(proof
+            .verify(
+                &mut rng,
+                &pedersen_generator,
+                commitment_to_key.commitment(),
+                &ring,
+            )
+            .is_ok());
     }
 }
