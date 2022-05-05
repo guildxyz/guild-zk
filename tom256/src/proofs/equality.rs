@@ -1,7 +1,7 @@
 use crate::arithmetic::multimult::{MultiMult, Relation};
 use crate::arithmetic::{Modular, Point, Scalar};
 use crate::pedersen::*;
-use crate::utils::hash_points;
+use crate::utils::PointHasher;
 use crate::Curve;
 
 use rand_core::{CryptoRng, RngCore};
@@ -30,15 +30,15 @@ impl<C: Curve> EqualityProof<C> {
         let random_scalar = Scalar::random(rng);
         let commitment_to_random_1 = pedersen_generator.commit(rng, random_scalar);
         let commitment_to_random_2 = pedersen_generator.commit(rng, random_scalar);
-        let challenge = hash_points(
-            Self::HASH_ID,
-            &[
-                commitment_1.commitment(),
-                commitment_2.commitment(),
-                commitment_to_random_1.commitment(),
-                commitment_to_random_2.commitment(),
-            ],
-        );
+
+        let mut hasher = PointHasher::new(Self::HASH_ID);
+        hasher.insert_points(&[
+            commitment_1.commitment(),
+            commitment_2.commitment(),
+            commitment_to_random_1.commitment(),
+            commitment_to_random_2.commitment(),
+        ]);
+        let challenge = hasher.finalize();
         let challenge_scalar = Scalar::new(challenge);
         let mask_secret = random_scalar - challenge_scalar * secret;
         let mask_random_1 =
@@ -63,15 +63,14 @@ impl<C: Curve> EqualityProof<C> {
         commitment_2: &Point<C>,
         multimult: &mut MultiMult<C>,
     ) {
-        let challenge = hash_points(
-            Self::HASH_ID,
-            &[
-                commitment_1,
-                commitment_2,
-                &self.commitment_to_random_1,
-                &self.commitment_to_random_2,
-            ],
-        );
+        let mut hasher = PointHasher::new(Self::HASH_ID);
+        hasher.insert_points(&[
+            commitment_1,
+            commitment_2,
+            &self.commitment_to_random_1,
+            &self.commitment_to_random_2,
+        ]);
+        let challenge = hasher.finalize();
         let challenge_scalar = Scalar::new(challenge);
         let mut relation_1 = Relation::new();
         let mut relation_2 = Relation::new();
