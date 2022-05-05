@@ -149,7 +149,7 @@ impl<CC: Cycle<C>, C: Curve> MembershipProof<CC, C> {
 
     pub fn verify(
         &self,
-        pedersen_generator: &PedersenGenerator,
+        pedersen_generator: &PedersenGenerator<CC>,
         commitment: &Point<CC>,
         ring: &[Scalar<CC>],
     ) -> Result<(), String> {
