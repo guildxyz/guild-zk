@@ -159,7 +159,7 @@ impl<CC: Cycle<C>, C: Curve> MembershipProof<CC, C> {
         &self,
         rng: &mut R,
         pedersen_generator: &PedersenGenerator<CC>,
-        commitment: &Point<CC>,
+        commitment_to_key: &Point<CC>,
         ring: &[Scalar<CC>],
     ) -> Result<(), String> {
         let mut ring = ring.to_vec();
@@ -191,7 +191,7 @@ impl<CC: Cycle<C>, C: Curve> MembershipProof<CC, C> {
         }
 
         let mut total = Scalar::ZERO;
-        for i in 0..ring.len() {
+        for (i, key) in ring.iter().enumerate() {
             let mut pix = Scalar::ONE;
             for j in 0..n {
                 if i & (1 << j) == 0 {
@@ -200,12 +200,29 @@ impl<CC: Cycle<C>, C: Curve> MembershipProof<CC, C> {
                     pix *= self.fi[j]
                 }
             }
-            total += ring[i] * pix;
+            total += key * &pix;
         }
 
         let mut rel_final = Relation::new();
-        // TODO
-        Ok(())
+        for (i, cd_elem) in self.cd.iter().enumerate() {
+            rel_final.insert(
+                cd_elem.clone(),
+                -challenge.pow(&Scalar::new(U256::from_u64(i as u64))),
+            );
+        }
+        rel_final.insert(
+            commitment_to_key.clone(),
+            challenge.pow(&Scalar::new(U256::from_u64(n as u64))),
+        );
+        rel_final.insert(Point::<CC>::GENERATOR, -total);
+        rel_final.insert(pedersen_generator.generator().clone(), -self.zd);
+        rel_final.drain(rng, &mut multimult);
+
+        if multimult.evaluate() == Point::IDENTITY {
+            Ok(())
+        } else {
+            Err("failed to verify membership".to_owned())
+        }
     }
 
     fn hash_commitments(
