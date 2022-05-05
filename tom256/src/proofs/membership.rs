@@ -1,6 +1,8 @@
 use super::utils::*;
+use crate::arithmetic::multimult::*;
 use crate::arithmetic::{Modular, Point, Scalar};
 use crate::pedersen::*;
+use crate::utils::PointHasher;
 use crate::{Curve, Cycle, U256};
 
 use rand_core::{CryptoRng, RngCore};
@@ -93,13 +95,12 @@ impl<CC: Cycle<C>, C: Curve> MembershipProof<CC, C> {
                 product *= f0j[j];
             }
 
-            let mut prod_vec = Vec::<Scalar<CC>>::new();
-            prod_vec.push(product);
+            let mut prod_vec = vec![product];
 
-            for i in 0..n {
+            for r in ratio.iter().take(n) {
                 let old_p_len = prod_vec.len();
                 for j in 0..old_p_len {
-                    prod_vec.push(ratio[i] * prod_vec[j]);
+                    prod_vec.push(r * &prod_vec[j]);
                 }
             }
 
@@ -119,8 +120,11 @@ impl<CC: Cycle<C>, C: Curve> MembershipProof<CC, C> {
             );
         }
 
-        // TODO hash points
-        let challenge = Scalar::ZERO; // TODO
+        if cl.len() != n || ca.len() != n || cb.len() != n || cd.len() != n {
+            return Err("invalid commitment lengths".to_owned());
+        }
+
+        let challenge = Self::hash_commitments(&ca, &cb, &cd, &cl);
         let mut fi = Vec::<Scalar<CC>>::with_capacity(n);
         let mut za = Vec::<Scalar<CC>>::with_capacity(n);
         let mut zb = Vec::<Scalar<CC>>::with_capacity(n);
@@ -132,6 +136,10 @@ impl<CC: Cycle<C>, C: Curve> MembershipProof<CC, C> {
             za[i] = r_vec[i] * challenge + s_vec[i];
             zb[i] = r_vec[i] * (challenge - fi[i]) + t_vec[i];
             zd -= rho_vec[i] * challenge.pow(&Scalar::new(U256::from_u64(i as u64)));
+        }
+
+        if fi.len() != n || za.len() != n || zb.len() != n {
+            return Err("invalid proof lengths".to_owned());
         }
 
         Ok(Self {
@@ -147,13 +155,75 @@ impl<CC: Cycle<C>, C: Curve> MembershipProof<CC, C> {
         })
     }
 
-    pub fn verify(
+    pub fn verify<R: CryptoRng + RngCore>(
         &self,
+        rng: &mut R,
         pedersen_generator: &PedersenGenerator<CC>,
         commitment: &Point<CC>,
         ring: &[Scalar<CC>],
     ) -> Result<(), String> {
+        let mut ring = ring.to_vec();
+        let n = pad_ring_to_2n(&mut ring)?; // log2(ring.len())
+
+        let challenge = Self::hash_commitments(&self.ca, &self.cb, &self.cd, &self.cl);
+
+        let mut multimult = MultiMult::new();
+        multimult.add_known(Point::<CC>::GENERATOR);
+        multimult.add_known(pedersen_generator.generator().clone());
+
+        // NOTE unwraps here are fine because of length checks
+        // at proof construction
+        for i in 0..n {
+            let mut rel_0 = Relation::new();
+            let mut rel_1 = Relation::new();
+
+            rel_0.insert(self.cl.get(i).unwrap().clone(), challenge);
+            rel_0.insert(self.ca.get(i).unwrap().clone(), Scalar::ONE);
+            rel_0.insert(Point::<CC>::GENERATOR, -self.fi[i]);
+            rel_0.insert(pedersen_generator.generator().clone(), -self.za[i]);
+
+            rel_1.insert(self.cl.get(i).unwrap().clone(), challenge - self.fi[i]);
+            rel_1.insert(self.cb.get(i).unwrap().clone(), Scalar::ONE);
+            rel_1.insert(pedersen_generator.generator().clone(), -self.zb[i]);
+
+            rel_0.drain(rng, &mut multimult);
+            rel_1.drain(rng, &mut multimult);
+        }
+
+        let mut total = Scalar::ZERO;
+        for i in 0..ring.len() {
+            let mut pix = Scalar::ONE;
+            for j in 0..n {
+                if i & (1 << j) == 0 {
+                    pix *= challenge - self.fi[j]
+                } else {
+                    pix *= self.fi[j]
+                }
+            }
+            total += ring[i] * pix;
+        }
+
+        let mut rel_final = Relation::new();
         // TODO
         Ok(())
+    }
+
+    fn hash_commitments(
+        ca: &[Point<CC>],
+        cb: &[Point<CC>],
+        cd: &[Point<CC>],
+        cl: &[Point<CC>],
+    ) -> Scalar<CC> {
+        let mut hasher = PointHasher::new(Self::HASH_ID);
+        // NOTE we are assuming that all input slices have the same length
+        // it is important to use this function in both `contruct` and `verify`
+        for i in 0..ca.len() {
+            hasher.insert_point(ca.get(i).unwrap());
+            hasher.insert_point(cb.get(i).unwrap());
+            hasher.insert_point(cd.get(i).unwrap());
+            hasher.insert_point(cl.get(i).unwrap());
+        }
+
+        Scalar::<CC>::new(hasher.finalize())
     }
 }

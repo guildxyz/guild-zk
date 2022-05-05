@@ -48,7 +48,7 @@ impl<C: Curve> MultiMult<C> {
 
     pub fn insert(&mut self, point: Point<C>, scalar: Scalar<C>) {
         if let Some(element) = self.known.iter().find(|known| known.point == point) {
-            self.pairs[element.index].scalar = self.pairs[element.index].scalar + scalar;
+            self.pairs[element.index].scalar += scalar;
         } else {
             self.pairs.push(Pair::<C> { point, scalar });
         }

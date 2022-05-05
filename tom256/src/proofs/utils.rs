@@ -21,14 +21,6 @@ pub fn pad_ring_to_2n<C: Curve>(ring: &mut Vec<Scalar<C>>) -> Result<usize, Stri
     }
 }
 
-pub fn eval_poly<C: Curve>(coeffs: &[Scalar<C>], x: Scalar<C>) -> Scalar<C> {
-    let mut ret = Scalar::ZERO;
-    for coeff in coeffs.iter().rev() {
-        ret = *coeff + x * ret;
-    }
-    ret
-}
-
 pub fn interpolate<C: Curve>(x: &[Scalar<C>], y: &[Scalar<C>]) -> Result<Vec<Scalar<C>>, String> {
     if x.len() != y.len() {
         return Err("input lengths not equal".to_string());
@@ -42,11 +34,14 @@ pub fn interpolate<C: Curve>(x: &[Scalar<C>], y: &[Scalar<C>]) -> Result<Vec<Sca
     s.push(Scalar::ONE);
     s[n - 1] = -x[0];
 
-    for i in 1..n {
+    for (i, x_elem) in x.iter().enumerate().take(n).skip(1) {
+        #[allow(clippy::assign_op_pattern)]
         for j in n - 1 - i..n - 1 {
-            s[j] = s[j] - x[i] * s[j + 1];
+            // TODO modular add takes a reference to rhs (could take ownership
+            // because of copy)
+            s[j] = s[j] - *x_elem * s[j + 1];
         }
-        s[n - 1] -= x[i];
+        s[n - 1] -= *x_elem;
     }
 
     for i in 0..n {
@@ -57,7 +52,7 @@ pub fn interpolate<C: Curve>(x: &[Scalar<C>], y: &[Scalar<C>]) -> Result<Vec<Sca
         let ff = phi.inverse();
         let mut b = Scalar::ONE;
         for j in (0..n).rev() {
-            coeffs[j] = coeffs[j] + b * ff * y[i];
+            coeffs[j] += b * ff * y[i];
             b = s[j] + x[i] * b;
         }
     }
@@ -70,6 +65,15 @@ mod test {
     use super::*;
     use crate::arithmetic::Modular;
     use crate::{Tom256k1, U256};
+
+    // NOTE do we need this?
+    fn eval_poly<C: Curve>(coeffs: &[Scalar<C>], x: Scalar<C>) -> Scalar<C> {
+        let mut ret = Scalar::ZERO;
+        for coeff in coeffs.iter().rev() {
+            ret = *coeff + x * ret;
+        }
+        ret
+    }
 
     #[test]
     fn pad_ring() {
