@@ -298,7 +298,7 @@ mod test {
         let n = 1024_u32;
         let mut ring = Vec::<Scalar<Tom256k1>>::with_capacity(n as usize);
         for i in 0..n {
-            ring.push(Scalar::new(U256::from_u32(n)));
+            ring.push(Scalar::new(U256::from_u32(i)));
         }
         let index = 452_usize;
         let commitment_to_key = pedersen_generator.commit(&mut rng, ring[index]);
