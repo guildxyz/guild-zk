@@ -1,7 +1,7 @@
 use crate::arithmetic::multimult::{MultiMult, Relation};
 use crate::arithmetic::{Modular, Point, Scalar};
 use crate::pedersen::*;
-use crate::utils::hash_points;
+use crate::utils::PointHasher;
 use crate::Curve;
 
 use std::ops::Neg;
@@ -53,20 +53,19 @@ impl<C: Curve> MultiplicationProof<C> {
         let a4_1 = pedersen_generator.commit(rng, random_scalar_3);
         let a4_2 = commitment_to_y.commitment() * random_scalar_1;
 
-        let challenge = hash_points(
-            Self::HASH_ID,
-            &[
-                commitment_to_x.commitment(),
-                commitment_to_y.commitment(),
-                commitment_to_z.commitment(),
-                &c4,
-                commitment_to_random_1.commitment(),
-                commitment_to_random_2.commitment(),
-                commitment_to_random_3.commitment(),
-                a4_1.commitment(),
-                &a4_2,
-            ],
-        );
+        let mut hasher = PointHasher::new(Self::HASH_ID);
+        hasher.insert_points(&[
+            commitment_to_x.commitment(),
+            commitment_to_y.commitment(),
+            commitment_to_z.commitment(),
+            &c4,
+            commitment_to_random_1.commitment(),
+            commitment_to_random_2.commitment(),
+            commitment_to_random_3.commitment(),
+            a4_1.commitment(),
+            &a4_2,
+        ]);
+        let challenge = hasher.finalize();
         let challenge_scalar = Scalar::new(challenge);
 
         let mask_x = random_scalar_1 - challenge_scalar * x;
@@ -110,20 +109,19 @@ impl<C: Curve> MultiplicationProof<C> {
         commitment_to_z: &Point<C>,
         multimult: &mut MultiMult<C>,
     ) {
-        let challenge = hash_points(
-            Self::HASH_ID,
-            &[
-                commitment_to_x,
-                commitment_to_y,
-                commitment_to_z,
-                &self.c4,
-                &self.commitment_to_random_1,
-                &self.commitment_to_random_2,
-                &self.commitment_to_random_3,
-                &self.a4_1,
-                &self.a4_2,
-            ],
-        );
+        let mut hasher = PointHasher::new(Self::HASH_ID);
+        hasher.insert_points(&[
+            commitment_to_x,
+            commitment_to_y,
+            commitment_to_z,
+            &self.c4,
+            &self.commitment_to_random_1,
+            &self.commitment_to_random_2,
+            &self.commitment_to_random_3,
+            &self.a4_1,
+            &self.a4_2,
+        ]);
+        let challenge = hasher.finalize();
         let challenge_scalar = Scalar::new(challenge);
 
         let mut relation_x = Relation::new();

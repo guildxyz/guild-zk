@@ -31,6 +31,10 @@ pub trait Modular: Sized {
         let mod_minus_two = Self::MODULUS.saturating_sub(&TWO);
         Self::new(exp_mod_u256(self.inner(), &mod_minus_two, &Self::MODULUS))
     }
+
+    fn pow(&self, exponent: &Self) -> Self {
+        Self::new(exp_mod_u256(self.inner(), exponent.inner(), &Self::MODULUS))
+    }
 }
 
 pub fn mod_u256(number: &U256, modulus: &U256) -> U256 {

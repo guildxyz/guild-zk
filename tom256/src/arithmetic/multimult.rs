@@ -1,4 +1,4 @@
-use super::{Point, Scalar};
+use super::{Modular, Point, Scalar};
 
 use crate::Curve;
 
@@ -9,8 +9,8 @@ use rand_core::{CryptoRng, RngCore};
 
 #[derive(Debug, Clone)]
 pub struct Pair<C> {
-    pub scalar: Scalar<C>,
-    pub point: Point<C>,
+    scalar: Scalar<C>,
+    point: Point<C>,
 }
 
 pub struct Known<C> {
@@ -39,16 +39,20 @@ impl<C: Curve> MultiMult<C> {
 
     pub fn add_known(&mut self, pt: Point<C>) {
         if !self.known.iter().any(|known| known.point == pt) {
+            self.pairs.push(Pair {
+                point: pt.clone(),
+                scalar: Scalar::ZERO,
+            });
             self.known.push(Known {
                 point: pt,
-                index: self.known.len(),
+                index: self.pairs.len() - 1,
             });
         }
     }
 
     pub fn insert(&mut self, point: Point<C>, scalar: Scalar<C>) {
         if let Some(element) = self.known.iter().find(|known| known.point == point) {
-            self.pairs[element.index].scalar = self.pairs[element.index].scalar + scalar;
+            self.pairs[element.index].scalar += scalar;
         } else {
             self.pairs.push(Pair::<C> { point, scalar });
         }

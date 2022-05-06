@@ -436,5 +436,34 @@ mod test {
             TomPoint::GENERATOR.scalar_mul(&TomScalar::new(U256::from_u32(12))),
             g12
         );
+
+        let scalars = &[
+            (
+                TomScalar::new(U256::from_u8(3)),
+                TomScalar::new(U256::from_u8(12)),
+            ),
+            (
+                TomScalar::new(U256::from_u8(36)),
+                TomScalar::new(U256::from_u8(220)),
+            ),
+            (
+                TomScalar::new(U256::from_u8(189)),
+                TomScalar::new(U256::from_u8(89)),
+            ),
+            (
+                TomScalar::new(U256::from_u8(92)),
+                TomScalar::new(U256::from_u8(105)),
+            ),
+        ];
+
+        let h_gen = TomPoint::GENERATOR.scalar_mul(&TomScalar::new(U256::from_u8(250)));
+
+        for (a, b) in scalars {
+            let dbl_mul = h_gen.double_mul(a, &TomPoint::GENERATOR, b);
+            let dbl_mul_rev = TomPoint::GENERATOR.double_mul(b, &h_gen, a);
+            let expected = &h_gen * *a + &TomPoint::GENERATOR * *b;
+            assert_eq!(dbl_mul, expected);
+            assert_eq!(dbl_mul_rev, expected);
+        }
     }
 }
