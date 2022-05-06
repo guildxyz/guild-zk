@@ -80,6 +80,26 @@ pub struct PointAddCommitmentPoints<C> {
     ry: Point<C>,
 }
 
+impl<C: Curve> PointAddCommitmentPoints<C> {
+    pub fn new(
+        px: Point<C>,
+        py: Point<C>,
+        qx: Point<C>,
+        qy: Point<C>,
+        rx: Point<C>,
+        ry: Point<C>,
+    ) -> Self {
+        Self {
+            px,
+            py,
+            qx,
+            qy,
+            rx,
+            ry,
+        }
+    }
+}
+
 pub struct MultCommitProof<C> {
     commitment: Point<C>,
     proof: MultiplicationProof<C>,
