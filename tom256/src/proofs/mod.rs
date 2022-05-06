@@ -7,4 +7,4 @@ mod utils;
 
 //pub use exp::ExpProof;
 pub use membership::MembershipProof;
-pub use point_add::PointAddProof;
+pub use point_add::{PointAddProof, PointAddSecrets};
