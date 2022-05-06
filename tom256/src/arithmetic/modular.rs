@@ -90,14 +90,12 @@ fn get_random_u256<R: CryptoRng + RngCore>(rng: &mut R) -> U256 {
 }
 
 pub fn random_mod_u256<T: Modular, R: CryptoRng + RngCore>(rng: &mut R) -> T {
-    // TODO why not just use this?
-    T::new(get_random_u256(rng))
-    //loop {
-    //    let random_number = get_random_u256(rng);
-    //    if random_number.ct_lt(&T::MODULUS).into() {
-    //        return T::new(random_number);
-    //    }
-    //}
+    loop {
+        let random_number = get_random_u256(rng);
+        if random_number.ct_lt(&T::MODULUS).into() {
+            return T::new(random_number);
+        }
+    }
 }
 
 #[cfg(test)]

@@ -34,7 +34,7 @@ pub fn interpolate<C: Curve>(x: &[Scalar<C>], y: &[Scalar<C>]) -> Result<Vec<Sca
     s.push(Scalar::ONE);
     s[n - 1] = -x[0];
 
-    for (i, x_elem) in x.iter().enumerate().take(n).skip(1) {
+    for (i, x_elem) in x.iter().enumerate().skip(1) {
         #[allow(clippy::assign_op_pattern)]
         for j in n - 1 - i..n - 1 {
             // TODO modular add takes a reference to rhs (could take ownership
@@ -60,20 +60,20 @@ pub fn interpolate<C: Curve>(x: &[Scalar<C>], y: &[Scalar<C>]) -> Result<Vec<Sca
     Ok(coeffs)
 }
 
+// NOTE do we need this?
+fn eval_poly<C: Curve>(coeffs: &[Scalar<C>], x: Scalar<C>) -> Scalar<C> {
+    let mut ret = Scalar::ZERO;
+    for coeff in coeffs.iter().rev() {
+        ret = *coeff + x * ret;
+    }
+    ret
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
     use crate::arithmetic::Modular;
     use crate::{Tom256k1, U256};
-
-    // NOTE do we need this?
-    fn eval_poly<C: Curve>(coeffs: &[Scalar<C>], x: Scalar<C>) -> Scalar<C> {
-        let mut ret = Scalar::ZERO;
-        for coeff in coeffs.iter().rev() {
-            ret = *coeff + x * ret;
-        }
-        ret
-    }
 
     #[test]
     fn pad_ring() {

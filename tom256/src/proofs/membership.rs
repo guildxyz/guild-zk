@@ -108,7 +108,7 @@ impl<C: Curve> MembershipProof<C> {
             }
 
             let mut poly_val = Scalar::ZERO;
-            for i in 0..n {
+            for i in 0..ring.len() {
                 poly_val += (ring[index] - ring[i]) * prod_vec[i];
             }
             poly_vals.push(poly_val);
@@ -127,9 +127,7 @@ impl<C: Curve> MembershipProof<C> {
             return Err("invalid commitment lengths".to_owned());
         }
 
-        // TODO
-        let challenge = Scalar::new(U256::from_u8(5));
-        //let challenge = Self::hash_commitments(&ca, &cb, &cd, &cl);
+        let challenge = Self::hash_commitments(&ca, &cb, &cd, &cl);
         let mut fi = Vec::<Scalar<C>>::with_capacity(n);
         let mut za = Vec::<Scalar<C>>::with_capacity(n);
         let mut zb = Vec::<Scalar<C>>::with_capacity(n);
@@ -169,9 +167,7 @@ impl<C: Curve> MembershipProof<C> {
         let mut ring = ring.to_vec();
         let n = pad_ring_to_2n(&mut ring)?; // log2(ring.len())
 
-        // TODO
-        //let challenge = Self::hash_commitments(&self.ca, &self.cb, &self.cd, &self.cl);
-        let challenge = Scalar::new(U256::from_u8(5));
+        let challenge = Self::hash_commitments(&self.ca, &self.cb, &self.cd, &self.cl);
 
         let mut multimult = MultiMult::new();
         multimult.add_known(Point::<C>::GENERATOR);
@@ -218,31 +214,12 @@ impl<C: Curve> MembershipProof<C> {
         }
 
         rel_final.insert(
-            // TODO
-            //commitment_to_key.clone(),
-            Point::GENERATOR.double(),
+            commitment_to_key.clone(),
             challenge.pow(&Scalar::new(U256::from_u64(n as u64))),
         );
         rel_final.insert(Point::<C>::GENERATOR, -total);
         rel_final.insert(pedersen_generator.generator().clone(), -self.zd);
         rel_final.drain(rng, &mut multimult);
-
-        for p in multimult.pairs.iter() {
-            let shit = p.point.clone().into_affine();
-            println!("{}", shit.x().inner());
-            println!("{}", shit.y().inner());
-            println!("{}\n", shit.z().inner());
-        }
-
-        // TODO stuff:
-        // - scalar random
-        // - random_mod_u256 (simply modulo?)
-        // - hash points construct
-        // - hash points verify
-        // - println stuff
-        // - rel_final insert commitment
-        // - multimult private fields
-        panic!();
 
         if multimult.evaluate() == Point::IDENTITY {
             Ok(())
@@ -286,11 +263,11 @@ mod test {
             Scalar::<Tom256k1>::new(U256::from_u8(0)),
             Scalar::<Tom256k1>::new(U256::from_u8(1)),
             Scalar::<Tom256k1>::new(U256::from_u8(2)),
-            //Scalar::<Tom256k1>::new(U256::from_u8(3)),
-            //Scalar::<Tom256k1>::new(U256::from_u8(4)),
-            //Scalar::<Tom256k1>::new(U256::from_u8(5)),
-            //Scalar::<Tom256k1>::new(U256::from_u8(6)),
-            //Scalar::<Tom256k1>::new(U256::from_u8(7)),
+            Scalar::<Tom256k1>::new(U256::from_u8(3)),
+            Scalar::<Tom256k1>::new(U256::from_u8(4)),
+            Scalar::<Tom256k1>::new(U256::from_u8(5)),
+            Scalar::<Tom256k1>::new(U256::from_u8(6)),
+            Scalar::<Tom256k1>::new(U256::from_u8(7)),
         ];
 
         let index = 1_usize;

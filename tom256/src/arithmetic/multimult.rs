@@ -9,8 +9,8 @@ use rand_core::{CryptoRng, RngCore};
 
 #[derive(Debug, Clone)]
 pub struct Pair<C> {
-    pub scalar: Scalar<C>,
-    pub point: Point<C>,
+    scalar: Scalar<C>,
+    point: Point<C>,
 }
 
 pub struct Known<C> {
@@ -19,8 +19,8 @@ pub struct Known<C> {
 }
 
 pub struct MultiMult<C> {
-    pub pairs: Vec<Pair<C>>,
-    pub known: Vec<Known<C>>,
+    pairs: Vec<Pair<C>>,
+    known: Vec<Known<C>>,
 }
 
 impl<C: Curve> Default for MultiMult<C> {
