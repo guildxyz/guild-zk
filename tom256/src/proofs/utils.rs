@@ -35,10 +35,10 @@ pub fn interpolate<C: Curve>(x: &[Scalar<C>], y: &[Scalar<C>]) -> Result<Vec<Sca
     s[n - 1] = -x[0];
 
     for (i, x_elem) in x.iter().enumerate().skip(1) {
+        // TODO? modular add takes a reference to rhs (could take ownership
+        // because of copy)
         #[allow(clippy::assign_op_pattern)]
         for j in n - 1 - i..n - 1 {
-            // TODO modular add takes a reference to rhs (could take ownership
-            // because of copy)
             s[j] = s[j] - *x_elem * s[j + 1];
         }
         s[n - 1] -= *x_elem;
@@ -61,6 +61,7 @@ pub fn interpolate<C: Curve>(x: &[Scalar<C>], y: &[Scalar<C>]) -> Result<Vec<Sca
 }
 
 // NOTE do we need this?
+#[allow(unused)]
 fn eval_poly<C: Curve>(coeffs: &[Scalar<C>], x: Scalar<C>) -> Scalar<C> {
     let mut ret = Scalar::ZERO;
     for coeff in coeffs.iter().rev() {

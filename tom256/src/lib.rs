@@ -65,17 +65,17 @@ pub fn membership_proof_test(index: u32) -> Result<JsValue, JsValue> {
     let mut rng = rand_core::OsRng;
     let pedersen_generator = pedersen::PedersenGenerator::<Tom256k1>::new(&mut rng);
     let ring = vec![
-        arithmetic::Scalar::<Tom256k1>::new(U256::from_u8(0)),
-        arithmetic::Scalar::<Tom256k1>::new(U256::from_u8(1)),
-        arithmetic::Scalar::<Tom256k1>::new(U256::from_u8(2)),
-        arithmetic::Scalar::<Tom256k1>::new(U256::from_u8(3)),
-        arithmetic::Scalar::<Tom256k1>::new(U256::from_u8(4)),
-        arithmetic::Scalar::<Tom256k1>::new(U256::from_u8(5)),
-        arithmetic::Scalar::<Tom256k1>::new(U256::from_u8(6)),
-        arithmetic::Scalar::<Tom256k1>::new(U256::from_u8(7)),
+        Scalar::<Tom256k1>::new(U256::from_u8(0)),
+        Scalar::<Tom256k1>::new(U256::from_u8(1)),
+        Scalar::<Tom256k1>::new(U256::from_u8(2)),
+        Scalar::<Tom256k1>::new(U256::from_u8(3)),
+        Scalar::<Tom256k1>::new(U256::from_u8(4)),
+        Scalar::<Tom256k1>::new(U256::from_u8(5)),
+        Scalar::<Tom256k1>::new(U256::from_u8(6)),
+        Scalar::<Tom256k1>::new(U256::from_u8(7)),
     ];
 
-    let index = 1_usize;
+    let index = index as usize;
     let commitment_to_key = pedersen_generator.commit(&mut rng, ring[index]);
 
     let proof = proofs::MembershipProof::construct(
@@ -87,7 +87,7 @@ pub fn membership_proof_test(index: u32) -> Result<JsValue, JsValue> {
     )
     .map_err(JsValue::from)?;
 
-    let result = proof
+    proof
         .verify(
             &mut rng,
             &pedersen_generator,
