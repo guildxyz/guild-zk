@@ -25,3 +25,8 @@ rand = { version = "0.8.5", features = ["std"] }
 name = "point_mul"
 path = "benches/point_mul.rs"
 harness = false
+
+[[bench]]
+name = "scalar_ops"
+path = "benches/scalar_ops.rs"
+harness = false
