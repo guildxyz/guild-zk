@@ -18,4 +18,10 @@ subtle = "2.4.1"
 wasm-bindgen = "0.2.80"
 
 [dev-dependencies]
+criterion = "0.3.5"
 rand = { version = "0.8.5", features = ["std"] }
+
+[[bench]]
+name = "point_mul"
+path = "benches/point_mul.rs"
+harness = false

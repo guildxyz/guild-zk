@@ -23,7 +23,7 @@ pub trait Curve: Clone + Copy + std::fmt::Debug + PartialEq + Eq {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct Secp256k1;
+pub struct Secp256k1;
 
 impl Curve for Secp256k1 {
     const PRIME_MODULUS: U256 =
@@ -39,7 +39,7 @@ impl Curve for Secp256k1 {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct Tom256k1;
+pub struct Tom256k1;
 
 impl Curve for Tom256k1 {
     const PRIME_MODULUS: U256 =
