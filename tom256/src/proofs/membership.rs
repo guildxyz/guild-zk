@@ -291,4 +291,71 @@ mod test {
             )
             .is_ok());
     }
+
+    #[test]
+    fn valid_membership_proof_long() {
+        let mut rng = StdRng::from_seed([117; 32]);
+        let pedersen_generator = PedersenGenerator::<Tom256k1>::new(&mut rng);
+        let n = 1024_u32;
+        let mut ring = Vec::<Scalar<Tom256k1>>::with_capacity(n as usize);
+        for i in 0..n {
+            ring.push(Scalar::new(U256::from_u32(n)));
+        }
+        let index = 452_usize;
+        let commitment_to_key = pedersen_generator.commit(&mut rng, ring[index]);
+        let proof = MembershipProof::construct(
+            &mut rng,
+            &pedersen_generator,
+            &commitment_to_key,
+            index,
+            &ring,
+        )
+        .unwrap();
+
+        assert!(proof
+            .verify(
+                &mut rng,
+                &pedersen_generator,
+                commitment_to_key.commitment(),
+                &ring,
+            )
+            .is_ok());
+    }
+
+    #[test]
+    fn invalid_membership_proof() {
+        let mut rng = StdRng::from_seed([117; 32]);
+        let pedersen_generator = PedersenGenerator::<Tom256k1>::new(&mut rng);
+        let ring = vec![
+            Scalar::<Tom256k1>::new(U256::from_u8(0)),
+            Scalar::<Tom256k1>::new(U256::from_u8(1)),
+            Scalar::<Tom256k1>::new(U256::from_u8(2)),
+            Scalar::<Tom256k1>::new(U256::from_u8(3)),
+            Scalar::<Tom256k1>::new(U256::from_u8(4)),
+            Scalar::<Tom256k1>::new(U256::from_u8(5)),
+            Scalar::<Tom256k1>::new(U256::from_u8(6)),
+            Scalar::<Tom256k1>::new(U256::from_u8(7)),
+        ];
+
+        let index = 1_usize;
+        let commitment_to_key = pedersen_generator.commit(&mut rng, ring[index + 1]);
+        let proof = MembershipProof::construct(
+            &mut rng,
+            &pedersen_generator,
+            &commitment_to_key,
+            index,
+            &ring,
+        )
+        .unwrap();
+
+        assert_eq!(
+            proof.verify(
+                &mut rng,
+                &pedersen_generator,
+                commitment_to_key.commitment(),
+                &ring,
+            ),
+            Err("failed to verify membership".to_string())
+        );
+    }
 }
