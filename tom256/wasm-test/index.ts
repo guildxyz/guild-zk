@@ -1,6 +1,10 @@
 (async () => {
-	const { wasm_build_test } = await import("../pkg");
+	const { membership_proof_test } = await import("../pkg");
 
-	console.log(wasm_build_test("0xef"))
-	console.log(wasm_build_test("0xefz"))
+	try {
+		const result = membership_proof_test(4);
+		console.log(result)
+	} catch (error) {
+		console.log(error)
+	}
 }) ()

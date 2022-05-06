@@ -3,10 +3,9 @@ use crate::arithmetic::multimult::*;
 use crate::arithmetic::{Modular, Point, Scalar};
 use crate::pedersen::*;
 use crate::utils::PointHasher;
-use crate::{Curve, Cycle, U256};
+use crate::{Curve, U256};
 
 use rand_core::{CryptoRng, RngCore};
-use std::marker::PhantomData;
 
 pub struct MembershipProof<C> {
     cl: Vec<Point<C>>,

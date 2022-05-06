@@ -4,7 +4,6 @@ pub mod pedersen;
 pub mod proofs;
 pub mod utils;
 
-use arithmetic::Modular;
 pub use bigint::U256;
 
 // TODO is const equality test possible
@@ -61,14 +60,43 @@ impl Cycle<Secp256k1> for Tom256k1 {}
 // TODO add feature flag for wasm stuff
 use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
-pub fn wasm_build_test(bignum: String) -> String {
-    let parsed = u32::from_str_radix(&bignum, 16).unwrap_or(0xe2);
+pub fn membership_proof_test(index: u32) -> Result<JsValue, JsValue> {
+    use arithmetic::{Modular, Scalar};
     let mut rng = rand_core::OsRng;
-    let p = pedersen::PedersenGenerator::<Tom256k1>::new(&mut rng);
-    let s = arithmetic::Scalar::new(U256::from_u32(parsed));
-    let commitment = p.commit(&mut rng, s);
+    let pedersen_generator = pedersen::PedersenGenerator::<Tom256k1>::new(&mut rng);
+    let ring = vec![
+        arithmetic::Scalar::<Tom256k1>::new(U256::from_u8(0)),
+        arithmetic::Scalar::<Tom256k1>::new(U256::from_u8(1)),
+        arithmetic::Scalar::<Tom256k1>::new(U256::from_u8(2)),
+        arithmetic::Scalar::<Tom256k1>::new(U256::from_u8(3)),
+        arithmetic::Scalar::<Tom256k1>::new(U256::from_u8(4)),
+        arithmetic::Scalar::<Tom256k1>::new(U256::from_u8(5)),
+        arithmetic::Scalar::<Tom256k1>::new(U256::from_u8(6)),
+        arithmetic::Scalar::<Tom256k1>::new(U256::from_u8(7)),
+    ];
 
-    format!("{}", commitment.randomness().inner())
+    let index = 1_usize;
+    let commitment_to_key = pedersen_generator.commit(&mut rng, ring[index]);
+
+    let proof = proofs::MembershipProof::construct(
+        &mut rng,
+        &pedersen_generator,
+        &commitment_to_key,
+        index,
+        &ring,
+    )
+    .map_err(JsValue::from)?;
+
+    let result = proof
+        .verify(
+            &mut rng,
+            &pedersen_generator,
+            commitment_to_key.commitment(),
+            &ring,
+        )
+        .map_err(JsValue::from)?;
+
+    Ok(JsValue::from(true))
 }
 
 #[cfg(test)]
