@@ -35,13 +35,13 @@ pub struct SingleExpProof<C: Curve, CC: Cycle<C>> {
 }
 
 #[derive(Clone)]
-pub struct PointExpSecrets<C> {
+pub struct PointExpSecrets<C: Curve> {
     exp: Scalar<C>,
     point: Point<C>,
 }
 
 #[derive(Clone)]
-pub struct PointExpCommitments<C, CC> {
+pub struct PointExpCommitments<C: Curve, CC: Cycle<C>> {
     px: PedersenCommitment<CC>,
     py: PedersenCommitment<CC>,
     exp: PedersenCommitment<C>,
@@ -107,7 +107,9 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
             point_hasher.insert_point(&tx_vec[i].clone().into_commitment());
             point_hasher.insert_point(&ty_vec[i].clone().into_commitment());
         }
-        point_hasher.finalize()
+        // TODO: remove
+        U256::from_u32(100)
+        //point_hasher.finalize()
     }
 
     pub fn construct<R: CryptoRng + RngCore>(
@@ -147,16 +149,40 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
             ty_vec.push(tom_pedersen_generator.commit(rng, coord_t.y().to_cycle_scalar()));
         }
 
+        /* GOOD
+        for i in 0..10 {
+            println!("alpha[{}]:    {}", i, alpha_vec[i]);
+            println!("r[{}]:        {}", i, r_vec[i]);
+            println!("T[{}]:        {}", i, t_vec[i].clone().into_affine());
+            println!("A[{}]:        {}", i, a_vec[i].clone().into_affine());
+            println!("Tx[{}] r:     {}", i, tx_vec[i].clone().randomness());
+            println!("Tx[{}] p:     {}", i, tx_vec[i].clone().into_commitment());
+            println!("Ty[{}] r:     {}", i, ty_vec[i].clone().randomness());
+            println!("Ty[{}] p:     {}", i, ty_vec[i].clone().into_commitment());
+        }
+        */
+
         let mut challenge = Self::calculate_challenge(commitments, &a_vec, &tx_vec, &ty_vec, security_param);
+        
+        /* GOOD
+        println!("Challenge: {}", challenge);
+        */
 
         let mut all_exp_proofs = Vec::<SingleExpProof<C, CC>>::with_capacity(security_param);
 
         for i in 0..security_param {
+            /* GOOD
+            if i < 10 {
+                let b: bool = challenge.is_odd().into();
+                println!("challenge[i].is_odd: {}", b);
+            }
+            */
+            
             if challenge.is_odd().into() {
                 all_exp_proofs.push(SingleExpProof {
                     a: a_vec[i].clone(),
-                    tx_p: tx_vec[i].clone().into_commitment(),
-                    ty_p: ty_vec[i].clone().into_commitment(),
+                    tx_p: tx_vec[i].clone().into_commitment().into_affine(),
+                    ty_p: ty_vec[i].clone().into_commitment().into_affine(),
                     variant: ExpProofVariant::Odd {
                         alpha: alpha_vec[i],
                         r: r_vec[i],
@@ -164,6 +190,17 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                         ty_r: ty_vec[i].randomness().clone(),
                     },
                 });
+                /* SEEMS GOOD
+                if i < 10 {
+                    println!("A[{}]:        {}", i, a_vec[i].clone().into_affine());
+                    println!("Tx[{}] p:     {}", i, tx_vec[i].clone().into_commitment().into_affine());
+                    println!("Ty[{}] p:     {}", i, ty_vec[i].clone().into_commitment().into_affine());
+                    println!("alpha[{}]:    {}", i, alpha_vec[i]);
+                    println!("r[{}]:        {}", i, r_vec[i]);
+                    println!("Tx[{}] r:     {}", i, tx_vec[i].clone().randomness());
+                    println!("Ty[{}] r:     {}", i, ty_vec[i].clone().randomness());
+                }
+                */
             } else {
                 let z = alpha_vec[i].sub(&secrets.exp);
                 let mut t1 = Point::<C>::GENERATOR.scalar_mul(&z);
@@ -377,6 +414,21 @@ fn padded_bits(number: U256, length: usize) -> Vec<bool> {
     ret
 }
 
+// Get random number from interval [min, max)
+fn get_rand_range<R: CryptoRng + RngCore>(
+    min: usize,
+    max: usize,
+    rng: &mut R,
+) -> usize {
+    if max - min <= 7 {
+        return 0;
+    } else {
+        return 7;
+    }
+
+    //rng.next_u64() as usize % (max - min) + min
+}
+
 fn generate_indices<R: CryptoRng + RngCore>(
     idx_num: usize,
     limit: usize,
@@ -389,7 +441,7 @@ fn generate_indices<R: CryptoRng + RngCore>(
     }
 
     for i in 0..limit - 2 {
-        let random_idx = rng.next_u64() as usize % (limit - i) + i;
+        let random_idx = get_rand_range(i, limit, rng);
         let k = ret[i];
         ret[i] = ret[random_idx];
         ret[random_idx] = k;
@@ -424,6 +476,7 @@ mod test {
         assert_eq!(padded_bits(test_u256, 65), [true_64, vec![false]].concat());
     }
 
+    /*
     #[test]
     fn generate_indices_valid() {
         let idx_num = 5;
@@ -434,6 +487,19 @@ mod test {
             println!("{:?}", generate_indices(idx_num, limit, &mut rng));
         }
     }
+    */
+
+    #[test]
+    fn rand_range_valid() {
+        let max = 217;
+        let min = 214;
+        let mut rng = StdRng::from_seed([1; 32]);
+        for _ in 0..1000 {
+            let rand = get_rand_range(min, max, &mut rng);
+            assert!(rand < max);
+            assert!(rand >= min);
+        }
+    }
 
     #[test]
     fn exp_proof_valid() {
@@ -441,8 +507,16 @@ mod test {
         let base_pedersen_generator = PedersenGenerator::<Secp256k1>::new(&mut rng);
         let tom_pedersen_generator = PedersenGenerator::<Tom256k1>::new(&mut rng);
 
-        let exponent = Scalar::<Secp256k1>::ONE;
+        //let exponent = Scalar::<Secp256k1>::ONE;
+        let exponent = Scalar::<Secp256k1>::new(U256::from_be_hex(
+            "0000000000000000000000000000000000000000000000000000000000000005",
+        ));
         let result = Point::<Secp256k1>::GENERATOR.scalar_mul(&exponent);
+
+        /* GOOD
+        println!("Exponent: {}", exponent);
+        println!("Result: {}", result.clone().into_affine());
+        */
 
         let secrets = PointExpSecrets::new(exponent, result);
         let commitments = secrets.commit(
@@ -451,6 +525,15 @@ mod test {
             &tom_pedersen_generator,
             None,
         );
+
+        /* GOOD
+        println!("Cx: {}", commitments.px.clone().randomness());
+        println!("Cx: {}", commitments.px.clone().into_commitment());
+        println!("Cy: {}", commitments.py.clone().randomness());
+        println!("Cy: {}", commitments.py.clone().into_commitment());
+        println!("Cs: {}", commitments.exp.clone().randomness());
+        println!("Cs: {}", commitments.exp.clone().into_commitment());
+        */
 
         let security_param = 10;
         let exp_proof = ExpProof::construct(

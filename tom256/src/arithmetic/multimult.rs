@@ -8,17 +8,17 @@ use std::collections::binary_heap::BinaryHeap;
 use rand_core::{CryptoRng, RngCore};
 
 #[derive(Debug, Clone)]
-pub struct Pair<C> {
+pub struct Pair<C: Curve> {
     scalar: Scalar<C>,
     point: Point<C>,
 }
 
-pub struct Known<C> {
+pub struct Known<C: Curve> {
     point: Point<C>,
     index: usize,
 }
 
-pub struct MultiMult<C> {
+pub struct MultiMult<C: Curve> {
     pairs: Vec<Pair<C>>,
     known: Vec<Known<C>>,
 }

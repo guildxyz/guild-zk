@@ -10,7 +10,7 @@ use rand_core::{CryptoRng, RngCore};
 use std::marker::PhantomData;
 
 #[derive(Clone)]
-pub struct PointAddSecrets<C> {
+pub struct PointAddSecrets<C: Curve> {
     p: Point<C>,
     q: Point<C>,
     r: Point<C>,
@@ -49,7 +49,7 @@ impl<C: Curve> PointAddSecrets<C> {
 }
 
 #[derive(Clone)]
-pub struct PointAddCommitments<C> {
+pub struct PointAddCommitments<C: Curve> {
     px: PedersenCommitment<C>,
     py: PedersenCommitment<C>,
     qx: PedersenCommitment<C>,
@@ -71,7 +71,7 @@ impl<C: Curve> PointAddCommitments<C> {
     }
 }
 
-pub struct PointAddCommitmentPoints<C> {
+pub struct PointAddCommitmentPoints<C: Curve> {
     px: Point<C>,
     py: Point<C>,
     qx: Point<C>,
@@ -100,7 +100,7 @@ impl<C: Curve> PointAddCommitmentPoints<C> {
     }
 }
 
-pub struct MultCommitProof<C> {
+pub struct MultCommitProof<C: Curve> {
     commitment: Point<C>,
     proof: MultiplicationProof<C>,
 }
@@ -111,7 +111,7 @@ impl<C: Curve> MultCommitProof<C> {
     }
 }
 
-pub struct PointAddProof<CC, C> {
+pub struct PointAddProof<CC: Cycle<C>, C: Curve> {
     mult_proof_8: MultCommitProof<CC>,
     mult_proof_10: MultCommitProof<CC>,
     mult_proof_11: MultCommitProof<CC>,

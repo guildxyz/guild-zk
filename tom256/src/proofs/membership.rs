@@ -3,12 +3,11 @@ use crate::arithmetic::multimult::*;
 use crate::arithmetic::{Modular, Point, Scalar};
 use crate::pedersen::*;
 use crate::utils::PointHasher;
-use crate::{Curve, Cycle, U256};
+use crate::{Curve, U256};
 
 use rand_core::{CryptoRng, RngCore};
-use std::marker::PhantomData;
 
-pub struct MembershipProof<C> {
+pub struct MembershipProof<C: Curve> {
     cl: Vec<Point<C>>,
     ca: Vec<Point<C>>,
     cb: Vec<Point<C>>,
@@ -298,7 +297,7 @@ mod test {
         let pedersen_generator = PedersenGenerator::<Tom256k1>::new(&mut rng);
         let n = 1024_u32;
         let mut ring = Vec::<Scalar<Tom256k1>>::with_capacity(n as usize);
-        for i in 0..n {
+        for _ in 0..n {
             ring.push(Scalar::new(U256::from_u32(n)));
         }
         let index = 452_usize;
