@@ -1,4 +1,4 @@
-use super::{Modular, Point, Scalar};
+use super::{Point, Scalar};
 
 use crate::Curve;
 

@@ -2,7 +2,7 @@ use crate::arithmetic::multimult::{MultiMult, Relation};
 use crate::arithmetic::{Modular, Point, Scalar};
 use crate::pedersen::*;
 use crate::proofs::point_add::{PointAddCommitmentPoints, PointAddProof, PointAddSecrets};
-use crate::utils::{hash_points, PointHasher};
+use crate::utils::PointHasher;
 use crate::{Curve, Cycle};
 
 use std::ops::Neg;
@@ -91,6 +91,25 @@ pub struct ExpProof<C: Curve, CC: Cycle<C>> {
 impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
     const HASH_ID: &'static [u8] = b"exp-proof";
 
+    fn calculate_challenge(
+        commitments: &PointExpCommitments<C, CC>,
+        a_vec: &Vec<Point<C>>,
+        tx_vec: &Vec<PedersenCommitment<CC>>,
+        ty_vec: &Vec<PedersenCommitment<CC>>,
+        security_param: usize,
+    ) -> U256 {
+        let mut point_hasher = PointHasher::new(Self::HASH_ID);
+        point_hasher.insert_point(&commitments.px.clone().into_commitment());
+        point_hasher.insert_point(&commitments.py.clone().into_commitment());
+
+        for i in 0..security_param {
+            point_hasher.insert_point(&a_vec[i].clone());
+            point_hasher.insert_point(&tx_vec[i].clone().into_commitment());
+            point_hasher.insert_point(&ty_vec[i].clone().into_commitment());
+        }
+        point_hasher.finalize()
+    }
+
     pub fn construct<R: CryptoRng + RngCore>(
         rng: &mut R,
         base_pedersen_generator: &PedersenGenerator<C>,
@@ -107,7 +126,6 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         let mut ty_vec: Vec<PedersenCommitment<CC>> = Vec::with_capacity(security_param);
 
         for i in 0..security_param {
-            // TODO: probably push instead of vec[i]
             alpha_vec.push(Scalar::random(rng));
             r_vec.push(Scalar::random(rng));
             t_vec.push(Point::GENERATOR.scalar_mul(&alpha_vec[i]));
@@ -129,16 +147,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
             ty_vec.push(tom_pedersen_generator.commit(rng, coord_t.y().to_cycle_scalar()));
         }
 
-        let mut point_hasher = PointHasher::new(Self::HASH_ID);
-        point_hasher.insert_point(commitments.px.clone().into_commitment());
-        point_hasher.insert_point(commitments.py.clone().into_commitment());
-
-        for i in 0..security_param {
-            point_hasher.insert_point(a_vec[i].clone());
-            point_hasher.insert_point(tx_vec[i].clone().into_commitment());
-            point_hasher.insert_point(ty_vec[i].clone().into_commitment());
-        }
-        let mut challenge = point_hasher.finalize();
+        let mut challenge = Self::calculate_challenge(commitments, &a_vec, &tx_vec, &ty_vec, security_param);
 
         let mut all_exp_proofs = Vec::<SingleExpProof<C, CC>>::with_capacity(security_param);
 
@@ -224,17 +233,17 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         base_multimult.add_known(commitments.exp.clone().into_commitment());
 
         let mut point_hasher = PointHasher::new(Self::HASH_ID);
-        point_hasher.insert_point(commitments.px.clone().into_commitment());
-        point_hasher.insert_point(commitments.py.clone().into_commitment());
+        point_hasher.insert_point(&commitments.px.clone().into_commitment());
+        point_hasher.insert_point(&commitments.py.clone().into_commitment());
 
         for i in 0..security_param {
-            point_hasher.insert_point(self.proofs[i].a.clone());
-            point_hasher.insert_point(self.proofs[i].tx_p.clone());
-            point_hasher.insert_point(self.proofs[i].ty_p.clone());
+            point_hasher.insert_point(&self.proofs[i].a.clone());
+            point_hasher.insert_point(&self.proofs[i].tx_p.clone());
+            point_hasher.insert_point(&self.proofs[i].ty_p.clone());
         }
         let challenge = point_hasher.finalize();
         let indices = generate_indices(security_param, self.proofs.len(), rng);
-        let challenge_bits = padded_bits(challenge, self.proofs.len(), false);
+        let challenge_bits = padded_bits(challenge, self.proofs.len());
 
         for j in 0..security_param {
             let i = indices[j];
@@ -251,7 +260,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
 
                     relation_a.insert(t.clone(), Scalar::<C>::ONE);
                     relation_a.insert(base_pedersen_generator.generator().clone(), r);
-                    relation_a.insert(self.proofs[i].a.clone(), Scalar::<C>::ONE);
+                    relation_a.insert((&self.proofs[i].a).neg(), Scalar::<C>::ONE);
 
                     relation_a.drain(rng, &mut base_multimult);
 
@@ -342,21 +351,25 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
             }
         }
 
-        tom_multimult.evaluate() == Point::<CC>::IDENTITY
-            && base_multimult.evaluate() == Point::<C>::IDENTITY
+        tom_multimult.evaluate().is_identity()
+            && base_multimult.evaluate().is_identity()
     }
 }
 
-// TODO: remove debug
-fn padded_bits(value: U256, length: usize, debug: bool) -> Vec<bool> {
-    let mut ret = Vec::with_capacity(length);
-    let limbs = value.limbs();
-    for limb in limbs {
-        let mut limb = limb.0; 
+fn padded_bits(number: U256, length: usize) -> Vec<bool> {
+    let mut ret = Vec::<bool>::with_capacity(length);
+
+    let mut current_idx = 0;
+    for limb in number.limbs() {
+        let mut limb = limb.0;
         for _ in 0..64 {
-            println!("Limb: {}", limb);
             ret.push(limb % 2 == 1);
             limb = limb >> 1;
+            current_idx += 1;
+
+            if current_idx >= length {
+                return ret;
+            }
         }
     }
 
@@ -365,25 +378,24 @@ fn padded_bits(value: U256, length: usize, debug: bool) -> Vec<bool> {
 }
 
 fn generate_indices<R: CryptoRng + RngCore>(
-    index_number: usize,
+    idx_num: usize,
     limit: usize,
     rng: &mut R,
 ) -> Vec<usize> {
-    let mut ret = Vec::with_capacity(limit);
+    let mut ret = Vec::<usize>::with_capacity(limit);
 
-    for i in 0..limit {
+    for i in (0..limit).rev() {
         ret.push(i);
     }
 
-    for i in 0..(limit - 2) {
-        let rand = rng.next_u64() as usize;
-        let j = (rand % (limit - 1 - i)) + i;
+    for i in 0..limit - 2 {
+        let random_idx = rng.next_u64() as usize % (limit - i) + i;
         let k = ret[i];
-        ret[i] = ret[j];
-        ret[j] = k;
+        ret[i] = ret[random_idx];
+        ret[random_idx] = k;
     }
 
-    ret.truncate(index_number);
+    ret.truncate(idx_num);
     ret
 }
 
@@ -396,14 +408,31 @@ mod test {
     use rand_core::SeedableRng;
 
     #[test]
-    fn padded_bits_output() {
+    fn padded_bits_valid() {
         let test_u256 = U256::from_u32(1);
-        let test_u256_bigger = U256::from_be_hex("000000000000000000000000000000000000000000000001FFFFFFFFFFFFFFFF");
-        
-        assert_eq!(padded_bits(test_u256, 1, false), vec![true]);
-        assert_eq!(padded_bits(test_u256, 4, false), vec![true, false, false, false]);
+        assert_eq!(padded_bits(test_u256, 1), [true]);
+        assert_eq!(padded_bits(test_u256, 4), [true, false, false, false]);
 
-        assert_eq!(padded_bits(test_u256, 65, true), vec![true; 65]);
+        let test_u256 = U256::from_u32(2);
+        assert_eq!(padded_bits(test_u256, 1), [false]);
+        assert_eq!(padded_bits(test_u256, 2), [false, true]);
+
+        let test_u256 =
+            U256::from_be_hex("000000000000000000000000000000000000000000000000FFFFFFFFFFFFFFFF");
+        let true_64 = vec![true; 64];
+        assert_eq!(padded_bits(test_u256, 64), true_64);
+        assert_eq!(padded_bits(test_u256, 65), [true_64, vec![false]].concat());
+    }
+
+    #[test]
+    fn generate_indices_valid() {
+        let idx_num = 5;
+        let limit = 5;
+        let mut rng = StdRng::from_seed([1; 32]);
+
+        for _ in 0..10 {
+            println!("{:?}", generate_indices(idx_num, limit, &mut rng));
+        }
     }
 
     #[test]
@@ -412,11 +441,10 @@ mod test {
         let base_pedersen_generator = PedersenGenerator::<Secp256k1>::new(&mut rng);
         let tom_pedersen_generator = PedersenGenerator::<Tom256k1>::new(&mut rng);
 
-        let base_point = Point::<Secp256k1>::GENERATOR;
         let exponent = Scalar::<Secp256k1>::ONE;
-        let result = Point::<Secp256k1>::GENERATOR;
+        let result = Point::<Secp256k1>::GENERATOR.scalar_mul(&exponent);
 
-        let secrets = PointExpSecrets::new(exponent, base_point);
+        let secrets = PointExpSecrets::new(exponent, result);
         let commitments = secrets.commit(
             &mut rng,
             &base_pedersen_generator,
@@ -424,7 +452,7 @@ mod test {
             None,
         );
 
-        let security_param = 3;
+        let security_param = 10;
         let exp_proof = ExpProof::construct(
             &mut rng,
             &base_pedersen_generator,
