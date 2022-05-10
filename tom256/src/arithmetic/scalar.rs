@@ -1,10 +1,8 @@
 use super::modular::{mod_u256, random_mod_u256, Modular};
-use crate::Curve;
-
-use bigint::U256;
+use crate::{Curve, U256};
 use rand_core::{CryptoRng, RngCore};
-use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 
+use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::marker::PhantomData;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

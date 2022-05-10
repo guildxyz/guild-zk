@@ -1,9 +1,7 @@
 use super::field::FieldElement;
 use super::modular::{mul_mod_u256, Modular};
 use super::scalar::Scalar;
-use crate::Curve;
-
-use bigint::U256;
+use crate::{Curve, U256};
 
 use std::collections::HashMap;
 use std::marker::PhantomData;

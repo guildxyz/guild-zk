@@ -1,6 +1,6 @@
+use bigint::subtle::ConstantTimeLess;
 use bigint::{NonZero, Split, U256, U512};
 use rand_core::{CryptoRng, RngCore};
-use subtle::ConstantTimeLess;
 
 const TWO: U256 = U256::from_u8(2);
 

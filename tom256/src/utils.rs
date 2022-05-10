@@ -1,7 +1,7 @@
 use crate::arithmetic::{Modular, Point};
-use crate::Curve;
+use crate::{Curve, U256};
 
-use bigint::{Encoding, U256};
+use bigint::Encoding;
 use sha3::{Digest, Sha3_256};
 
 pub struct PointHasher {

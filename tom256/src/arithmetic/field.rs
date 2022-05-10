@@ -1,8 +1,6 @@
 use super::modular::{mod_u256, Modular};
 use super::Scalar;
-use crate::{Curve, Cycle};
-
-use bigint::U256;
+use crate::{Curve, Cycle, U256};
 
 use std::marker::PhantomData;
 
