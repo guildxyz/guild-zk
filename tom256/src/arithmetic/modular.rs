@@ -1,5 +1,5 @@
 use bigint::subtle::ConstantTimeLess;
-use bigint::{Encoding, NonZero, Split, U256, U512};
+use bigint::{Encoding, NonZero, U256};
 use num_bigint::BigUint;
 use num_integer::Integer;
 use rand_core::{CryptoRng, RngCore};
@@ -53,9 +53,9 @@ pub fn mod_u256(number: &U256, modulus: &U256) -> U256 {
 
 pub fn mul_mod_u256(lhs: &U256, rhs: &U256, modulus: &U256) -> U256 {
     // NOTE wtf this ugly crap is ~50% faster than the previous stuff
-    let lhs_num_bigint = BigUint::from_bytes_be(&lhs.to_be_bytes());
-    let rhs_num_bigint = BigUint::from_bytes_be(&rhs.to_be_bytes());
-    let modulus_num_bigint = BigUint::from_bytes_be(&modulus.to_be_bytes());
+    let lhs_num_bigint = BigUint::from_bytes_le(&lhs.to_le_bytes());
+    let rhs_num_bigint = BigUint::from_bytes_le(&rhs.to_le_bytes());
+    let modulus_num_bigint = BigUint::from_bytes_le(&modulus.to_le_bytes());
     let (_, rem) = (lhs_num_bigint * rhs_num_bigint).div_mod_floor(&modulus_num_bigint);
     let mut res = [0u8; 32];
     let rem_bytes = rem.to_bytes_le();
