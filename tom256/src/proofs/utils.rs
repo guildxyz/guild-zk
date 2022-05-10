@@ -76,89 +76,91 @@ mod test {
     use crate::arithmetic::Modular;
     use crate::{Tom256k1, U256};
 
+    type TomScalar = Scalar<Tom256k1>;
+
     #[test]
     fn pad_ring() {
-        let mut ring = Vec::<Scalar<Tom256k1>>::new();
+        let mut ring = Vec::<TomScalar>::new();
         assert!(pad_ring_to_2n(&mut ring).is_err());
-        ring.push(Scalar::ONE);
+        ring.push(TomScalar::ONE);
         assert_eq!(pad_ring_to_2n(&mut ring), Ok(0));
         assert_eq!(ring.len(), 1);
-        ring.push(Scalar::ZERO);
+        ring.push(TomScalar::ZERO);
         assert_eq!(pad_ring_to_2n(&mut ring), Ok(1));
         assert_eq!(ring.len(), 2);
-        ring.push(Scalar::ZERO);
+        ring.push(TomScalar::ZERO);
         assert_eq!(pad_ring_to_2n(&mut ring), Ok(2));
         assert_eq!(ring.len(), 4);
-        assert_eq!(ring[3], Scalar::ONE);
+        assert_eq!(ring[3], TomScalar::ONE);
         for _ in 0..5 {
-            ring.push(Scalar::ZERO);
+            ring.push(TomScalar::ZERO);
         }
         assert_eq!(ring.len(), 9);
         assert_eq!(pad_ring_to_2n(&mut ring), Ok(4));
         assert_eq!(ring.len(), 16);
-        assert_eq!(ring[15], Scalar::ONE);
+        assert_eq!(ring[15], TomScalar::ONE);
     }
 
     #[test]
     fn evaluate_polynomial() {
         // y = 2 * x^2 + 5 * x + 15
         let coeffs = vec![
-            Scalar::<Tom256k1>::new(U256::from_u8(15)),
-            Scalar::<Tom256k1>::new(U256::from_u8(5)),
-            Scalar::<Tom256k1>::new(U256::from_u8(2)),
+            TomScalar::new(U256::from_u8(15)),
+            TomScalar::new(U256::from_u8(5)),
+            TomScalar::new(U256::from_u8(2)),
         ];
 
-        let mut x = Scalar::new(U256::from_u8(3));
+        let mut x = TomScalar::new(U256::from_u8(3));
         assert_eq!(eval_poly(&coeffs, x).inner(), &U256::from_u8(48));
-        x = Scalar::new(U256::from_u8(7));
+        x = TomScalar::new(U256::from_u8(7));
         assert_eq!(eval_poly(&coeffs, x).inner(), &U256::from_u8(148));
 
         // y = 3 * x^4 + 4 * x^3 + 5 * x^2 + 9 * x + 10
         let coeffs = vec![
-            Scalar::<Tom256k1>::new(U256::from_u8(10)), // c0
-            Scalar::<Tom256k1>::new(U256::from_u8(9)),  // c1
-            Scalar::<Tom256k1>::new(U256::from_u8(5)),  // c2
-            Scalar::<Tom256k1>::new(U256::from_u8(4)),  // c3
-            Scalar::<Tom256k1>::new(U256::from_u8(3)),  // c4
+            TomScalar::new(U256::from_u8(10)), // c0
+            TomScalar::new(U256::from_u8(9)),  // c1
+            TomScalar::new(U256::from_u8(5)),  // c2
+            TomScalar::new(U256::from_u8(4)),  // c3
+            TomScalar::new(U256::from_u8(3)),  // c4
         ];
-        x = Scalar::new(U256::from_u8(2));
+        x = TomScalar::new(U256::from_u8(2));
         assert_eq!(eval_poly(&coeffs, x).inner(), &U256::from_u8(128));
     }
 
     #[test]
     fn interpolate_polynomial() {
         // not equal length inputs
-        let x = vec![Scalar::<Tom256k1>::new(U256::from_u8(3)); 3];
-        let y = vec![Scalar::<Tom256k1>::new(U256::from_u8(5)); 4];
+        let x = vec![TomScalar::new(U256::from_u8(3)); 3];
+        let y = vec![TomScalar::new(U256::from_u8(5)); 4];
         assert!(interpolate(&x, &y).is_err());
 
         // constant polynomial (y = 53)
-        let x = vec![Scalar::<Tom256k1>::new(U256::from_u8(3)); 1];
-        let y = vec![Scalar::<Tom256k1>::new(U256::from_u8(53)); 1];
+        let x = vec![TomScalar::new(U256::from_u8(3)); 1];
+        let y = vec![TomScalar::new(U256::from_u8(53)); 1];
         let coeffs = interpolate(&x, &y).unwrap();
         assert_eq!(coeffs[0].inner(), &U256::from_u8(53));
 
         // simple first order polynomial (y = x)
         let x = vec![
-            Scalar::<Tom256k1>::new(U256::from_u8(1)),
-            Scalar::<Tom256k1>::new(U256::from_u8(2)),
-            Scalar::<Tom256k1>::new(U256::from_u8(3)),
+            TomScalar::new(U256::from_u8(1)),
+            TomScalar::new(U256::from_u8(2)),
+            TomScalar::new(U256::from_u8(3)),
         ];
 
         let y = x.clone();
         let coeffs = interpolate(&x, &y).unwrap();
-        assert_eq!(coeffs[0], Scalar::ZERO); // c_0
-        assert_eq!(coeffs[1], Scalar::ONE); // c_1
-        assert_eq!(coeffs[2], Scalar::ZERO); // c_2
+        assert_eq!(coeffs[0], TomScalar::ZERO); // c_0
+        assert_eq!(coeffs[1], TomScalar::ONE); // c_1
+        assert_eq!(coeffs[2], TomScalar::ZERO); // c_2
 
         // first order polynomial (y = 22 * x + 7)
         let x = vec![
-            Scalar::<Tom256k1>::new(U256::from_u8(2)),
-            Scalar::<Tom256k1>::new(U256::from_u8(3)),
+            TomScalar::new(U256::from_u8(2)),
+            TomScalar::new(U256::from_u8(3)),
         ];
         let y = vec![
-            Scalar::<Tom256k1>::new(U256::from_u8(51)),
-            Scalar::<Tom256k1>::new(U256::from_u8(83)),
+            TomScalar::new(U256::from_u8(51)),
+            TomScalar::new(U256::from_u8(83)),
         ];
         let coeffs = interpolate(&x, &y).unwrap();
         // values taken from zkp js interpolate
@@ -171,20 +173,20 @@ mod test {
         // fourth order polynomial
         // y = x^4 + 0 * x^3 + 3 * x^2 + 2 * x + 14
         let x = vec![
-            Scalar::<Tom256k1>::new(U256::from_u8(1)),
-            Scalar::<Tom256k1>::new(U256::from_u8(2)),
-            Scalar::<Tom256k1>::new(U256::from_u8(3)),
-            Scalar::<Tom256k1>::new(U256::from_u8(4)),
-            Scalar::<Tom256k1>::new(U256::from_u8(5)),
-            Scalar::<Tom256k1>::new(U256::from_u8(6)),
+            TomScalar::new(U256::from_u8(1)),
+            TomScalar::new(U256::from_u8(2)),
+            TomScalar::new(U256::from_u8(3)),
+            TomScalar::new(U256::from_u8(4)),
+            TomScalar::new(U256::from_u8(5)),
+            TomScalar::new(U256::from_u8(6)),
         ];
         let y = vec![
-            Scalar::<Tom256k1>::new(U256::from_u16(20)),
-            Scalar::<Tom256k1>::new(U256::from_u16(46)),
-            Scalar::<Tom256k1>::new(U256::from_u16(128)),
-            Scalar::<Tom256k1>::new(U256::from_u16(326)),
-            Scalar::<Tom256k1>::new(U256::from_u16(724)),
-            Scalar::<Tom256k1>::new(U256::from_u16(1430)),
+            TomScalar::new(U256::from_u16(20)),
+            TomScalar::new(U256::from_u16(46)),
+            TomScalar::new(U256::from_u16(128)),
+            TomScalar::new(U256::from_u16(326)),
+            TomScalar::new(U256::from_u16(724)),
+            TomScalar::new(U256::from_u16(1430)),
         ];
         let coeffs = interpolate(&x, &y).unwrap();
         assert_eq!(coeffs[0].inner(), &U256::from_u8(14)); // c0 (x^0)

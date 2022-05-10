@@ -75,38 +75,6 @@ pub fn mul_mod_u256(lhs: &U256, rhs: &U256, modulus: &U256) -> U256 {
     U256::from_uint_array(res)
 }
 
-/*
-pub fn mul_mod_u256(lhs: &U256, rhs: &U256, modulus: &U256) -> U256 {
-    // NOTE wtf this ugly crap is ~50% faster than the previous stuff
-    let lhs_num_bigint = BigUint::from_bytes_le(&lhs.to_le_bytes());
-    let rhs_num_bigint = BigUint::from_bytes_le(&rhs.to_le_bytes());
-    let modulus_num_bigint = BigUint::from_bytes_le(&modulus.to_le_bytes());
-    let (_, rem) = (lhs_num_bigint * rhs_num_bigint).div_mod_floor(&modulus_num_bigint);
-    let mut res = [0u8; 32];
-    let rem_bytes = rem.to_bytes_le();
-    res[0..rem_bytes.len()].copy_from_slice(&rem_bytes);
-    U256::from_le_bytes(res)
-    /*
-    let mod512 = U512::from((U256::ZERO, *modulus));
-    // NOTE facepalm:
-    // U512::from((hi, lo))
-    // but split returns (lo, hi)
-    let (lo, hi) = lhs.mul_wide(rhs);
-    let product = U512::from((hi, lo));
-    // split the remainder result of a % b into a (lo, hi) U256 pair
-    // 'hi' should always be zero because the modulus is an U256 number
-    let (hi, lo) = if product < mod512 {
-        product.split()
-    } else {
-        // NOTE modulus is never zero, so unwrap is fine here
-        (product % NonZero::new(mod512).unwrap()).split()
-    };
-    debug_assert_eq!(hi, U256::ZERO);
-    lo
-    */
-}
-*/
-
 fn exp_mod_u256(base: &U256, exponent: &U256, modulus: &U256) -> U256 {
     let mut r = U256::ONE;
     let mut q = *base;
