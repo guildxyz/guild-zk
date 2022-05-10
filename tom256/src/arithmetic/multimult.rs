@@ -7,17 +7,21 @@ use std::collections::binary_heap::BinaryHeap;
 
 use rand_core::{CryptoRng, RngCore};
 
+use std::fmt;
+
 #[derive(Debug, Clone)]
 pub struct Pair<C: Curve> {
     scalar: Scalar<C>,
     point: Point<C>,
 }
 
+#[derive(Debug, Clone)]
 pub struct Known<C: Curve> {
     point: Point<C>,
     index: usize,
 }
 
+#[derive(Debug, Clone)]
 pub struct MultiMult<C: Curve> {
     pairs: Vec<Pair<C>>,
     known: Vec<Known<C>>,
@@ -135,6 +139,17 @@ impl<C: Curve> Relation<C> {
 }
 
 // *************************************** TRAITS ***************************************** //
+
+impl<C: Curve> fmt::Display for Relation<C> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for pair in &self.pairs {
+            writeln!(f, "scalar: {}", pair.scalar)?;
+            let pt_aff = pair.point.clone().into_affine();
+            writeln!(f, "point: {}", pt_aff)?;
+        }
+        fmt::Result::Ok(())
+    }
+}
 
 impl<C: Curve> PartialEq for Pair<C> {
     fn eq(&self, other: &Self) -> bool {

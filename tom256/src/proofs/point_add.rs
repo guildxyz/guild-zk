@@ -50,12 +50,13 @@ impl<C: Curve> PointAddSecrets<C> {
 
 #[derive(Clone)]
 pub struct PointAddCommitments<C: Curve> {
-    px: PedersenCommitment<C>,
-    py: PedersenCommitment<C>,
-    qx: PedersenCommitment<C>,
-    qy: PedersenCommitment<C>,
-    rx: PedersenCommitment<C>,
-    ry: PedersenCommitment<C>,
+    // TODO: remove pub(crate)
+    pub(crate) px: PedersenCommitment<C>,
+    pub(crate) py: PedersenCommitment<C>,
+    pub(crate) qx: PedersenCommitment<C>,
+    pub(crate) qy: PedersenCommitment<C>,
+    pub(crate) rx: PedersenCommitment<C>,
+    pub(crate) ry: PedersenCommitment<C>,
 }
 
 impl<C: Curve> PointAddCommitments<C> {
