@@ -1,5 +1,7 @@
 use bigint::subtle::ConstantTimeLess;
-use bigint::{NonZero, Split, U256, U512};
+use bigint::{Encoding, NonZero, Split, U256, U512};
+use num_bigint::BigUint;
+use num_integer::Integer;
 use rand_core::{CryptoRng, RngCore};
 
 const TWO: U256 = U256::from_u8(2);
@@ -50,6 +52,16 @@ pub fn mod_u256(number: &U256, modulus: &U256) -> U256 {
 }
 
 pub fn mul_mod_u256(lhs: &U256, rhs: &U256, modulus: &U256) -> U256 {
+    // NOTE wtf this ugly crap is ~50% faster than the previous stuff
+    let lhs_num_bigint = BigUint::from_bytes_be(&lhs.to_be_bytes());
+    let rhs_num_bigint = BigUint::from_bytes_be(&rhs.to_be_bytes());
+    let modulus_num_bigint = BigUint::from_bytes_be(&modulus.to_be_bytes());
+    let (_, rem) = (lhs_num_bigint * rhs_num_bigint).div_mod_floor(&modulus_num_bigint);
+    let mut res = [0u8; 32];
+    let rem_bytes = rem.to_bytes_le();
+    res[0..rem_bytes.len()].copy_from_slice(&rem_bytes);
+    U256::from_le_bytes(res)
+    /*
     let mod512 = U512::from((U256::ZERO, *modulus));
     // NOTE facepalm:
     // U512::from((hi, lo))
@@ -66,6 +78,7 @@ pub fn mul_mod_u256(lhs: &U256, rhs: &U256, modulus: &U256) -> U256 {
     };
     debug_assert_eq!(hi, U256::ZERO);
     lo
+    */
 }
 
 fn exp_mod_u256(base: &U256, exponent: &U256, modulus: &U256) -> U256 {
