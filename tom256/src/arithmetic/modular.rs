@@ -51,6 +51,31 @@ pub fn mod_u256(number: &U256, modulus: &U256) -> U256 {
     }
 }
 
+#[cfg(target_pointer_width = "32")]
+pub fn mul_mod_u256(lhs: &U256, rhs: &U256, modulus: &U256) -> U256 {
+    let lhs_num_bigint = BigUint::from_bytes_le(&lhs.to_le_bytes());
+    let rhs_num_bigint = BigUint::from_bytes_le(&rhs.to_le_bytes());
+    let modulus_num_bigint = BigUint::from_bytes_le(&modulus.to_le_bytes());
+    let (_, rem) = (lhs_num_bigint * rhs_num_bigint).div_mod_floor(&modulus_num_bigint);
+    let rem_limbs = rem.to_u32_digits();
+    let mut res = [0u32; 8];
+    res[0..rem_limbs.len()].copy_from_slice(&rem_limbs);
+    U256::from_uint_array(res)
+}
+
+#[cfg(target_pointer_width = "64")]
+pub fn mul_mod_u256(lhs: &U256, rhs: &U256, modulus: &U256) -> U256 {
+    let lhs_num_bigint = BigUint::from_bytes_le(&lhs.to_le_bytes());
+    let rhs_num_bigint = BigUint::from_bytes_le(&rhs.to_le_bytes());
+    let modulus_num_bigint = BigUint::from_bytes_le(&modulus.to_le_bytes());
+    let (_, rem) = (lhs_num_bigint * rhs_num_bigint).div_mod_floor(&modulus_num_bigint);
+    let rem_limbs = rem.to_u64_digits();
+    let mut res = [0u64; 4];
+    res[0..rem_limbs.len()].copy_from_slice(&rem_limbs);
+    U256::from_uint_array(res)
+}
+
+/*
 pub fn mul_mod_u256(lhs: &U256, rhs: &U256, modulus: &U256) -> U256 {
     // NOTE wtf this ugly crap is ~50% faster than the previous stuff
     let lhs_num_bigint = BigUint::from_bytes_le(&lhs.to_le_bytes());
@@ -80,6 +105,7 @@ pub fn mul_mod_u256(lhs: &U256, rhs: &U256, modulus: &U256) -> U256 {
     lo
     */
 }
+*/
 
 fn exp_mod_u256(base: &U256, exponent: &U256, modulus: &U256) -> U256 {
     let mut r = U256::ONE;
