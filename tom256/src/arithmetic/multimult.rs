@@ -1,6 +1,8 @@
 use super::{Point, Scalar};
 
 use crate::Curve;
+use crate::arithmetic::modular::Modular;
+use bigint::U256;
 
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::collections::binary_heap::BinaryHeap;
@@ -11,8 +13,9 @@ use std::fmt;
 
 #[derive(Debug, Clone)]
 pub struct Pair<C: Curve> {
-    scalar: Scalar<C>,
-    point: Point<C>,
+    // TODO: remove pub(crate)
+    pub(crate) scalar: Scalar<C>,
+    pub(crate) point: Point<C>,
 }
 
 #[derive(Debug, Clone)]
@@ -23,8 +26,9 @@ pub struct Known<C: Curve> {
 
 #[derive(Debug, Clone)]
 pub struct MultiMult<C: Curve> {
-    pairs: Vec<Pair<C>>,
-    known: Vec<Known<C>>,
+    // TODO: remove pub(crate)
+    pub(crate) pairs: Vec<Pair<C>>,
+    pub(crate) known: Vec<Known<C>>,
 }
 
 impl<C: Curve> Default for MultiMult<C> {
@@ -39,6 +43,10 @@ impl<C: Curve> MultiMult<C> {
             pairs: vec![],
             known: vec![],
         }
+    }
+    
+    pub fn len(&self) -> usize {
+        self.pairs.len()
     }
 
     pub fn add_known(&mut self, pt: Point<C>) {
@@ -130,15 +138,35 @@ impl<C: Curve> Relation<C> {
         self.pairs.push(Pair { point, scalar })
     }
 
-    pub fn drain<R: RngCore + CryptoRng>(self, rng: &mut R, multimult: &mut MultiMult<C>) {
+    // TODO: remove
+    pub fn drain<R: RngCore + CryptoRng>(self, rng: &mut R, multimult: &mut MultiMult<C>, print: bool) {
         let randomizer = Scalar::<C>::random(rng);
-        for pair in self.pairs {
-            multimult.insert(pair.point, pair.scalar * randomizer);
+        for (i, pair) in self.pairs.iter().enumerate() {
+            // TODO: remove print
+            if (print) {
+                println!("\t\tdrain pt {}: {}", i, pair.point.clone().into_affine());
+                println!("\t\tdrain sc {}: {}", i, pair.scalar.clone());
+                println!("\t\tdrain sc mult {}: {}", i, pair.scalar * randomizer);
+            }
+            // TODO: remove clone()
+            multimult.insert(pair.point.clone(), pair.scalar * randomizer);
         }
     }
 }
 
 // *************************************** TRAITS ***************************************** //
+
+use std::ops::Neg;
+impl<C: Curve> fmt::Display for MultiMult<C> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for pair in &self.pairs {
+            writeln!(f, "scalar: {}", pair.scalar)?;
+            let pt_aff = pair.point.clone().into_affine();
+            writeln!(f, "point: {}", pt_aff)?;
+        }
+        fmt::Result::Ok(())
+    }
+}
 
 impl<C: Curve> fmt::Display for Relation<C> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -274,7 +302,7 @@ mod test {
         }
 
         let mut multimult = MultiMult::new();
-        rel.drain(&mut rng, &mut multimult);
+        rel.drain(&mut rng, &mut multimult, false);
         let sum = multimult.evaluate();
         let expected = SecPoint::new(
             FieldElement::new(U256::from_be_hex(
@@ -308,7 +336,7 @@ mod test {
         }
 
         let mut multimult = MultiMult::new();
-        rel.drain(&mut rng, &mut multimult);
+        rel.drain(&mut rng, &mut multimult, false);
         let sum = multimult.evaluate();
         let expected = TomPoint::new(
             FieldElement::new(U256::from_be_hex(

@@ -73,12 +73,13 @@ impl<C: Curve> PointAddCommitments<C> {
 }
 
 pub struct PointAddCommitmentPoints<C: Curve> {
-    px: Point<C>,
-    py: Point<C>,
-    qx: Point<C>,
-    qy: Point<C>,
-    rx: Point<C>,
-    ry: Point<C>,
+    // TODO: remove pub(crate)
+    pub(crate) px: Point<C>,
+    pub(crate) py: Point<C>,
+    pub(crate) qx: Point<C>,
+    pub(crate) qy: Point<C>,
+    pub(crate) rx: Point<C>,
+    pub(crate) ry: Point<C>,
 }
 
 impl<C: Curve> PointAddCommitmentPoints<C> {
@@ -226,10 +227,18 @@ impl<CC: Cycle<C>, C: Curve> PointAddProof<CC, C> {
         pedersen_generator: &PedersenGenerator<CC>,
         commitments: &PointAddCommitmentPoints<CC>,
         multimult: &mut MultiMult<CC>,
+        // TODO: remove
+        print: bool,
     ) {
         let commitment_7 = &commitments.qx - &commitments.px;
         let commitment_9 = &commitments.qy - &commitments.py;
         let commitment_12 = &commitments.px - &commitments.rx;
+
+        if print {
+            println!("0 mm: {}", multimult);
+            println!("0 add proof mm len: {}", multimult.len());
+            println!("0 add proof mm res: {}", multimult.clone().evaluate().into_affine());
+        }
 
         // aggregate multiplication proofs
         self.mult_proof_8.proof.aggregate(
@@ -241,6 +250,16 @@ impl<CC: Cycle<C>, C: Curve> PointAddProof<CC, C> {
             multimult,
         );
 
+        
+
+        if print {
+            println!("1 mm: {}", multimult);
+            println!("1 add proof mm len: {}", multimult.len());
+            println!("1 add proof mm res: {}", multimult.clone().evaluate().into_affine());
+        }
+
+        panic!("end");
+
         self.mult_proof_10.proof.aggregate(
             rng,
             pedersen_generator,
@@ -249,6 +268,11 @@ impl<CC: Cycle<C>, C: Curve> PointAddProof<CC, C> {
             &self.mult_proof_10.commitment,
             multimult,
         );
+
+        if print {
+            println!("2 add proof mm len: {}", multimult.len());
+            println!("2 add proof mm res: {}", multimult.clone().evaluate().into_affine());
+        }
 
         self.mult_proof_11.proof.aggregate(
             rng,
@@ -259,6 +283,11 @@ impl<CC: Cycle<C>, C: Curve> PointAddProof<CC, C> {
             multimult,
         );
 
+        if print {
+            println!("3 add proof mm len: {}", multimult.len());
+            println!("3 add proof mm res: {}", multimult.clone().evaluate().into_affine());
+        }
+
         self.mult_proof_13.proof.aggregate(
             rng,
             pedersen_generator,
@@ -267,6 +296,11 @@ impl<CC: Cycle<C>, C: Curve> PointAddProof<CC, C> {
             &self.mult_proof_13.commitment,
             multimult,
         );
+
+        if print {
+            println!("4 add proof mm len: {}", multimult.len());
+            println!("4 add proof mm res: {}", multimult.clone().evaluate().into_affine());
+        }
 
         // aggregate equality proofs
         let aux_commitment = &(&commitments.rx + &commitments.px) + &commitments.qx;
@@ -278,6 +312,11 @@ impl<CC: Cycle<C>, C: Curve> PointAddProof<CC, C> {
             multimult,
         );
 
+        if print {
+            println!("5 add proof mm len: {}", multimult.len());
+            println!("5 add proof mm res: {}", multimult.clone().evaluate().into_affine());
+        }
+
         let aux_commitment = &commitments.py + &commitments.ry;
         self.equality_proof_y.aggregate(
             rng,
@@ -286,6 +325,11 @@ impl<CC: Cycle<C>, C: Curve> PointAddProof<CC, C> {
             &aux_commitment,
             multimult,
         );
+
+        if print {
+            println!("6 add proof mm len: {}", multimult.len());
+            println!("6 add proof mm res: {}", multimult.clone().evaluate().into_affine());
+        }
     }
 
     pub fn verify<R: CryptoRng + RngCore>(
@@ -295,7 +339,8 @@ impl<CC: Cycle<C>, C: Curve> PointAddProof<CC, C> {
         commitments: &PointAddCommitmentPoints<CC>,
     ) -> bool {
         let mut multimult = MultiMult::new();
-        self.aggregate(rng, pedersen_generator, commitments, &mut multimult);
+        // TODO: remove
+        self.aggregate(rng, pedersen_generator, commitments, &mut multimult, false);
         multimult.evaluate() == Point::<CC>::IDENTITY
     }
 }

@@ -348,7 +348,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                     println!("");
                     */
 
-                    relation_a.drain(rng, &mut base_multimult);
+                    relation_a.drain(rng, &mut base_multimult, false);
 
                     
 
@@ -383,8 +383,8 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
 
                     //println!("relation_ty: {}", relation_ty);
 
-                    relation_tx.drain(rng, &mut tom_multimult);
-                    relation_ty.drain(rng, &mut tom_multimult);
+                    relation_tx.drain(rng, &mut tom_multimult, false);
+                    relation_ty.drain(rng, &mut tom_multimult, false);
                 } else {
                     panic!("this should never be invoked");
                 }
@@ -397,7 +397,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                     t1_y,
                 } = &self.proofs[i].variant
                 {
-                    if j < 10 {
+                    if j < 3 {
                         //println!("verify {}: even", j);
                     }
                     
@@ -417,7 +417,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                     }
                     */
 
-                    relation_a.drain(rng, &mut base_multimult);
+                    relation_a.drain(rng, &mut base_multimult, false);
 
                     if let Some(q) = &commitments.q {
                         t = &t + q;
@@ -453,7 +453,8 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                     }
                     */
 
-                    if j < 10 {
+                    if j < 3 {
+                        println!("\tpre add proof tom_mm len: {}", tom_multimult.len());
                         println!("\ttom_mm_subres {}: {}", j, tom_multimult.clone().evaluate().into_affine());
                     }
 
@@ -466,12 +467,30 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                         self.proofs[i].ty_p.clone(),
                     );
 
+                    if j < 3 {
+                        println!("Px[{}]: {}", j, point_add_commitments.px.clone().into_affine());
+                        println!("Py[{}]: {}", j, point_add_commitments.py.clone().into_affine());
+                        println!("Qx[{}]: {}", j, point_add_commitments.qx.clone().into_affine());
+                        println!("Qy[{}]: {}", j, point_add_commitments.qy.clone().into_affine());
+                        println!("Rx[{}]: {}", j, point_add_commitments.rx.clone().into_affine());
+                        println!("Ry[{}]: {}", j, point_add_commitments.ry.clone().into_affine());
+                    }
+
+                    let print = j < 1;
+
                     add_proof.aggregate(
                         rng,
                         tom_pedersen_generator,
                         &point_add_commitments,
                         &mut tom_multimult,
+                        print
                     );
+
+                    if j < 3 {
+                        println!("\tpost add proof");
+                        println!("\tpost add proof tom_mm len: {}", tom_multimult.len());
+                        println!("\ttom_mm_subres {}: {}", j, tom_multimult.clone().evaluate().into_affine());
+                    }
                 } else {
                     panic!("this should never be invoked");
                 }

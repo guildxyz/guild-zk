@@ -187,8 +187,8 @@ impl<C: Curve> MembershipProof<C> {
             rel_1.insert(self.cb.get(i).unwrap().clone(), Scalar::ONE);
             rel_1.insert(pedersen_generator.generator().clone(), -self.zb[i]);
 
-            rel_0.drain(rng, &mut multimult);
-            rel_1.drain(rng, &mut multimult);
+            rel_0.drain(rng, &mut multimult, false);
+            rel_1.drain(rng, &mut multimult, false);
         }
 
         let mut total = Scalar::ZERO;
@@ -218,7 +218,7 @@ impl<C: Curve> MembershipProof<C> {
         );
         rel_final.insert(Point::<C>::GENERATOR, -total);
         rel_final.insert(pedersen_generator.generator().clone(), -self.zd);
-        rel_final.drain(rng, &mut multimult);
+        rel_final.drain(rng, &mut multimult, false);
 
         if multimult.evaluate() == Point::IDENTITY {
             Ok(())
