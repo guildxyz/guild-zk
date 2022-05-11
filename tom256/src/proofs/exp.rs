@@ -107,9 +107,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
             point_hasher.insert_point(&tx_vec[i].clone().into_commitment());
             point_hasher.insert_point(&ty_vec[i].clone().into_commitment());
         }
-        // TODO: remove
-        U256::from_u32(100)
-        //point_hasher.finalize()
+        point_hasher.finalize()
     }
 
     pub fn construct<R: CryptoRng + RngCore>(
@@ -298,9 +296,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
             point_hasher.insert_point(&self.proofs[i].tx_p.clone());
             point_hasher.insert_point(&self.proofs[i].ty_p.clone());
         }
-        //let challenge = point_hasher.finalize();
-        // TODO: remove
-        let challenge = U256::from_u32(100);
+        let challenge = point_hasher.finalize();
         let indices = generate_indices(security_param, self.proofs.len(), rng);
         let challenge_bits = padded_bits(challenge, self.proofs.len());
 
@@ -476,14 +472,11 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                         println!("Ry[{}]: {}", j, point_add_commitments.ry.clone().into_affine());
                     }
 
-                    let print = j < 1;
-
                     add_proof.aggregate(
                         rng,
                         tom_pedersen_generator,
                         &point_add_commitments,
-                        &mut tom_multimult,
-                        print
+                        &mut tom_multimult
                     );
 
                     if j < 3 {

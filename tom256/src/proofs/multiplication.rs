@@ -123,7 +123,6 @@ impl<C: Curve> MultiplicationProof<C> {
             &self.a4_2,
         ]);
         let challenge = hasher.finalize();
-        let challenge = U256::from_u32(100);
         let challenge_scalar = Scalar::new(challenge);
 
         let mut relation_x = Relation::new();
@@ -156,11 +155,11 @@ impl<C: Curve> MultiplicationProof<C> {
         relation_a4_2.insert(self.c4.clone(), challenge_scalar);
         relation_a4_2.insert((&self.a4_2).neg(), Scalar::<C>::ONE);
 
-        relation_x.drain(rng, multimult, true);
-        relation_y.drain(rng, multimult, true);
-        relation_z.drain(rng, multimult, true);
-        relation_a4_1.drain(rng, multimult, true);
-        relation_a4_2.drain(rng, multimult, true);
+        relation_x.drain(rng, multimult, false);
+        relation_y.drain(rng, multimult, false);
+        relation_z.drain(rng, multimult, false);
+        relation_a4_1.drain(rng, multimult, false);
+        relation_a4_2.drain(rng, multimult, false);
     }
 
     #[cfg(test)]

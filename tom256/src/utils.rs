@@ -33,7 +33,9 @@ impl PointHasher {
 
     pub fn finalize(self) -> U256 {
         let finalized = self.hasher.finalize();
-        U256::from_be_bytes(finalized[0..32].try_into().unwrap())
+        // TODO: restore
+        U256::from_u32(100)
+        //U256::from_be_bytes(finalized[0..32].try_into().unwrap())
     }
 }
 

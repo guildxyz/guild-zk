@@ -141,15 +141,8 @@ impl<C: Curve> Relation<C> {
     // TODO: remove
     pub fn drain<R: RngCore + CryptoRng>(self, rng: &mut R, multimult: &mut MultiMult<C>, print: bool) {
         let randomizer = Scalar::<C>::random(rng);
-        for (i, pair) in self.pairs.iter().enumerate() {
-            // TODO: remove print
-            if (print) {
-                println!("\t\tdrain pt {}: {}", i, pair.point.clone().into_affine());
-                println!("\t\tdrain sc {}: {}", i, pair.scalar.clone());
-                println!("\t\tdrain sc mult {}: {}", i, pair.scalar * randomizer);
-            }
-            // TODO: remove clone()
-            multimult.insert(pair.point.clone(), pair.scalar * randomizer);
+        for pair in self.pairs {
+            multimult.insert(pair.point, pair.scalar * randomizer);
         }
     }
 }
