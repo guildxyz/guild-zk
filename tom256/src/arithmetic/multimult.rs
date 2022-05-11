@@ -148,8 +148,6 @@ impl<C: Curve> Relation<C> {
 }
 
 // *************************************** TRAITS ***************************************** //
-
-use std::ops::Neg;
 impl<C: Curve> fmt::Display for MultiMult<C> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for pair in &self.pairs {

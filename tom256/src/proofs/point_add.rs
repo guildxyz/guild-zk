@@ -295,7 +295,6 @@ impl<CC: Cycle<C>, C: Curve> PointAddProof<CC, C> {
         commitments: &PointAddCommitmentPoints<CC>,
     ) -> bool {
         let mut multimult = MultiMult::new();
-        // TODO: remove
         self.aggregate(rng, pedersen_generator, commitments, &mut multimult);
         multimult.evaluate() == Point::<CC>::IDENTITY
     }

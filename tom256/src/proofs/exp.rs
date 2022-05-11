@@ -7,7 +7,10 @@ use crate::{Curve, Cycle};
 
 use std::ops::Neg;
 
-use bigint::{Integer, U256};
+use bigint::{Integer, U256, Encoding};
+
+use std::io;
+use std::io::Write;
 
 use rand_core::{CryptoRng, RngCore};
 
@@ -91,25 +94,6 @@ pub struct ExpProof<C: Curve, CC: Cycle<C>> {
 impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
     const HASH_ID: &'static [u8] = b"exp-proof";
 
-    fn calculate_challenge(
-        commitments: &PointExpCommitments<C, CC>,
-        a_vec: &Vec<Point<C>>,
-        tx_vec: &Vec<PedersenCommitment<CC>>,
-        ty_vec: &Vec<PedersenCommitment<CC>>,
-        security_param: usize,
-    ) -> U256 {
-        let mut point_hasher = PointHasher::new(Self::HASH_ID);
-        point_hasher.insert_point(&commitments.px.clone().into_commitment());
-        point_hasher.insert_point(&commitments.py.clone().into_commitment());
-
-        for i in 0..security_param {
-            point_hasher.insert_point(&a_vec[i].clone());
-            point_hasher.insert_point(&tx_vec[i].clone().into_commitment());
-            point_hasher.insert_point(&ty_vec[i].clone().into_commitment());
-        }
-        point_hasher.finalize()
-    }
-
     pub fn construct<R: CryptoRng + RngCore>(
         rng: &mut R,
         base_pedersen_generator: &PedersenGenerator<C>,
@@ -160,11 +144,20 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         }
         */
 
-        let mut challenge = Self::calculate_challenge(commitments, &a_vec, &tx_vec, &ty_vec, security_param);
+        let mut point_hasher = PointHasher::new(Self::HASH_ID);
+        point_hasher.insert_point(&commitments.px.clone().into_commitment().into_affine());
+        point_hasher.insert_point(&commitments.py.clone().into_commitment().into_affine());
+
+        for i in 0..security_param {
+            point_hasher.insert_point(&a_vec[i].clone().into_affine());
+            point_hasher.insert_point(&tx_vec[i].clone().into_commitment().into_affine());
+            point_hasher.insert_point(&ty_vec[i].clone().into_commitment().into_affine());
+        }
+        let mut challenge = point_hasher.finalize();
         
-        /* GOOD
+        ///* GOOD
         println!("Challenge: {}", challenge);
-        */
+        //*/
 
         let mut all_exp_proofs = Vec::<SingleExpProof<C, CC>>::with_capacity(security_param);
 
@@ -250,8 +243,16 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                     },
                 });
             }
-            challenge = challenge >> 1;
+            /*
+            if challenge & U256::from_u32(1) == U256::from_u32(1) {
+                print!("1");
+            } else {
+                print!("0");
+            }
+            io::stdout().flush().unwrap();
+            */
 
+            challenge = challenge >> 1;
             /* GOOD
             if i < 10 {
                 println!("challenge[{}]: {}", i, challenge);
@@ -288,17 +289,20 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         base_multimult.add_known(commitments.exp.clone().into_commitment());
 
         let mut point_hasher = PointHasher::new(Self::HASH_ID);
-        point_hasher.insert_point(&commitments.px.clone().into_commitment());
-        point_hasher.insert_point(&commitments.py.clone().into_commitment());
+        point_hasher.insert_point(&commitments.px.clone().into_commitment().into_affine());
+        point_hasher.insert_point(&commitments.py.clone().into_commitment().into_affine());
 
         for i in 0..security_param {
-            point_hasher.insert_point(&self.proofs[i].a.clone());
-            point_hasher.insert_point(&self.proofs[i].tx_p.clone());
-            point_hasher.insert_point(&self.proofs[i].ty_p.clone());
+            point_hasher.insert_point(&self.proofs[i].a.clone().into_affine());
+            point_hasher.insert_point(&self.proofs[i].tx_p.clone().into_affine());
+            point_hasher.insert_point(&self.proofs[i].ty_p.clone().into_affine());
         }
         let challenge = point_hasher.finalize();
+        println!("challenge: {}", challenge);
+
         let indices = generate_indices(security_param, self.proofs.len(), rng);
         let challenge_bits = padded_bits(challenge, self.proofs.len());
+        //println!("challenge bits: {:?}", challenge_bits);
 
         /* GOOD
         println!("challenge: {}", challenge);
@@ -315,10 +319,15 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         for j in 0..security_param {
             let i = indices[j];
 
+            
             if j < 10 {
+                /*
+                println!("challenge bit: {}", challenge_bits[i]);
                 println!("tom_mm_subres {}: {}", j, tom_multimult.clone().evaluate().into_affine());
-                println!("base_mm_subres {}: {}", j, base_multimult.clone().evaluate().into_affine());
+                //println!("base_mm_subres {}: {}", j, base_multimult.clone().evaluate().into_affine());
+                */
             }
+            
 
             if challenge_bits[i] {
                 if let ExpProofVariant::Odd {
@@ -455,14 +464,14 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                     }
 
                     let point_add_commitments = PointAddCommitmentPoints::new(
-                        t1_x,
-                        t1_y,
-                        commitments.px.clone().into_commitment(),
-                        commitments.py.clone().into_commitment(),
-                        self.proofs[i].tx_p.clone(),
-                        self.proofs[i].ty_p.clone(),
+                        t1_x.into_affine(),
+                        t1_y.into_affine(),
+                        commitments.px.clone().into_commitment().into_affine(),
+                        commitments.py.clone().into_commitment().into_affine(),
+                        self.proofs[i].tx_p.clone().into_affine(),
+                        self.proofs[i].ty_p.clone().into_affine(),
                     );
-
+/*
                     if j < 3 {
                         println!("Px[{}]: {}", j, point_add_commitments.px.clone().into_affine());
                         println!("Py[{}]: {}", j, point_add_commitments.py.clone().into_affine());
@@ -471,7 +480,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                         println!("Rx[{}]: {}", j, point_add_commitments.rx.clone().into_affine());
                         println!("Ry[{}]: {}", j, point_add_commitments.ry.clone().into_affine());
                     }
-
+*/
                     add_proof.aggregate(
                         rng,
                         tom_pedersen_generator,
@@ -484,6 +493,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                         println!("\tpost add proof tom_mm len: {}", tom_multimult.len());
                         println!("\ttom_mm_subres {}: {}", j, tom_multimult.clone().evaluate().into_affine());
                     }
+                    
                 } else {
                     panic!("this should never be invoked");
                 }
@@ -503,12 +513,17 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
 fn padded_bits(number: U256, length: usize) -> Vec<bool> {
     let mut ret = Vec::<bool>::with_capacity(length);
 
+    let number_bytes = number.to_le_bytes();
+
     let mut current_idx = 0;
-    for limb in number.limbs() {
-        let mut limb = limb.0;
-        for _ in 0..64 {
-            ret.push(limb % 2 == 1);
-            limb = limb >> 1;
+    for byte in number_bytes {
+        let mut byte_copy = byte;
+        //println!("byte at {}: {}", current_idx, byte);
+        for _ in 0..8 {
+            //println!("\tbyte at {}: {}", current_idx, byte_copy);
+            //println!("\tpushed: {}", byte_copy % 2 == 1);
+            ret.push(byte_copy % 2 == 1);
+            byte_copy = byte_copy >> 1;
             current_idx += 1;
 
             if current_idx >= length {
@@ -527,13 +542,7 @@ fn get_rand_range<R: CryptoRng + RngCore>(
     max: usize,
     rng: &mut R,
 ) -> usize {
-    if max - min + 1 <= 7 {
-        return 0 + min;
-    } else {
-        return 7 + min;
-    }
-
-    //rng.next_u64() as usize % (max - min + 1) + min
+    rng.next_u64() as usize % (max - min + 1) + min
 }
 
 fn generate_indices<R: CryptoRng + RngCore>(
