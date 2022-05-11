@@ -300,43 +300,53 @@ mod test {
         assert_eq!(*affine_secret.r.z(), FieldElement::ONE);
     }
 
-    #[test]
-    fn valid_point_add_proof() {
-        let mut rng = StdRng::from_seed([14; 32]);
-        let pedersen_generator = PedersenGenerator::<Tom256k1>::new(&mut rng);
+    fn valid_point_add_proof<R: CryptoRng + RngCore>(rng: &mut R) {
+        let pedersen_generator = PedersenGenerator::<Tom256k1>::new(rng);
 
-        let p = &Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(&mut rng);
-        let q = &Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(&mut rng);
+        let p = &Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(rng);
+        let q = &Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(rng);
         let r = &p + &q;
         let secret = PointAddSecrets::new(p, q, r);
-        let commitments = secret.commit(&mut rng, &pedersen_generator);
+        let commitments = secret.commit(rng, &pedersen_generator);
 
-        let proof = PointAddProof::construct(&mut rng, &pedersen_generator, &commitments, &secret);
+        let proof = PointAddProof::construct(rng, &pedersen_generator, &commitments, &secret);
 
         assert!(proof.verify(
-            &mut rng,
+            rng,
+            &pedersen_generator,
+            &commitments.into_commitments()
+        ));
+    }
+
+    fn invalid_point_add_proof<R: CryptoRng + RngCore>(rng: &mut R) {
+        let pedersen_generator = PedersenGenerator::<Tom256k1>::new(rng);
+
+        let p = &Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(rng);
+        let q = &Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(rng);
+        let r = (&p + &q) + Point::<Secp256k1>::GENERATOR; // invalid sum
+        let secret = PointAddSecrets::new(p, q, r);
+        let commitments = secret.commit(rng, &pedersen_generator);
+
+        let proof = PointAddProof::construct(rng, &pedersen_generator, &commitments, &secret);
+
+        assert!(!proof.verify(
+            rng,
             &pedersen_generator,
             &commitments.into_commitments()
         ));
     }
 
     #[test]
-    fn invalid_point_add_proof() {
+    fn many_random_tests() {
         let mut rng = StdRng::from_seed([14; 32]);
-        let pedersen_generator = PedersenGenerator::<Tom256k1>::new(&mut rng);
-
-        let p = &Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(&mut rng);
-        let q = &Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(&mut rng);
-        let r = (&p + &q) + Point::<Secp256k1>::GENERATOR; // invalid sum
-        let secret = PointAddSecrets::new(p, q, r);
-        let commitments = secret.commit(&mut rng, &pedersen_generator);
-
-        let proof = PointAddProof::construct(&mut rng, &pedersen_generator, &commitments, &secret);
-
-        assert!(!proof.verify(
-            &mut rng,
-            &pedersen_generator,
-            &commitments.into_commitments()
-        ));
+        let mut success = true;
+        for _ in 0..10 {
+            if success {
+                valid_point_add_proof(&mut rng);
+            } else {
+                invalid_point_add_proof(&mut rng);
+            }
+            success = !success;
+        }
     }
 }
