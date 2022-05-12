@@ -340,13 +340,14 @@ mod test {
         ));
     }
 
+    #[ignore]
     #[test]
     fn aggregate_valid_proofs() {
         let mut rng = StdRng::from_seed([119; 32]);
         let pedersen_generator = PedersenGenerator::<Tom256k1>::new(&mut rng);
 
         let mut multimult = MultiMult::new();
-        for _ in 0..20 {
+        for _ in 0..50 {
             let p = &Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(&mut rng);
             let q = &Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(&mut rng);
             let r = &p + &q;
