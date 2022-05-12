@@ -60,7 +60,7 @@ pub fn interpolate<C: Curve>(x: &[Scalar<C>], y: &[Scalar<C>]) -> Result<Vec<Sca
     Ok(coeffs)
 }
 
-// NOTE do we need this?
+// TODO do we need this?
 #[allow(unused)]
 fn eval_poly<C: Curve>(coeffs: &[Scalar<C>], x: Scalar<C>) -> Scalar<C> {
     let mut ret = Scalar::ZERO;

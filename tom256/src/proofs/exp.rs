@@ -22,9 +22,9 @@ pub enum ExpProofVariant<C: Curve, CC: Cycle<C>> {
     Even {
         z: Scalar<C>,
         r: Scalar<C>,
-        add_proof: PointAddProof<CC, C>,
         t1_x: Scalar<CC>,
         t1_y: Scalar<CC>,
+        add_proof: PointAddProof<CC, C>,
     },
 }
 
@@ -191,9 +191,9 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                     variant: ExpProofVariant::Even {
                         z,
                         r: r - (*commitments.exp.randomness()),
-                        add_proof,
                         t1_x: *add_commitments.px.randomness(),
                         t1_y: *add_commitments.py.randomness(),
+                        add_proof,
                     },
                 });
             }
