@@ -280,6 +280,19 @@ impl<C: Curve> Point<C> {
         }
     }
 
+    pub fn to_affine(&self) -> Self {
+        if self.is_identity() {
+            Self::IDENTITY
+        } else {
+            let z_inv = self.z.inverse();
+            Self {
+                x: self.x * z_inv,
+                y: self.y * z_inv,
+                z: FieldElement::ONE,
+            }
+        }
+    }
+
     pub fn x(&self) -> &FieldElement<C> {
         &self.x
     }

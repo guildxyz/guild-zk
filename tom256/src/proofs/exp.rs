@@ -109,68 +109,83 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         let mut tx_vec = Vec::<PedersenCommitment<CC>>::with_capacity(security_param);
         let mut ty_vec = Vec::<PedersenCommitment<CC>>::with_capacity(security_param);
 
-        for i in 0..security_param {
-            alpha_vec.push(Scalar::random(rng));
-            r_vec.push(Scalar::random(rng));
-            t_vec.push(Point::GENERATOR.scalar_mul(&alpha_vec[i]));
-            a_vec.push(&t_vec[i] + &base_pedersen_generator.generator().scalar_mul(&r_vec[i]));
-
-            let coord_t = t_vec[i].clone().into_affine();
-            if coord_t.is_identity() {
-                // TODO: dont panic, return an error so that we may try again
-                panic!("intermediate value is identity");
-            }
-
-            tx_vec.push(tom_pedersen_generator.commit(rng, coord_t.x().to_cycle_scalar()));
-            ty_vec.push(tom_pedersen_generator.commit(rng, coord_t.y().to_cycle_scalar()));
-        }
-
         let mut point_hasher = PointHasher::new(Self::HASH_ID);
         point_hasher.insert_point(commitments.px.commitment());
         point_hasher.insert_point(commitments.py.commitment());
 
         for i in 0..security_param {
+            // exponent
+            alpha_vec.push(Scalar::random(rng));
+            // random r scalars
+            r_vec.push(Scalar::random(rng));
+            // T = g^alpha
+            t_vec.push(&Point::GENERATOR * alpha_vec[i]);
+            // A = g^alpha + h^r (essentially a commitment in the base curve)
+            a_vec.push(&t_vec[i] + &(base_pedersen_generator.generator() * r_vec[i]));
+
+            let coord_t = t_vec[i].to_affine();
+            if coord_t.is_identity() {
+                // TODO: dont panic, return an error so that we may try again
+                panic!("intermediate value is identity");
+            }
+            // commitment to Tx
+            tx_vec.push(tom_pedersen_generator.commit(rng, coord_t.x().to_cycle_scalar()));
+            // commitment to Ty
+            ty_vec.push(tom_pedersen_generator.commit(rng, coord_t.y().to_cycle_scalar()));
+
+            // update hasher with current points
             point_hasher.insert_point(&a_vec[i]);
             point_hasher.insert_point(tx_vec[i].commitment());
             point_hasher.insert_point(ty_vec[i].commitment());
         }
-        let mut challenge = point_hasher.finalize();
 
+        let mut challenge = point_hasher.finalize();
         let mut all_exp_proofs = Vec::<SingleExpProof<C, CC>>::with_capacity(security_param);
 
-        for i in 0..security_param {
+        for (alpha, (a, (r, (t, (tx, ty))))) in alpha_vec.into_iter().zip(
+            a_vec.into_iter().zip(
+                r_vec.into_iter().zip(
+                    t_vec
+                        .into_iter()
+                        .zip(tx_vec.into_iter().zip(ty_vec.into_iter())),
+                ),
+            ),
+        ) {
             if challenge.is_odd().into() {
+                let tx_r = *tx.randomness();
+                let ty_r = *ty.randomness();
                 all_exp_proofs.push(SingleExpProof {
-                    a: a_vec[i].clone(),
-                    tx_p: tx_vec[i].commitment().clone(),
-                    ty_p: ty_vec[i].commitment().clone(),
+                    a,
+                    tx_p: tx.into_commitment(),
+                    ty_p: ty.into_commitment(),
                     variant: ExpProofVariant::Odd {
-                        alpha: alpha_vec[i],
-                        r: r_vec[i],
-                        tx_r: *tx_vec[i].randomness(),
-                        ty_r: *ty_vec[i].randomness(),
+                        alpha,
+                        r,
+                        tx_r,
+                        ty_r,
                     },
                 });
             } else {
-                let z = alpha_vec[i] - secrets.exp;
+                let z = alpha - secrets.exp;
                 let mut t1 = &Point::<C>::GENERATOR * z;
                 if let Some(pt) = commitments.q.as_ref() {
                     t1 += pt;
                 }
-                let coord_t1 = t1.clone().into_affine();
-                if coord_t1.is_identity() {
+
+
+                if t1.is_identity() {
                     // TODO: dont panic or smth
                     panic!("intermediate value is identity");
                 }
-                let t1_x = tom_pedersen_generator.commit(rng, coord_t1.x().to_cycle_scalar());
-                let t1_y = tom_pedersen_generator.commit(rng, coord_t1.y().to_cycle_scalar());
 
                 // Generate point add proof
-                let add_secret =
-                    PointAddSecrets::new(t1.clone(), secrets.point.clone(), t_vec[i].clone());
-                // NOTE this passes every time
-                assert_eq!(&t1 + &secrets.point, t_vec[i]);
-                let add_commitments = add_secret.commit(rng, &tom_pedersen_generator);
+                let add_secret = PointAddSecrets::new(t1, secrets.point.clone(), t);
+                let mut add_commitments = add_secret.commit(rng, &tom_pedersen_generator);
+                // TODO manually
+                add_commitments.qx = commitments.px.clone();
+                add_commitments.qy = commitments.py.clone();
+                add_commitments.rx = tx.clone();
+                add_commitments.ry = ty.clone();
                 let add_proof = PointAddProof::construct(
                     rng,
                     &tom_pedersen_generator,
@@ -179,12 +194,11 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                 );
 
                 // TODO delet dis
-                let add_commitment_points = add_commitments.into_commitments();
+                let add_commitment_points = add_commitments.clone().into_commitments();
                 assert!(add_proof.verify(
                     rng,
                     &tom_pedersen_generator,
                     &add_commitment_points,
-                    //&add_commitment.into_commitments()
                 ));
 
                 println!("\nPROVE\n");
@@ -194,17 +208,18 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                 println!("{}", add_commitment_points.qy.into_affine());
                 println!("{}", add_commitment_points.rx.into_affine());
                 println!("{}", add_commitment_points.ry.into_affine());
+                // TODO UNTIL THIS
 
                 all_exp_proofs.push(SingleExpProof {
-                    a: a_vec[i].clone(),
-                    tx_p: tx_vec[i].commitment().clone(),
-                    ty_p: ty_vec[i].commitment().clone(),
+                    a,
+                    tx_p: tx.into_commitment(),
+                    ty_p: ty.into_commitment(),
                     variant: ExpProofVariant::Even {
                         z,
-                        r: r_vec[i] - (*commitments.exp.randomness()),
+                        r: r - (*commitments.exp.randomness()),
                         add_proof,
-                        t1_x: *t1_x.randomness(),
-                        t1_y: *t1_y.randomness(),
+                        t1_x: *add_commitments.px.randomness(),
+                        t1_y: *add_commitments.py.randomness(),
                     },
                 });
             }
@@ -254,9 +269,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         let indices = generate_indices(security_param, self.proofs.len(), rng);
         let challenge_bits = padded_bits(challenge, self.proofs.len());
 
-        for j in 0..security_param {
-            let i = indices[j];
-
+        for i in indices.into_iter() {
             match &self.proofs[i].variant {
                 ExpProofVariant::Odd {
                     alpha,
@@ -341,12 +354,12 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                     let t1_com_y = tom_pedersen_generator.commit_with_randomness(sy, *t1_y);
 
                     println!("\nVERIFY\n");
-                    println!("{}", t1_com_x.commitment().clone().into_affine());
-                    println!("{}", t1_com_y.commitment().clone().into_affine());
-                    println!("{}", commitments.px.commitment().clone().into_affine());
-                    println!("{}", commitments.py.commitment().clone().into_affine());
-                    println!("{}", self.proofs[i].tx_p.clone().into_affine());
-                    println!("{}", self.proofs[i].ty_p.clone().into_affine());
+                    println!("{}", t1_com_x.commitment().to_affine());
+                    println!("{}", t1_com_y.commitment().to_affine());
+                    println!("{}", commitments.px.commitment().to_affine());
+                    println!("{}", commitments.py.commitment().to_affine());
+                    println!("{}", self.proofs[i].tx_p.to_affine());
+                    println!("{}", self.proofs[i].ty_p.to_affine());
 
                     let point_add_commitments = PointAddCommitmentPoints::new(
                         t1_com_x.into_commitment(),
@@ -501,7 +514,7 @@ mod test {
             None,
         );
 
-        let security_param = 4;
+        let security_param = 10;
         let exp_proof = ExpProof::construct(
             &mut rng,
             &base_pedersen_generator,
