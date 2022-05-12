@@ -4,6 +4,7 @@ use super::scalar::Scalar;
 use crate::{Curve, U256};
 
 use std::collections::HashMap;
+use std::fmt;
 use std::marker::PhantomData;
 
 const BASE_16_DIGITS: [char; 16] = [
@@ -11,10 +12,19 @@ const BASE_16_DIGITS: [char; 16] = [
 ];
 
 #[derive(Debug, Clone)]
-pub struct Point<C> {
+pub struct Point<C: Curve> {
     x: FieldElement<C>,
     y: FieldElement<C>,
     z: FieldElement<C>,
+}
+
+impl<C: Curve> fmt::Display for Point<C> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f)?;
+        writeln!(f, "x: {}", self.x.inner())?;
+        writeln!(f, "y: {}", self.y.inner())?;
+        writeln!(f, "z: {}", self.z.inner())
+    }
 }
 
 impl<C: Curve + PartialEq> PartialEq for Point<C> {
@@ -256,6 +266,19 @@ impl<C: Curve> Point<C> {
     }
 
     pub fn into_affine(self) -> Self {
+        if self.is_identity() {
+            Self::IDENTITY
+        } else {
+            let z_inv = self.z.inverse();
+            Self {
+                x: self.x * z_inv,
+                y: self.y * z_inv,
+                z: FieldElement::ONE,
+            }
+        }
+    }
+
+    pub fn to_affine(&self) -> Self {
         if self.is_identity() {
             Self::IDENTITY
         } else {

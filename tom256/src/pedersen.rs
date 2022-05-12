@@ -4,7 +4,7 @@ use crate::Curve;
 use rand_core::{CryptoRng, RngCore};
 
 #[derive(Clone, Debug)]
-pub struct PedersenGenerator<C>(Point<C>);
+pub struct PedersenGenerator<C: Curve>(Point<C>);
 
 impl<C: Curve> PedersenGenerator<C> {
     pub fn new<R: CryptoRng + RngCore>(rng: &mut R) -> Self {
@@ -49,7 +49,7 @@ impl<C: Curve> PedersenGenerator<C> {
 }
 
 #[derive(Clone, Debug)]
-pub struct PedersenCommitment<C> {
+pub struct PedersenCommitment<C: Curve> {
     commitment: Point<C>,
     randomness: Scalar<C>,
 }

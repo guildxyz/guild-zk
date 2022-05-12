@@ -7,7 +7,7 @@ use crate::{Curve, U256};
 
 use rand_core::{CryptoRng, RngCore};
 
-pub struct MembershipProof<C> {
+pub struct MembershipProof<C: Curve> {
     cl: Vec<Point<C>>,
     ca: Vec<Point<C>>,
     cb: Vec<Point<C>>,

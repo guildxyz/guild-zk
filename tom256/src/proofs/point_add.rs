@@ -10,7 +10,7 @@ use rand_core::{CryptoRng, RngCore};
 use std::marker::PhantomData;
 
 #[derive(Clone)]
-pub struct PointAddSecrets<C> {
+pub struct PointAddSecrets<C: Curve> {
     p: Point<C>,
     q: Point<C>,
     r: Point<C>,
@@ -49,13 +49,13 @@ impl<C: Curve> PointAddSecrets<C> {
 }
 
 #[derive(Clone)]
-pub struct PointAddCommitments<C> {
-    px: PedersenCommitment<C>,
-    py: PedersenCommitment<C>,
-    qx: PedersenCommitment<C>,
-    qy: PedersenCommitment<C>,
-    rx: PedersenCommitment<C>,
-    ry: PedersenCommitment<C>,
+pub struct PointAddCommitments<C: Curve> {
+    pub(crate) px: PedersenCommitment<C>,
+    pub(crate) py: PedersenCommitment<C>,
+    pub(crate) qx: PedersenCommitment<C>,
+    pub(crate) qy: PedersenCommitment<C>,
+    pub(crate) rx: PedersenCommitment<C>,
+    pub(crate) ry: PedersenCommitment<C>,
 }
 
 impl<C: Curve> PointAddCommitments<C> {
@@ -71,7 +71,7 @@ impl<C: Curve> PointAddCommitments<C> {
     }
 }
 
-pub struct PointAddCommitmentPoints<C> {
+pub struct PointAddCommitmentPoints<C: Curve> {
     px: Point<C>,
     py: Point<C>,
     qx: Point<C>,
@@ -80,7 +80,27 @@ pub struct PointAddCommitmentPoints<C> {
     ry: Point<C>,
 }
 
-pub struct MultCommitProof<C> {
+impl<C: Curve> PointAddCommitmentPoints<C> {
+    pub fn new(
+        px: Point<C>,
+        py: Point<C>,
+        qx: Point<C>,
+        qy: Point<C>,
+        rx: Point<C>,
+        ry: Point<C>,
+    ) -> Self {
+        Self {
+            px,
+            py,
+            qx,
+            qy,
+            rx,
+            ry,
+        }
+    }
+}
+
+pub struct MultCommitProof<C: Curve> {
     commitment: Point<C>,
     proof: MultiplicationProof<C>,
 }
@@ -91,7 +111,7 @@ impl<C: Curve> MultCommitProof<C> {
     }
 }
 
-pub struct PointAddProof<CC, C> {
+pub struct PointAddProof<CC: Cycle<C>, C: Curve> {
     mult_proof_8: MultCommitProof<CC>,
     mult_proof_10: MultCommitProof<CC>,
     mult_proof_11: MultCommitProof<CC>,
@@ -246,7 +266,6 @@ impl<CC: Cycle<C>, C: Curve> PointAddProof<CC, C> {
             &self.mult_proof_13.commitment,
             multimult,
         );
-
         // aggregate equality proofs
         let aux_commitment = &(&commitments.rx + &commitments.px) + &commitments.qx;
         self.equality_proof_x.aggregate(
