@@ -5,8 +5,8 @@ use crate::Curve;
 
 use bigint::U256;
 
-use std::fmt;
 use std::collections::HashMap;
+use std::fmt;
 use std::marker::PhantomData;
 
 const BASE_16_DIGITS: [char; 16] = [

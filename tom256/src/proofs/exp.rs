@@ -165,7 +165,6 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                     t1 += pt;
                 }
 
-
                 if t1.is_identity() {
                     return Err("intermediate value is identity".to_owned());
                 }
@@ -329,14 +328,13 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                         self.proofs[i].tx_p.clone(),
                         self.proofs[i].ty_p.clone(),
                     );
-                    assert!(add_proof.verify(rng, tom_pedersen_generator, &point_add_commitments,));
 
-                    //add_proof.aggregate(
-                    //    rng,
-                    //    tom_pedersen_generator,
-                    //    &point_add_commitments,
-                    //    &mut tom_multimult,
-                    //);
+                    add_proof.aggregate(
+                        rng,
+                        tom_pedersen_generator,
+                        &point_add_commitments,
+                        &mut tom_multimult,
+                    );
                 }
             }
         }
@@ -458,11 +456,6 @@ mod test {
         let tom_pedersen_generator = PedersenGenerator::<Tom256k1>::new(&mut rng);
 
         let exponent = Scalar::<Secp256k1>::random(&mut rng);
-        /*
-        let exponent = Scalar::<Secp256k1>::new(U256::from_be_hex(
-            "0000000000000000000000000000000000000000000000000000000000000005",
-        ));
-        */
         let result = Point::<Secp256k1>::GENERATOR.scalar_mul(&exponent);
 
         let secrets = PointExpSecrets::new(exponent, result);
@@ -481,14 +474,17 @@ mod test {
             &secrets,
             &commitments,
             security_param,
-        ).unwrap();
+        )
+        .unwrap();
 
-        exp_proof.verify(
-            &mut rng,
-            &base_pedersen_generator,
-            &tom_pedersen_generator,
-            &commitments,
-            security_param
-        ).unwrap();
+        exp_proof
+            .verify(
+                &mut rng,
+                &base_pedersen_generator,
+                &tom_pedersen_generator,
+                &commitments,
+                security_param,
+            )
+            .unwrap();
     }
 }
