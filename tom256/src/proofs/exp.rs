@@ -322,23 +322,25 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         for j in 0..security_param {
             let i = indices[j];
 
+            /*
             if j < 10 {
-                /*
                 println!("challenge bit: {}", challenge_bits[i]);
                 println!("tom_mm_subres {}: {}", j, tom_multimult.clone().evaluate().into_affine());
                 //println!("base_mm_subres {}: {}", j, base_multimult.clone().evaluate().into_affine());
-                */
             }
+            */
 
-            if challenge_bits[i] {
-                if let ExpProofVariant::Odd {
+            match self.proofs[i].variant {
+                ExpProofVariant::Odd {
                     alpha,
                     r,
                     tx_r,
                     ty_r,
-                } = self.proofs[i].variant
-                {
-                    //println!("verify {}: odd", j);
+                } => {
+                    if !challenge_bits[i] {
+                        panic!("damn")
+                    } // TODO return error
+                      //println!("verify {}: odd", j);
 
                     let t = Point::<C>::GENERATOR.scalar_mul(&alpha);
                     let mut relation_a = Relation::<C>::new();
@@ -389,21 +391,22 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
 
                     relation_tx.drain(rng, &mut tom_multimult, false);
                     relation_ty.drain(rng, &mut tom_multimult, false);
-                } else {
-                    panic!("this should never be invoked");
                 }
-            } else {
-                if let ExpProofVariant::Even {
+                ExpProofVariant::Even {
                     z,
                     r,
                     add_proof,
                     t1_x,
                     t1_y,
-                } = &self.proofs[i].variant
-                {
-                    if j < 3 {
-                        //println!("verify {}: even", j);
-                    }
+                } => {
+                    if challenge_bits[i] {
+                        panic!("damn")
+                    } // TODO return error
+                      /*
+                      if j < 3 {
+                          //println!("verify {}: even", j);
+                      }
+                      */
 
                     let mut t = Point::<C>::GENERATOR.scalar_mul(&z);
 
@@ -411,7 +414,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                     relation_a.insert(t.clone(), Scalar::<C>::ONE);
                     relation_a.insert(commitments.exp.clone().into_commitment(), Scalar::<C>::ONE);
                     relation_a.insert((&self.proofs[i].a).neg(), Scalar::<C>::ONE);
-                    relation_a.insert(base_pedersen_generator.generator().clone(), *r);
+                    relation_a.insert(base_pedersen_generator.generator().clone(), r);
 
                     /* GOOD
                     if j < 10 {
@@ -438,12 +441,12 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                     let t1_x = Point::<CC>::GENERATOR.double_mul(
                         &sx,
                         &tom_pedersen_generator.generator().clone(),
-                        t1_x,
+                        &t1_x,
                     );
                     let t1_y = Point::<CC>::GENERATOR.double_mul(
                         &sy,
                         &tom_pedersen_generator.generator().clone(),
-                        t1_y,
+                        &t1_y,
                     );
 
                     /* GOOD
@@ -490,6 +493,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                         &mut tom_multimult,
                     );
 
+                    /*
                     if j < 3 {
                         println!("\tpost add proof");
                         println!("\tpost add proof tom_mm len: {}", tom_multimult.len());
@@ -499,8 +503,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                             tom_multimult.clone().evaluate().into_affine()
                         );
                     }
-                } else {
-                    panic!("this should never be invoked");
+                    */
                 }
             }
         }
