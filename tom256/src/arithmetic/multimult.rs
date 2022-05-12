@@ -1,8 +1,6 @@
 use super::{Point, Scalar};
 
 use crate::Curve;
-use crate::arithmetic::modular::Modular;
-use bigint::U256;
 
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::collections::binary_heap::BinaryHeap;
@@ -13,9 +11,8 @@ use std::fmt;
 
 #[derive(Debug, Clone)]
 pub struct Pair<C: Curve> {
-    // TODO: remove pub(crate)
-    pub(crate) scalar: Scalar<C>,
-    pub(crate) point: Point<C>,
+    scalar: Scalar<C>,
+    point: Point<C>,
 }
 
 #[derive(Debug, Clone)]
@@ -26,9 +23,8 @@ pub struct Known<C: Curve> {
 
 #[derive(Debug, Clone)]
 pub struct MultiMult<C: Curve> {
-    // TODO: remove pub(crate)
-    pub(crate) pairs: Vec<Pair<C>>,
-    pub(crate) known: Vec<Known<C>>,
+    pairs: Vec<Pair<C>>,
+    known: Vec<Known<C>>,
 }
 
 impl<C: Curve> Default for MultiMult<C> {
@@ -43,10 +39,6 @@ impl<C: Curve> MultiMult<C> {
             pairs: vec![],
             known: vec![],
         }
-    }
-    
-    pub fn len(&self) -> usize {
-        self.pairs.len()
     }
 
     pub fn add_known(&mut self, pt: Point<C>) {
@@ -138,8 +130,7 @@ impl<C: Curve> Relation<C> {
         self.pairs.push(Pair { point, scalar })
     }
 
-    // TODO: remove
-    pub fn drain<R: RngCore + CryptoRng>(self, rng: &mut R, multimult: &mut MultiMult<C>, print: bool) {
+    pub fn drain<R: RngCore + CryptoRng>(self, rng: &mut R, multimult: &mut MultiMult<C>) {
         let randomizer = Scalar::<C>::random(rng);
         for pair in self.pairs {
             multimult.insert(pair.point, pair.scalar * randomizer);
@@ -293,7 +284,7 @@ mod test {
         }
 
         let mut multimult = MultiMult::new();
-        rel.drain(&mut rng, &mut multimult, false);
+        rel.drain(&mut rng, &mut multimult);
         let sum = multimult.evaluate();
         let expected = SecPoint::new(
             FieldElement::new(U256::from_be_hex(
@@ -327,7 +318,7 @@ mod test {
         }
 
         let mut multimult = MultiMult::new();
-        rel.drain(&mut rng, &mut multimult, false);
+        rel.drain(&mut rng, &mut multimult);
         let sum = multimult.evaluate();
         let expected = TomPoint::new(
             FieldElement::new(U256::from_be_hex(

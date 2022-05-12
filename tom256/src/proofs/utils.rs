@@ -61,6 +61,7 @@ pub fn interpolate<C: Curve>(x: &[Scalar<C>], y: &[Scalar<C>]) -> Result<Vec<Sca
 }
 
 // NOTE do we need this?
+#[allow(unused)]
 fn eval_poly<C: Curve>(coeffs: &[Scalar<C>], x: Scalar<C>) -> Scalar<C> {
     let mut ret = Scalar::ZERO;
     for coeff in coeffs.iter().rev() {

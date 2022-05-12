@@ -84,8 +84,8 @@ impl<C: Curve> EqualityProof<C> {
         relation_2.insert(commitment_2.clone(), challenge_scalar);
         relation_2.insert((&self.commitment_to_random_2).neg(), Scalar::ONE);
 
-        relation_1.drain(rng, multimult, false);
-        relation_2.drain(rng, multimult, false);
+        relation_1.drain(rng, multimult);
+        relation_2.drain(rng, multimult);
     }
 
     #[cfg(test)]

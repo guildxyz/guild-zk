@@ -22,7 +22,7 @@ pub struct Point<C: Curve> {
 
 impl<C: Curve> fmt::Display for Point<C> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "")?;
+        writeln!(f)?;
         writeln!(f, "x: {}", self.x.inner())?;
         writeln!(f, "y: {}", self.y.inner())?;
         writeln!(f, "z: {}", self.z.inner())
