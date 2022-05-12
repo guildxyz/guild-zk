@@ -5,6 +5,5 @@ mod multiplication;
 mod point_add;
 mod utils;
 
-pub use exp::ExpProof;
+pub use exp::{ExpProof, PointExpSecrets};
 pub use membership::MembershipProof;
-pub use point_add::{PointAddProof, PointAddSecrets};

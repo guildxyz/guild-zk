@@ -58,6 +58,7 @@ pub struct PointAddCommitments<C: Curve> {
     pub(crate) ry: PedersenCommitment<C>,
 }
 
+#[cfg(test)]
 impl<C: Curve> PointAddCommitments<C> {
     pub fn into_commitments(self) -> PointAddCommitmentPoints<C> {
         PointAddCommitmentPoints {
@@ -286,6 +287,7 @@ impl<CC: Cycle<C>, C: Curve> PointAddProof<CC, C> {
         );
     }
 
+    #[cfg(test)]
     pub fn verify<R: CryptoRng + RngCore>(
         &self,
         rng: &mut R,

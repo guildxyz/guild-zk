@@ -171,8 +171,8 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
 
                 // Generate point add proof
                 let add_secret = PointAddSecrets::new(t1, secrets.point.clone(), t);
-                let mut add_commitments = add_secret.commit(rng, tom_pedersen_generator);
                 // TODO manually
+                let mut add_commitments = add_secret.commit(rng, tom_pedersen_generator);
                 add_commitments.qx = commitments.px.clone();
                 add_commitments.qy = commitments.py.clone();
                 add_commitments.rx = tx.clone();
@@ -424,19 +424,6 @@ mod test {
         assert_eq!(padded_bits(test_u256, 65), [true_64, vec![false]].concat());
     }
 
-    /*
-    #[test]
-    fn generate_indices_valid() {
-        let idx_num = 5;
-        let limit = 5;
-        let mut rng = StdRng::from_seed([1; 32]);
-
-        for _ in 0..10 {
-            println!("{:?}", generate_indices(idx_num, limit, &mut rng));
-        }
-    }
-    */
-
     #[test]
     fn rand_range_valid() {
         let max = 217;
@@ -466,7 +453,7 @@ mod test {
             None,
         );
 
-        let security_param = 80;
+        let security_param = 20;
         let exp_proof = ExpProof::construct(
             &mut rng,
             &base_pedersen_generator,
@@ -477,7 +464,7 @@ mod test {
         )
         .unwrap();
 
-        exp_proof
+        assert!(exp_proof
             .verify(
                 &mut rng,
                 &base_pedersen_generator,
@@ -485,6 +472,45 @@ mod test {
                 &commitments,
                 security_param,
             )
-            .unwrap();
+            .is_ok())
+    }
+
+    #[test]
+    fn exp_proof_invalid() {
+        let mut rng = StdRng::from_seed([22; 32]);
+        let base_pedersen_generator = PedersenGenerator::<Secp256k1>::new(&mut rng);
+        let tom_pedersen_generator = PedersenGenerator::<Tom256k1>::new(&mut rng);
+
+        let exponent = Scalar::<Secp256k1>::random(&mut rng);
+        let result = Point::<Secp256k1>::GENERATOR.scalar_mul(&(exponent + Scalar::ONE));
+
+        let secrets = PointExpSecrets::new(exponent, result);
+        let commitments = secrets.commit(
+            &mut rng,
+            &base_pedersen_generator,
+            &tom_pedersen_generator,
+            None,
+        );
+
+        let security_param = 10;
+        let exp_proof = ExpProof::construct(
+            &mut rng,
+            &base_pedersen_generator,
+            &tom_pedersen_generator,
+            &secrets,
+            &commitments,
+            security_param,
+        )
+        .unwrap();
+
+        assert!(exp_proof
+            .verify(
+                &mut rng,
+                &base_pedersen_generator,
+                &tom_pedersen_generator,
+                &commitments,
+                security_param,
+            )
+            .is_err());
     }
 }
