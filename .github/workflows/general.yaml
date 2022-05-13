@@ -17,38 +17,6 @@ jobs:
     env:
       RUSTFLAGS: -Dwarnings # fails on warnings as well
     steps:
-      - uses: actions/checkout@v2
-      - name: Set env vars
-        run: |
-          source ci/rust-version.sh nightly
-          echo "RUST_NIGHTLY=$rust_nightly" >> $GITHUB_ENV
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ env.RUST_NIGHTLY }}
-          override: true
-          profile: minimal
-
-      - uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: cargo-build-${{ hashFiles('**/Cargo.lock') }}-${{ env.RUST_NIGHTLY}}
-
-      - uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/bin/rustfilt
-          key: cargo-bpf-bins-${{ runner.os }}
-      
-      - name: Install dependencies
-        run: |
-          ./ci/install-build-deps.sh
-          ./ci/install-program-deps.sh
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
-      - name: add-nightly-clippy
-        run: rustup component add clippy --toolchain ${{ env.RUST_NIGHTLY }}-x86_64-unknown-linux-gnu
-
       - name: build
         run: cargo build --color=always --all-targets --all-features
 
