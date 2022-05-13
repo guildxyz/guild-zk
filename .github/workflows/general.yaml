@@ -36,9 +36,6 @@ jobs:
 
       - name: test-rust
         run: cargo t --color=always
-
-        name: generating wasm and schema
-
   build-glue:
     name: generate wasm
     runs-on: ubuntu-latest
