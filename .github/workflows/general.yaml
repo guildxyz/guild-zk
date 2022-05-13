@@ -36,13 +36,14 @@ jobs:
 
       - name: test-rust
         run: cargo t --color=always
-  build-glue:
-    name: generate wasm
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - run: |
-          cargo install wasm-pack # agsol-glue
-          bash ci/build-wasm.sh
+
+      - name: test-wasm-js
+        run: |
+          cd tom256
+          wasm-pack build --target nodejs
+          cd wasm-test
+          npm install -g ts-node
+          ts-node index.ts
+
 
 
