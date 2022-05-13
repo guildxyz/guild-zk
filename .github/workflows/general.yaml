@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: ${{ env.RUST_NIGHTLY }}
+          toolchain: nightly
           override: true
           profile: minimal
 
