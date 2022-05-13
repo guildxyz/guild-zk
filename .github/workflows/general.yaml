@@ -14,9 +14,11 @@ jobs:
       - run: cargo fmt -- --check
   test:
     runs-on: ubuntu-latest
+    
     env:
       RUSTFLAGS: -Dwarnings # fails on warnings as well
     steps:
+      - uses: actions/checkout@v2
       - name: build
         run: cargo build --color=always --all-targets --all-features
 
