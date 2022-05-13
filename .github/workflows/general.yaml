@@ -24,6 +24,7 @@ jobs:
           override: true
           profile: minimal
 
+      - uses: actions/checkout@v2      
       - name: build
         run: cargo build --color=always --all-targets --all-features
 
@@ -35,5 +36,16 @@ jobs:
 
       - name: test-rust
         run: cargo t --color=always
+
+        name: generating wasm and schema
+
+  build-glue:
+    name: generate wasm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: |
+          cargo install wasm-pack # agsol-glue
+          bash ci/build-wasm.sh
 
 
