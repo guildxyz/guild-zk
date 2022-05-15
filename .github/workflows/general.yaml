@@ -1,0 +1,53 @@
+name: general code check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  fmt:
+    name: formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: cargo fmt -- --check
+  test:
+    runs-on: ubuntu-latest
+    
+    env:
+      RUSTFLAGS: -Dwarnings # fails on warnings as well
+    steps:
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+          profile: minimal
+
+      - uses: actions/checkout@v2     
+      - name: Install dependencies
+        run: |
+          cargo install wasm-pack
+ 
+      - name: build
+        run: cargo build --color=always --all-targets --all-features
+
+      - name: add-nightly-clippy
+        run: rustup component add clippy --toolchain nightly
+
+      - name: clippy
+        run: cargo clippy --color=always --all-targets --all-features --examples --tests
+
+      - name: test-rust
+        run: cargo t --color=always
+
+      - name: test-wasm-js
+        run: |
+          cd tom256
+          wasm-pack build --target nodejs
+          cd wasm-test
+          npm install -g ts-node
+          ts-node index.ts
+
+
+

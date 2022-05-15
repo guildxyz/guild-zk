@@ -1,8 +1,8 @@
 [workspace]
 members = [
-	"ecdsa-zkp",
-	"merkle-tree-example",
-	"tom256"
+#	"ecdsa-zkp",
+#	"merkle-tree-example",
+	"tom256",
 ]
 
 [profile.dev]
