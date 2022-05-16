@@ -4,11 +4,12 @@ use crate::pedersen::*;
 use crate::utils::PointHasher;
 use crate::Curve;
 
+use rand_core::{CryptoRng, RngCore};
+use serde::{Deserialize, Serialize};
+
 use std::ops::Neg;
 
-use rand_core::{CryptoRng, RngCore};
-
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct MultiplicationProof<C: Curve> {
     c4: Point<C>,
     commitment_to_random_1: Point<C>,
