@@ -2,7 +2,9 @@ use super::modular::{mod_u256, random_mod_u256, Modular};
 use crate::{Curve, U256};
 use rand_core::{CryptoRng, RngCore};
 
-use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
+use bigint::Encoding;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::cmp::{Ord, Ordering, PartialOrd};
 use std::marker::PhantomData;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -62,6 +64,26 @@ impl<C: Curve> Modular for Scalar<C> {
 
     fn inner(&self) -> &U256 {
         &self.0
+    }
+}
+
+impl<'de, C: Curve> Deserialize<'de> for Scalar<C> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let mut buffer = [0; 32];
+        serdect::array::deserialize_hex_or_bin(&mut buffer, deserializer)?;
+        Ok(Self::new(U256::from_le_bytes(buffer)))
+    }
+}
+
+impl<C: Curve> Serialize for Scalar<C> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serdect::array::serialize_hex_lower_or_bin(&self.0.to_le_bytes(), serializer)
     }
 }
 
@@ -350,5 +372,16 @@ mod test {
         assert_eq!(b * b.inverse(), ScalarLarge::ONE);
         b = ScalarLarge::new(Secp256k1::GENERATOR_X);
         assert_eq!(b * b.inverse(), ScalarLarge::ONE);
+    }
+
+    #[test]
+    fn serde_round() {
+        let le_hex = "ce7c73f82cc708b9080499663f89fda1fa7bb76d78b72b4042554f33e418b94f";
+        let fe = Scalar(U256::from_le_hex(le_hex), PhantomData::<Tom256k1>);
+
+        let serialized = serde_json::to_string(&fe).unwrap();
+        assert_eq!(&serialized.as_bytes()[1..65], le_hex.as_bytes()); // serde puts the string between quotes
+        let deserialized = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(fe, deserialized);
     }
 }
