@@ -7,10 +7,12 @@ use crate::proofs::point_add::{PointAddCommitmentPoints, PointAddProof, PointAdd
 
 use bigint::{Encoding, Integer, U256};
 use rand_core::{CryptoRng, RngCore};
+use serde::{Deserialize, Serialize};
 
 use std::ops::Neg;
 
 #[allow(clippy::large_enum_variant)]
+#[derive(Serialize, Deserialize)]
 pub enum ExpProofVariant<C: Curve, CC: Cycle<C>> {
     Odd {
         alpha: Scalar<C>,
@@ -27,6 +29,7 @@ pub enum ExpProofVariant<C: Curve, CC: Cycle<C>> {
     },
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct SingleExpProof<C: Curve, CC: Cycle<C>> {
     a: Point<C>,
     tx_p: Point<CC>,
@@ -83,6 +86,7 @@ impl<C: Curve> PointExpSecrets<C> {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct ExpProof<C: Curve, CC: Cycle<C>> {
     proofs: Vec<SingleExpProof<C, CC>>,
 }
