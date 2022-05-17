@@ -11,9 +11,9 @@ use std::marker::PhantomData;
 
 #[derive(Clone)]
 pub struct PointAddSecrets<C: Curve> {
-    p: Point<C>,
-    q: Point<C>,
-    r: Point<C>,
+    pub(crate) p: Point<C>,
+    pub(crate) q: Point<C>,
+    pub(crate) r: Point<C>,
 }
 
 impl<C: Curve> PointAddSecrets<C> {

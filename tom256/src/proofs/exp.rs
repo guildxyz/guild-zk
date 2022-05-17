@@ -1,7 +1,9 @@
 use crate::arithmetic::multimult::{MultiMult, Relation};
 use crate::arithmetic::{Point, Scalar};
 use crate::pedersen::*;
-use crate::proofs::point_add::{PointAddCommitmentPoints, PointAddProof, PointAddSecrets};
+use crate::proofs::point_add::{
+    PointAddCommitmentPoints, PointAddCommitments, PointAddProof, PointAddSecrets,
+};
 use crate::utils::PointHasher;
 use crate::{Curve, Cycle};
 
@@ -169,14 +171,30 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                     return Err("intermediate value is identity".to_owned());
                 }
 
+                let t1_aff = t1.into_affine();
+
                 // Generate point add proof
-                let add_secret = PointAddSecrets::new(t1, secrets.point.clone(), t);
+                let add_secret = PointAddSecrets {
+                    p: t1_aff.clone(),
+                    q: secrets.point.clone(),
+                    r: t.into_affine(),
+                };
                 // TODO manually
                 let mut add_commitments = add_secret.commit(rng, tom_pedersen_generator);
                 add_commitments.qx = commitments.px.clone();
                 add_commitments.qy = commitments.py.clone();
                 add_commitments.rx = tx.clone();
                 add_commitments.ry = ty.clone();
+
+                let add_commitments = PointAddCommitments {
+                    px: tom_pedersen_generator.commit(rng, t1_aff.x().to_cycle_scalar()),
+                    py: tom_pedersen_generator.commit(rng, t1_aff.y().to_cycle_scalar()),
+                    qx: commitments.px.clone(),
+                    qy: commitments.py.clone(),
+                    rx: tx.clone(),
+                    ry: ty.clone(),
+                };
+
                 let add_proof = PointAddProof::construct(
                     rng,
                     tom_pedersen_generator,
