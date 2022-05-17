@@ -1,8 +1,8 @@
 use crate::arithmetic::multimult::{MultiMult, Relation};
 use crate::arithmetic::{Modular, Point, Scalar};
 use crate::curve::Curve;
+use crate::hasher::PointHasher;
 use crate::pedersen::*;
-use crate::utils::PointHasher;
 
 use rand_core::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};

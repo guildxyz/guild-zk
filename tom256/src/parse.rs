@@ -2,42 +2,6 @@ use crate::arithmetic::{FieldElement, Modular, Point, Scalar};
 use crate::curve::Curve;
 use crate::U256;
 
-use bigint::Encoding;
-use sha3::{Digest, Sha3_256};
-
-pub struct PointHasher {
-    hasher: Sha3_256,
-}
-
-impl PointHasher {
-    pub fn new(hash_id: &[u8]) -> Self {
-        let mut hasher = Sha3_256::new();
-        hasher.update(hash_id);
-
-        Self { hasher }
-    }
-
-    pub fn insert_point<C: Curve>(&mut self, pt: &Point<C>) {
-        self.hasher.update(pt.x().inner().to_be_bytes());
-        self.hasher.update(pt.y().inner().to_be_bytes());
-        self.hasher.update(pt.z().inner().to_be_bytes());
-    }
-
-    pub fn insert_points<C: Curve>(&mut self, points: &[&Point<C>]) {
-        for p in points {
-            // write input message
-            self.hasher.update(p.x().inner().to_be_bytes());
-            self.hasher.update(p.y().inner().to_be_bytes());
-            self.hasher.update(p.z().inner().to_be_bytes());
-        }
-    }
-
-    pub fn finalize(self) -> U256 {
-        let finalized = self.hasher.finalize();
-        U256::from_be_bytes(finalized[0..32].try_into().unwrap())
-    }
-}
-
 pub fn address_to_scalar<C: Curve>(address: &str) -> Result<Scalar<C>, String> {
     let stripped = address.trim_start_matches("0x");
     let mut padded = "000000000000000000000000".to_string(); // 24 zeros to pad 20 bit address to 32 bit scalar
@@ -92,7 +56,9 @@ fn parse_str(slice: &str, into: Parse) -> Result<(U256, U256), String> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::arithmetic::Modular;
     use crate::curve::{Secp256k1, Tom256k1};
+    use crate::U256;
 
     #[test]
     fn address_conversion() {
@@ -114,18 +80,6 @@ mod test {
 
         let address = "3".repeat(42);
         assert!(address_to_scalar::<Tom256k1>(&address).is_err());
-    }
-
-    #[test]
-    fn points_hash_test() {
-        let hash_id = "test".as_bytes();
-        let g = Point::<crate::curve::Secp256k1>::GENERATOR;
-        let g2 = Point::<crate::curve::Secp256k1>::GENERATOR.double();
-        let points = vec![&g, &g2];
-        let expected_hash = "C9B5BD2009A84423D2CBCEB411CDDAF7423B372B5F63821DACFFFA0041A6B8F7";
-        let mut hasher = PointHasher::new(hash_id);
-        hasher.insert_points(&points);
-        assert_eq!(hasher.finalize(), U256::from_be_hex(expected_hash));
     }
 
     #[test]

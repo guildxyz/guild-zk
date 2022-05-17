@@ -2,8 +2,8 @@ use super::utils::*;
 use crate::arithmetic::multimult::*;
 use crate::arithmetic::{Modular, Point, Scalar};
 use crate::curve::Curve;
+use crate::hasher::PointHasher;
 use crate::pedersen::*;
-use crate::utils::PointHasher;
 use crate::U256;
 
 use rand_core::{CryptoRng, RngCore};

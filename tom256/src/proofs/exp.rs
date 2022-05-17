@@ -1,9 +1,9 @@
 use crate::arithmetic::multimult::{MultiMult, Relation};
 use crate::arithmetic::{Point, Scalar};
 use crate::curve::{Curve, Cycle};
+use crate::hasher::PointHasher;
 use crate::pedersen::*;
 use crate::proofs::point_add::{PointAddCommitmentPoints, PointAddProof, PointAddSecrets};
-use crate::utils::PointHasher;
 
 use bigint::{Encoding, Integer, U256};
 use rand_core::{CryptoRng, RngCore};
