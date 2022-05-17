@@ -1,5 +1,5 @@
 #![feature(int_log)]
-mod arithmetic;
+pub mod arithmetic;
 pub mod curve;
 pub mod pedersen;
 pub mod proofs;

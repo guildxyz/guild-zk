@@ -2,8 +2,9 @@ use crate::arithmetic::{Point, Scalar};
 use crate::curve::Curve;
 
 use rand_core::{CryptoRng, RngCore};
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PedersenGenerator<C: Curve>(Point<C>);
 
 impl<C: Curve> PedersenGenerator<C> {
