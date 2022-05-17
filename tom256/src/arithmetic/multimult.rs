@@ -9,6 +9,11 @@ use rand_core::{CryptoRng, RngCore};
 
 use std::fmt;
 
+// Maximum iterations within the multimult evaluate() before terminating,
+// although infinite loops should not occur 
+// Exp_proof verifications usually take less than 20_000 iterations
+const MULTIMULT_EVAL_MAX_ITERATIONS: usize = 50_000;
+
 #[derive(Debug, Clone)]
 pub struct Pair<C: Curve> {
     scalar: Scalar<C>,
@@ -66,16 +71,24 @@ impl<C: Curve> MultiMult<C> {
         self.pairs.push(pair);
     }
 
-    pub fn evaluate(self) -> Point<C> {
+    pub fn evaluate(self) -> Result<Point<C>, String> {
         if self.pairs.is_empty() {
-            return Point::<C>::IDENTITY;
+            return Ok(Point::<C>::IDENTITY);
         }
         if self.pairs.len() == 1 {
-            return self.pairs[0].point.scalar_mul(&self.pairs[0].scalar);
+            return Ok(self.pairs[0].point.scalar_mul(&self.pairs[0].scalar));
         }
 
         let mut pairs_heap = heapify_vec(self.pairs);
+
+        // Killswitch for possibly infinite loops
+        let mut i = 0;
         loop {
+            i += 1;
+            if i > MULTIMULT_EVAL_MAX_ITERATIONS {
+                return Err("multimult evaluation ran out of iterations".to_owned());
+            }
+
             // unwrap is fine here because peeking and pre-loop checks guarantee len is at least 1
             let a = pairs_heap.pop().unwrap();
 
@@ -83,7 +96,7 @@ impl<C: Curve> MultiMult<C> {
             // If b_option is None -> the heap only has one element
             if let Some(mut b) = pairs_heap.peek_mut() {
                 if b.scalar == Scalar::<C>::ZERO {
-                    return a.point.scalar_mul(&a.scalar);
+                    return Ok(a.point.scalar_mul(&a.scalar));
                 }
 
                 c = Pair {
@@ -97,13 +110,14 @@ impl<C: Curve> MultiMult<C> {
 
                 *b = d;
             } else {
-                return a.point.scalar_mul(&a.scalar);
+                return Ok(a.point.scalar_mul(&a.scalar));
             }
 
             if c.scalar != Scalar::<C>::ZERO {
                 pairs_heap.push(c);
             }
         }
+        
     }
 }
 
@@ -209,7 +223,7 @@ mod test {
     #[test]
     fn multimult_empty() {
         let multimult = MultiMult::<Secp256k1>::new();
-        assert_eq!(multimult.evaluate(), SecPoint::IDENTITY);
+        assert_eq!(multimult.evaluate().unwrap(), SecPoint::IDENTITY);
     }
 
     #[test]
@@ -222,7 +236,7 @@ mod test {
         let mut multimult = MultiMult::<Secp256k1>::new();
         multimult.insert(pt, scalar);
 
-        assert_eq!(multimult.evaluate(), expected);
+        assert_eq!(multimult.evaluate().unwrap(), expected);
     }
 
     #[test]
@@ -256,7 +270,7 @@ mod test {
         }
 
         let now = Instant::now();
-        let actual = multimult.evaluate().into_affine();
+        let actual = multimult.evaluate().unwrap().into_affine();
         mm_time += now.elapsed();
 
         println!("Normal time: {:?}", normal_time);
@@ -285,7 +299,7 @@ mod test {
 
         let mut multimult = MultiMult::new();
         rel.drain(&mut rng, &mut multimult);
-        let sum = multimult.evaluate();
+        let sum = multimult.evaluate().unwrap();
         let expected = SecPoint::new(
             FieldElement::new(U256::from_be_hex(
                 "cf2de7b2e687085c14a39bb01457edfcac2cbadf67906de73d3251c6569d3089",
@@ -319,7 +333,7 @@ mod test {
 
         let mut multimult = MultiMult::new();
         rel.drain(&mut rng, &mut multimult);
-        let sum = multimult.evaluate();
+        let sum = multimult.evaluate().unwrap();
         let expected = TomPoint::new(
             FieldElement::new(U256::from_be_hex(
                 "cccb91596829355ee5ab3682180025da88f0f93384149db1a2dca1c8c1011127",

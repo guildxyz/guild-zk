@@ -169,7 +169,7 @@ impl<C: Curve> MultiplicationProof<C> {
         commitment_to_x: &Point<C>,
         commitment_to_y: &Point<C>,
         commitment_to_z: &Point<C>,
-    ) -> bool {
+    ) -> Result<(), String> {
         let mut multimult = MultiMult::new();
         self.aggregate(
             rng,
@@ -179,7 +179,10 @@ impl<C: Curve> MultiplicationProof<C> {
             commitment_to_z,
             &mut multimult,
         );
-        multimult.evaluate() == Point::<C>::IDENTITY
+        if multimult.evaluate()? != Point::<C>::IDENTITY {
+            return Err("proof is invalid".to_owned());
+        }
+        Ok(())
     }
 }
 
@@ -218,7 +221,7 @@ mod test {
             commitment_x.commitment(),
             commitment_y.commitment(),
             commitment_z.commitment(),
-        ));
+        ).is_ok());
     }
 
     #[test]
@@ -244,45 +247,45 @@ mod test {
         );
 
         let invalid_pedersen_generator = PedersenGenerator::new(&mut rng);
-        assert!(!multiplication_proof.verify(
+        assert!(multiplication_proof.verify(
             &mut rng,
             &invalid_pedersen_generator,
             commitment_x.commitment(),
             commitment_y.commitment(),
             commitment_z.commitment(),
-        ));
+        ).is_err());
 
         let invalid_x = Scalar::<Tom256k1>::random(&mut rng);
         let invalid_commitment_x = pedersen_generator.commit(&mut rng, invalid_x);
 
-        assert!(!multiplication_proof.verify(
+        assert!(multiplication_proof.verify(
             &mut rng,
             &pedersen_generator,
             invalid_commitment_x.commitment(),
             commitment_y.commitment(),
             commitment_z.commitment(),
-        ));
+        ).is_err());
 
         let invalid_y = Scalar::<Tom256k1>::random(&mut rng);
         let invalid_commitment_y = pedersen_generator.commit(&mut rng, invalid_y);
 
-        assert!(!multiplication_proof.verify(
+        assert!(multiplication_proof.verify(
             &mut rng,
             &pedersen_generator,
             commitment_x.commitment(),
             invalid_commitment_y.commitment(),
             commitment_z.commitment(),
-        ));
+        ).is_err());
 
         let invalid_z = z + Scalar::ONE;
         let invalid_commitment_z = pedersen_generator.commit(&mut rng, invalid_z);
 
-        assert!(!multiplication_proof.verify(
+        assert!(multiplication_proof.verify(
             &mut rng,
             &pedersen_generator,
             commitment_x.commitment(),
             commitment_y.commitment(),
             invalid_commitment_z.commitment(),
-        ));
+        ).is_err());
     }
 }

@@ -95,7 +95,7 @@ impl<C: Curve> EqualityProof<C> {
         pedersen_generator: &PedersenGenerator<C>,
         commitment_1: &Point<C>,
         commitment_2: &Point<C>,
-    ) -> bool {
+    ) -> Result<(), String> {
         let mut multimult = MultiMult::new();
         self.aggregate(
             rng,
@@ -104,7 +104,10 @@ impl<C: Curve> EqualityProof<C> {
             commitment_2,
             &mut multimult,
         );
-        multimult.evaluate() == Point::<C>::IDENTITY
+        if multimult.evaluate()? != Point::<C>::IDENTITY {
+            return Err("proof is invalid".to_owned());
+        }
+        Ok(())
     }
 }
 
@@ -131,12 +134,13 @@ mod test {
             secret,
         );
 
-        assert!(equality_proof.verify(
+        let eq_verify_result = equality_proof.verify(
             &mut rng,
             &pedersen_generator,
             secret_commitment_1.commitment(),
             secret_commitment_2.commitment(),
-        ));
+        );
+        assert!(eq_verify_result.is_ok());
     }
 
     #[test]
@@ -156,22 +160,22 @@ mod test {
         );
 
         let invalid_pedersen_generator = PedersenGenerator::new(&mut rng);
-        assert!(!equality_proof.verify(
+        assert!(equality_proof.verify(
             &mut rng,
             &invalid_pedersen_generator,
             secret_commitment_1.commitment(),
             secret_commitment_2.commitment(),
-        ));
+        ).is_err());
 
         let invalid_secret = Scalar::<Tom256k1>::random(&mut rng);
         let invalid_secret_commitment_1 = pedersen_generator.commit(&mut rng, invalid_secret);
         let invalid_secret_commitment_2 = pedersen_generator.commit(&mut rng, invalid_secret);
 
-        assert!(!equality_proof.verify(
+        assert!(equality_proof.verify(
             &mut rng,
             &pedersen_generator,
             invalid_secret_commitment_1.commitment(),
             invalid_secret_commitment_2.commitment(),
-        ));
+        ).is_err());
     }
 }

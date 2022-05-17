@@ -339,8 +339,8 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
             }
         }
 
-        let tom_res = tom_multimult.evaluate();
-        let base_res = base_multimult.evaluate();
+        let tom_res = tom_multimult.evaluate()?;
+        let base_res = base_multimult.evaluate()?;
 
         if !(tom_res.is_identity() && base_res.is_identity()) {
             return Err("proof is invalid".to_owned());
@@ -464,15 +464,15 @@ mod test {
         )
         .unwrap();
 
-        assert!(exp_proof
-            .verify(
-                &mut rng,
-                &base_pedersen_generator,
-                &tom_pedersen_generator,
-                &commitments,
-                security_param,
-            )
-            .is_ok())
+        let exp_verify_result = exp_proof
+        .verify(
+            &mut rng,
+            &base_pedersen_generator,
+            &tom_pedersen_generator,
+            &commitments,
+            security_param,
+        );
+        assert!(exp_verify_result.is_ok());
     }
 
     #[test]

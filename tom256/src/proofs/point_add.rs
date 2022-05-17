@@ -293,10 +293,13 @@ impl<CC: Cycle<C>, C: Curve> PointAddProof<CC, C> {
         rng: &mut R,
         pedersen_generator: &PedersenGenerator<CC>,
         commitments: &PointAddCommitmentPoints<CC>,
-    ) -> bool {
+    ) -> Result<(), String> {
         let mut multimult = MultiMult::new();
         self.aggregate(rng, pedersen_generator, commitments, &mut multimult);
-        multimult.evaluate() == Point::<CC>::IDENTITY
+        if multimult.evaluate()? != Point::<CC>::IDENTITY {
+            return Err("proof is invalid".to_owned());
+        }
+        Ok(())
     }
 }
 
@@ -338,7 +341,7 @@ mod test {
             &mut rng,
             &pedersen_generator,
             &commitments.into_commitments()
-        ));
+        ).is_ok());
     }
 
     #[test]
@@ -354,13 +357,15 @@ mod test {
 
         let proof = PointAddProof::construct(&mut rng, &pedersen_generator, &commitments, &secret);
 
-        assert!(!proof.verify(
+        assert!(proof.verify(
             &mut rng,
             &pedersen_generator,
             &commitments.into_commitments()
-        ));
+        ).is_err());
     }
 
+    // NOTE: Turning this test on probably fails due to the multimult iteration cap
+    //  The cap could be increased, but this test is an extreme case not the norm
     #[ignore]
     #[test]
     fn aggregate_valid_proofs() {
@@ -384,6 +389,6 @@ mod test {
                 &mut multimult,
             );
         }
-        assert_eq!(multimult.evaluate(), Point::IDENTITY);
+        assert_eq!(multimult.evaluate().unwrap(), Point::IDENTITY);
     }
 }
