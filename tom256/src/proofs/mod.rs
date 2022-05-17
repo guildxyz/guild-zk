@@ -8,26 +8,7 @@ mod utils;
 pub use exp::{ExpProof, PointExpSecrets};
 pub use membership::MembershipProof;
 
-use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Deserialize)]
-pub struct ProofInput {
-    pub msg_hash: String,
-    pub pubkey: String,
-    pub signature: String,
-    pub index: usize,
-    pub ring: Vec<String>,
-}
-
 /*
-pub struct ParsedProofInput<C, CC> {
-    pub msg_hash: Scalar<C>,
-    pub pubkey: Point<C>,
-    pub signature: Signature<C>,
-    pub index: usize,
-    pub ring: Vec<Scalar<CC>>,
-}
-
 #[derive(Clone, Deserialize, Serialize)]
 pub struct ZkAttestProof<C, CC> {
     pub pedersen: PedersenCycle<C, CC>,
