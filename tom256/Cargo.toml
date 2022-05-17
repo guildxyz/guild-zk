@@ -15,7 +15,7 @@ getrandom = { version = "0.2", features = ["js"] }
 serde = { version = "1", features = ["derive"], default-features = false }
 serdect = "0.1.0"
 sha3 = "0.10.1"
-wasm-bindgen = "0.2.80"
+wasm-bindgen = { version = "0.2.80", features = ["serde-serialize"] }
 
 [dev-dependencies]
 criterion = "0.3.5"
