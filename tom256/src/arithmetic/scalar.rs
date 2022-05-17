@@ -1,5 +1,6 @@
 use super::modular::{mod_u256, random_mod_u256, Modular};
-use crate::{Curve, U256};
+use crate::curve::Curve;
+use crate::U256;
 use rand_core::{CryptoRng, RngCore};
 
 use bigint::Encoding;
@@ -42,7 +43,7 @@ impl<C: Curve> Scalar<C> {
         }
     }
 
-    pub fn to_unpadded_string(&self) -> String {
+    pub fn to_unpadded_string(self) -> String {
         self.0
             .to_string()
             .chars()
@@ -149,7 +150,7 @@ impl<C: Curve> std::fmt::Display for Scalar<C> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{Secp256k1, Tom256k1};
+    use crate::curve::{Secp256k1, Tom256k1};
 
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     struct TestCurveSmallMod;

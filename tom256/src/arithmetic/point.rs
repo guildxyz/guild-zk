@@ -1,7 +1,8 @@
 use super::field::FieldElement;
 use super::modular::{mul_mod_u256, Modular};
 use super::scalar::Scalar;
-use crate::{Curve, U256};
+use crate::curve::Curve;
+use crate::U256;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -308,7 +309,7 @@ impl<C: Curve> Point<C> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{Secp256k1, Tom256k1};
+    use crate::curve::{Secp256k1, Tom256k1};
 
     type SecPoint = Point<Secp256k1>;
     type TomPoint = Point<Tom256k1>;

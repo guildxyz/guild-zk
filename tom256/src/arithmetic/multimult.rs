@@ -1,13 +1,11 @@
 use super::{Point, Scalar};
-
-use crate::Curve;
+use crate::curve::Curve;
 
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::collections::binary_heap::BinaryHeap;
+use std::fmt;
 
 use rand_core::{CryptoRng, RngCore};
-
-use std::fmt;
 
 #[derive(Debug, Clone)]
 pub struct Pair<C: Curve> {
@@ -62,9 +60,12 @@ impl<C: Curve> MultiMult<C> {
         }
     }
 
+    // TODO remove this if not needed
+    /*
     pub fn insert_pair(&mut self, pair: Pair<C>) {
         self.pairs.push(pair);
     }
+    */
 
     pub fn evaluate(self) -> Point<C> {
         if self.pairs.is_empty() {
@@ -185,7 +186,7 @@ impl<C: Curve> Ord for Pair<C> {
 mod test {
     use super::*;
     use crate::arithmetic::{FieldElement, Modular};
-    use crate::{Secp256k1, Tom256k1};
+    use crate::curve::{Secp256k1, Tom256k1};
 
     use bigint::U256;
     use rand::rngs::StdRng;

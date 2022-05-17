@@ -1,7 +1,7 @@
 use crate::arithmetic::multimult::MultiMult;
 use crate::arithmetic::{Modular, Point, Scalar};
+use crate::curve::{Curve, Cycle};
 use crate::pedersen::*;
-use crate::{Curve, Cycle};
 
 use super::equality::EqualityProof;
 use super::multiplication::MultiplicationProof;
@@ -308,7 +308,7 @@ impl<CC: Cycle<C>, C: Curve> PointAddProof<CC, C> {
 mod test {
     use super::*;
     use crate::arithmetic::FieldElement;
-    use crate::{Secp256k1, Tom256k1};
+    use crate::curve::{Secp256k1, Tom256k1};
     use rand::rngs::StdRng;
     use rand_core::SeedableRng;
 

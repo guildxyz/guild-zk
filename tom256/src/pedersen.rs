@@ -1,5 +1,5 @@
 use crate::arithmetic::{Point, Scalar};
-use crate::Curve;
+use crate::curve::Curve;
 
 use rand_core::{CryptoRng, RngCore};
 
@@ -109,7 +109,7 @@ impl<C: Curve> std::ops::Mul<&Scalar<C>> for &PedersenCommitment<C> {
 mod test {
     use super::*;
     use crate::arithmetic::Modular;
-    use crate::Tom256k1;
+    use crate::curve::Tom256k1;
     use bigint::U256;
     use rand::rngs::StdRng;
     use rand_core::SeedableRng;

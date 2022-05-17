@@ -1,15 +1,14 @@
 use crate::arithmetic::multimult::{MultiMult, Relation};
 use crate::arithmetic::{Point, Scalar};
+use crate::curve::{Curve, Cycle};
 use crate::pedersen::*;
 use crate::proofs::point_add::{PointAddCommitmentPoints, PointAddProof, PointAddSecrets};
 use crate::utils::PointHasher;
-use crate::{Curve, Cycle};
-
-use std::ops::Neg;
 
 use bigint::{Encoding, Integer, U256};
-
 use rand_core::{CryptoRng, RngCore};
+
+use std::ops::Neg;
 
 #[allow(clippy::large_enum_variant)]
 pub enum ExpProofVariant<C: Curve, CC: Cycle<C>> {
@@ -403,7 +402,7 @@ fn generate_indices<R: CryptoRng + RngCore>(
 mod test {
     use super::*;
 
-    use crate::{Secp256k1, Tom256k1};
+    use crate::curve::{Secp256k1, Tom256k1};
     use rand::rngs::StdRng;
     use rand_core::SeedableRng;
 
