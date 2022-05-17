@@ -104,7 +104,7 @@ impl<C: Curve> EqualityProof<C> {
             commitment_2,
             &mut multimult,
         );
-        multimult.evaluate() == Point::<C>::IDENTITY
+        multimult.evaluate().is_identity()
     }
 }
 
