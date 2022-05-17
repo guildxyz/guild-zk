@@ -49,7 +49,7 @@ impl<C: Curve> PedersenGenerator<C> {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PedersenCommitment<C: Curve> {
     commitment: Point<C>,
     randomness: Scalar<C>,
