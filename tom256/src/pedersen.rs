@@ -1,8 +1,31 @@
 use crate::arithmetic::{Point, Scalar};
-use crate::curve::Curve;
+use crate::curve::{Curve, Cycle};
 
 use rand_core::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct PedersenCycle<C: Curve, CC: Cycle<C>> {
+    base: PedersenGenerator<C>,
+    cycle: PedersenGenerator<CC>,
+}
+
+impl<C: Curve, CC: Cycle<C>> PedersenCycle<C, CC> {
+    pub fn new<R: CryptoRng + RngCore>(rng: &mut R) -> Self {
+        Self {
+            base: PedersenGenerator::new(rng),
+            cycle: PedersenGenerator::new(rng),
+        }
+    }
+
+    pub fn base(&self) -> &PedersenGenerator<C> {
+        &self.base
+    }
+
+    pub fn cycle(&self) -> &PedersenGenerator<CC> {
+        &self.cycle
+    }
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PedersenGenerator<C: Curve>(Point<C>);

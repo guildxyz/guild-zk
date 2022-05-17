@@ -61,7 +61,7 @@ impl<C: Curve> PointExpSecrets<C> {
     pub fn commit<R, CC>(
         &self,
         rng: &mut R,
-        pedersen_params: &ExpPedersenParameters<C, CC>,
+        pedersen: &PedersenCycle<C, CC>,
         q: Option<Point<C>>,
     ) -> PointExpCommitments<C, CC>
     where
@@ -71,22 +71,16 @@ impl<C: Curve> PointExpSecrets<C> {
         let q = q.map(|pt| pt.into_affine());
 
         PointExpCommitments {
-            px: pedersen_params
-                .cycle
+            px: pedersen
+                .cycle()
                 .commit(rng, self.point.x().to_cycle_scalar()),
-            py: pedersen_params
-                .cycle
+            py: pedersen
+                .cycle()
                 .commit(rng, self.point.y().to_cycle_scalar()),
-            exp: pedersen_params.base.commit(rng, self.exp),
+            exp: pedersen.base().commit(rng, self.exp),
             q,
         }
     }
-}
-
-pub struct ExpPedersenParameters<C: Curve, CC: Cycle<C>> {
-    pub base_g: Point<C>,
-    pub base: PedersenGenerator<C>,
-    pub cycle: PedersenGenerator<CC>,
 }
 
 pub struct ExpProof<C: Curve, CC: Cycle<C>> {
@@ -98,7 +92,8 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
 
     pub fn construct<R: CryptoRng + RngCore>(
         rng: &mut R,
-        pedersen_params: &ExpPedersenParameters<C, CC>,
+        base_gen: &Point<C>,
+        pedersen: &PedersenCycle<C, CC>,
         secrets: &PointExpSecrets<C>,
         commitments: &PointExpCommitments<C, CC>,
         security_param: usize,
@@ -120,26 +115,18 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
             // random r scalars
             r_vec.push(Scalar::random(rng));
             // T = g^alpha
-            t_vec.push(&pedersen_params.base_g * alpha_vec[i]);
+            t_vec.push(base_gen * alpha_vec[i]);
             // A = g^alpha + h^r (essentially a commitment in the base curve)
-            a_vec.push(&t_vec[i] + &(pedersen_params.base.generator() * r_vec[i]));
+            a_vec.push(&t_vec[i] + &(pedersen.base().generator() * r_vec[i]));
 
             let coord_t = t_vec[i].to_affine();
             if coord_t.is_identity() {
                 return Err("intermediate value is identity".to_owned());
             }
             // commitment to Tx
-            tx_vec.push(
-                pedersen_params
-                    .cycle
-                    .commit(rng, coord_t.x().to_cycle_scalar()),
-            );
+            tx_vec.push(pedersen.cycle().commit(rng, coord_t.x().to_cycle_scalar()));
             // commitment to Ty
-            ty_vec.push(
-                pedersen_params
-                    .cycle
-                    .commit(rng, coord_t.y().to_cycle_scalar()),
-            );
+            ty_vec.push(pedersen.cycle().commit(rng, coord_t.y().to_cycle_scalar()));
 
             // update hasher with current points
             point_hasher.insert_point(&a_vec[i]);
@@ -187,17 +174,13 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                 // Generate point add proof
                 let add_secret = PointAddSecrets::new(t1, secrets.point.clone(), t);
                 // TODO manually
-                let mut add_commitments = add_secret.commit(rng, &pedersen_params.cycle);
+                let mut add_commitments = add_secret.commit(rng, pedersen.cycle());
                 add_commitments.qx = commitments.px.clone();
                 add_commitments.qy = commitments.py.clone();
                 add_commitments.rx = tx.clone();
                 add_commitments.ry = ty.clone();
-                let add_proof = PointAddProof::construct(
-                    rng,
-                    &pedersen_params.cycle,
-                    &add_commitments,
-                    &add_secret,
-                );
+                let add_proof =
+                    PointAddProof::construct(rng, pedersen.cycle(), &add_commitments, &add_secret);
 
                 all_exp_proofs.push(SingleExpProof {
                     a,
@@ -223,7 +206,8 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
     pub fn verify<R: CryptoRng + RngCore>(
         &self,
         rng: &mut R,
-        pedersen_params: &ExpPedersenParameters<C, CC>,
+        base_gen: &Point<C>,
+        pedersen: &PedersenCycle<C, CC>,
         commitments: &PointExpCommitments<C, CC>,
         security_param: usize,
     ) -> Result<(), String> {
@@ -235,10 +219,10 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         let mut base_multimult = MultiMult::<C>::new();
 
         tom_multimult.add_known(Point::<CC>::GENERATOR);
-        tom_multimult.add_known(pedersen_params.cycle.generator().clone());
+        tom_multimult.add_known(pedersen.cycle().generator().clone());
 
-        base_multimult.add_known(pedersen_params.base_g.clone());
-        base_multimult.add_known(pedersen_params.base.generator().clone());
+        base_multimult.add_known(base_gen.clone());
+        base_multimult.add_known(pedersen.base().generator().clone());
         base_multimult.add_known(commitments.exp.commitment().clone());
 
         let mut point_hasher = PointHasher::new(Self::HASH_ID);
@@ -267,11 +251,11 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                         return Err("challenge hash mismatch".to_owned());
                     }
 
-                    let t = pedersen_params.base_g.scalar_mul(alpha);
+                    let t = base_gen.scalar_mul(alpha);
                     let mut relation_a = Relation::<C>::new();
 
                     relation_a.insert(t.clone(), Scalar::<C>::ONE);
-                    relation_a.insert(pedersen_params.base.generator().clone(), *r);
+                    relation_a.insert(pedersen.base().generator().clone(), *r);
                     relation_a.insert((&self.proofs[i].a).neg(), Scalar::<C>::ONE);
 
                     relation_a.drain(rng, &mut base_multimult);
@@ -288,11 +272,11 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                     let mut relation_ty = Relation::new();
 
                     relation_tx.insert(Point::<CC>::GENERATOR, sx);
-                    relation_tx.insert(pedersen_params.cycle.generator().clone(), *tx_r);
+                    relation_tx.insert(pedersen.cycle().generator().clone(), *tx_r);
                     relation_tx.insert((&self.proofs[i].tx_p).neg(), Scalar::<CC>::ONE);
 
                     relation_ty.insert(Point::<CC>::GENERATOR, sy);
-                    relation_ty.insert(pedersen_params.cycle.generator().clone(), *ty_r);
+                    relation_ty.insert(pedersen.cycle().generator().clone(), *ty_r);
                     relation_ty.insert((&self.proofs[i].ty_p).neg(), Scalar::<CC>::ONE);
 
                     relation_tx.drain(rng, &mut tom_multimult);
@@ -315,7 +299,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                     relation_a.insert(t.clone(), Scalar::<C>::ONE);
                     relation_a.insert(commitments.exp.clone().into_commitment(), Scalar::<C>::ONE);
                     relation_a.insert((&self.proofs[i].a).neg(), Scalar::<C>::ONE);
-                    relation_a.insert(pedersen_params.base.generator().clone(), *r);
+                    relation_a.insert(pedersen.base().generator().clone(), *r);
 
                     relation_a.drain(rng, &mut base_multimult);
 
@@ -331,8 +315,8 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                     let sx = coord_t.x().to_cycle_scalar::<CC>();
                     let sy = coord_t.y().to_cycle_scalar::<CC>();
 
-                    let t1_com_x = pedersen_params.cycle.commit_with_randomness(sx, *t1_x);
-                    let t1_com_y = pedersen_params.cycle.commit_with_randomness(sy, *t1_y);
+                    let t1_com_x = pedersen.cycle().commit_with_randomness(sx, *t1_x);
+                    let t1_com_y = pedersen.cycle().commit_with_randomness(sy, *t1_y);
 
                     let point_add_commitments = PointAddCommitmentPoints::new(
                         t1_com_x.into_commitment(),
@@ -345,7 +329,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
 
                     add_proof.aggregate(
                         rng,
-                        &pedersen_params.cycle,
+                        pedersen.cycle(),
                         &point_add_commitments,
                         &mut tom_multimult,
                     );
@@ -453,22 +437,20 @@ mod test {
     #[test]
     fn exp_proof_valid() {
         let mut rng = StdRng::from_seed([2; 32]);
-        let pedersen_params = ExpPedersenParameters {
-            base_g: Point::<Secp256k1>::GENERATOR,
-            base: PedersenGenerator::<Secp256k1>::new(&mut rng),
-            cycle: PedersenGenerator::<Tom256k1>::new(&mut rng),
-        };
+        let base_gen = Point::<Secp256k1>::GENERATOR;
+        let pedersen = PedersenCycle::<Secp256k1, Tom256k1>::new(&mut rng);
 
         let exponent = Scalar::<Secp256k1>::random(&mut rng);
         let result = Point::<Secp256k1>::GENERATOR.scalar_mul(&exponent);
 
         let secrets = PointExpSecrets::new(exponent, result);
-        let commitments = secrets.commit(&mut rng, &pedersen_params, None);
+        let commitments = secrets.commit(&mut rng, &pedersen, None);
 
-        let security_param = 20;
+        let security_param = 10;
         let exp_proof = ExpProof::construct(
             &mut rng,
-            &pedersen_params,
+            &base_gen,
+            &pedersen,
             &secrets,
             &commitments,
             security_param,
@@ -476,29 +458,27 @@ mod test {
         .unwrap();
 
         assert!(exp_proof
-            .verify(&mut rng, &pedersen_params, &commitments, security_param,)
+            .verify(&mut rng, &base_gen, &pedersen, &commitments, security_param,)
             .is_ok())
     }
 
     #[test]
     fn exp_proof_invalid() {
         let mut rng = StdRng::from_seed([22; 32]);
-        let pedersen_params = ExpPedersenParameters {
-            base_g: Point::<Secp256k1>::GENERATOR,
-            base: PedersenGenerator::<Secp256k1>::new(&mut rng),
-            cycle: PedersenGenerator::<Tom256k1>::new(&mut rng),
-        };
+        let base_gen = Point::<Secp256k1>::GENERATOR;
+        let pedersen = PedersenCycle::<Secp256k1, Tom256k1>::new(&mut rng);
 
         let exponent = Scalar::<Secp256k1>::random(&mut rng);
         let result = Point::<Secp256k1>::GENERATOR.scalar_mul(&(exponent + Scalar::ONE));
 
         let secrets = PointExpSecrets::new(exponent, result);
-        let commitments = secrets.commit(&mut rng, &pedersen_params, None);
+        let commitments = secrets.commit(&mut rng, &pedersen, None);
 
         let security_param = 10;
         let exp_proof = ExpProof::construct(
             &mut rng,
-            &pedersen_params,
+            &base_gen,
+            &pedersen,
             &secrets,
             &commitments,
             security_param,
@@ -506,7 +486,7 @@ mod test {
         .unwrap();
 
         assert!(exp_proof
-            .verify(&mut rng, &pedersen_params, &commitments, security_param,)
+            .verify(&mut rng, &base_gen, &pedersen, &commitments, security_param,)
             .is_err());
     }
 }
