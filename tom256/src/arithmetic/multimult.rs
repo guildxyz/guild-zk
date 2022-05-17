@@ -256,7 +256,7 @@ mod test {
         }
 
         let now = Instant::now();
-        let actual = multimult.evaluate().into_affine();
+        let actual = multimult.evaluate();
         mm_time += now.elapsed();
 
         println!("Normal time: {:?}", normal_time);
@@ -277,10 +277,10 @@ mod test {
             scalars.push(scalar);
         }
 
-        let mut pt = SecPoint::GENERATOR;
+        let mut pt = SecPoint::GENERATOR.into_affine();
         for scalar in scalars.iter() {
             pt = pt.double().into_affine();
-            rel.insert(pt.clone(), *scalar);
+            rel.insert(pt.clone().into(), *scalar);
         }
 
         let mut multimult = MultiMult::new();
@@ -311,10 +311,10 @@ mod test {
             scalars.push(scalar);
         }
 
-        let mut pt = TomPoint::GENERATOR;
+        let mut pt = TomPoint::GENERATOR.into_affine();
         for scalar in scalars.iter() {
             pt = pt.double().into_affine();
-            rel.insert(pt.clone(), *scalar);
+            rel.insert(pt.clone().into(), *scalar);
         }
 
         let mut multimult = MultiMult::new();

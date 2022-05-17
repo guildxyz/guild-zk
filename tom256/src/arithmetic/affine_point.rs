@@ -1,25 +1,26 @@
-use super::affine_point::AffinePoint;
 use super::field::FieldElement;
 use super::modular::{mul_mod_u256, Modular};
+use super::point::Point;
 use super::scalar::Scalar;
 use crate::{Curve, U256};
 
 use std::collections::HashMap;
 use std::fmt;
-use std::marker::PhantomData;
 
 const BASE_16_DIGITS: [char; 16] = [
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
 ];
 
+// z can only be 1 (general point) or 0 (identity)
+// This invariable is preserved in the methods
 #[derive(Debug, Clone)]
-pub struct Point<C: Curve> {
+pub struct AffinePoint<C: Curve> {
     x: FieldElement<C>,
     y: FieldElement<C>,
     z: FieldElement<C>,
 }
 
-impl<C: Curve> fmt::Display for Point<C> {
+impl<C: Curve> fmt::Display for AffinePoint<C> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f)?;
         writeln!(f, "x: {}", self.x.inner())?;
@@ -28,21 +29,34 @@ impl<C: Curve> fmt::Display for Point<C> {
     }
 }
 
-impl<C: Curve + PartialEq> PartialEq for Point<C> {
+impl<C: Curve + PartialEq> PartialEq for AffinePoint<C> {
     fn eq(&self, other: &Self) -> bool {
-        let x0z1 = self.x * other.z;
-        let x1z0 = other.x * self.z;
-        let y0z1 = self.y * other.z;
-        let y1z0 = other.y * self.z;
-
-        x0z1 == x1z0 && y0z1 == y1z0
+        (self.is_identity() && other.is_identity()) || (self.x == other.x && self.y == other.y)
     }
 }
 
-impl<C: Curve> std::ops::Neg for Point<C> {
+impl<C: Curve> From<Point<C>> for AffinePoint<C> {
+    fn from(point: Point<C>) -> Self {
+        point.into_affine()
+    }
+}
+
+impl<C: Curve> From<AffinePoint<C>> for Point<C> {
+    fn from(point: AffinePoint<C>) -> Self {
+        point.into_point()
+    }
+}
+
+impl<C: Curve> From<&AffinePoint<C>> for Point<C> {
+    fn from(point: &AffinePoint<C>) -> Self {
+        point.to_point()
+    }
+}
+
+impl<C: Curve> std::ops::Neg for AffinePoint<C> {
     type Output = Self;
     fn neg(self) -> Self {
-        Self {
+        AffinePoint {
             x: self.x,
             y: -self.y,
             z: self.z,
@@ -50,10 +64,10 @@ impl<C: Curve> std::ops::Neg for Point<C> {
     }
 }
 
-impl<C: Curve> std::ops::Neg for &Point<C> {
-    type Output = Point<C>;
+impl<C: Curve> std::ops::Neg for &AffinePoint<C> {
+    type Output = AffinePoint<C>;
     fn neg(self) -> Self::Output {
-        Point {
+        AffinePoint {
             x: self.x,
             y: -self.y,
             z: self.z,
@@ -61,69 +75,91 @@ impl<C: Curve> std::ops::Neg for &Point<C> {
     }
 }
 
-impl<C: Curve> std::ops::Add for Point<C> {
-    type Output = Self;
-    fn add(self, rhs: Self) -> Self {
+impl<C: Curve> std::ops::Add for AffinePoint<C> {
+    type Output = Point<C>;
+    fn add(self, rhs: Self) -> Self::Output {
         self.geometric_add(&rhs)
     }
 }
 
-impl<'a, 'b, C: Curve> std::ops::Add<&'b Point<C>> for &'a Point<C> {
+impl<'a, 'b, C: Curve> std::ops::Add<&'b AffinePoint<C>> for &'a AffinePoint<C> {
     type Output = Point<C>;
-    fn add(self, rhs: &'b Point<C>) -> Self::Output {
+    fn add(self, rhs: &'b AffinePoint<C>) -> Self::Output {
         self.geometric_add(rhs)
     }
 }
 
-impl<C: Curve> std::ops::AddAssign<&Point<C>> for Point<C> {
-    fn add_assign(&mut self, rhs: &Self) {
-        *self = &*self + rhs
+impl<C: Curve> std::ops::Add<AffinePoint<C>> for Point<C> {
+    type Output = Point<C>;
+    fn add(self, rhs: AffinePoint<C>) -> Self::Output {
+        self.geometric_add(&rhs.to_point())
     }
 }
 
-impl<C: Curve> std::ops::Sub for Point<C> {
+impl<C: Curve> std::ops::Add<Point<C>> for AffinePoint<C> {
     type Output = Point<C>;
-    fn sub(self, rhs: Self) -> Self {
+    fn add(self, rhs: Point<C>) -> Self::Output {
+        self.geometric_add(&rhs.to_affine())
+    }
+}
+
+impl<C: Curve> std::ops::AddAssign<&AffinePoint<C>> for Point<C> {
+    fn add_assign(&mut self, rhs: &AffinePoint<C>) {
+        *self = &*self + &rhs.to_point()
+    }
+}
+
+impl<C: Curve> std::ops::Sub for AffinePoint<C> {
+    type Output = Point<C>;
+    fn sub(self, rhs: Self) -> Self::Output {
         self + (-rhs)
     }
 }
 
-impl<'a, 'b, C: Curve> std::ops::Sub<&'b Point<C>> for &'a Point<C> {
+impl<'a, 'b, C: Curve> std::ops::Sub<&'b AffinePoint<C>> for &'a AffinePoint<C> {
     type Output = Point<C>;
-    fn sub(self, rhs: &'b Point<C>) -> Self::Output {
+    fn sub(self, rhs: &'b AffinePoint<C>) -> Self::Output {
         self + &(-rhs)
     }
 }
 
-impl<C: Curve> std::ops::Mul<Scalar<C>> for &Point<C> {
+impl<C: Curve> std::ops::Mul<Scalar<C>> for &AffinePoint<C> {
     type Output = Point<C>;
     fn mul(self, rhs: Scalar<C>) -> Self::Output {
         self.scalar_mul(&rhs)
     }
 }
 
-impl<'a, 'b, C: Curve> std::ops::Mul<&'b Scalar<C>> for &'a Point<C> {
+impl<'a, 'b, C: Curve> std::ops::Mul<&'b Scalar<C>> for &'a AffinePoint<C> {
     type Output = Point<C>;
     fn mul(self, rhs: &'b Scalar<C>) -> Self::Output {
         self.scalar_mul(rhs)
     }
 }
 
-impl<C: Curve> Point<C> {
-    pub const GENERATOR: Self = Self {
-        x: FieldElement(C::GENERATOR_X, PhantomData),
-        y: FieldElement(C::GENERATOR_Y, PhantomData),
-        z: FieldElement::ONE,
-    };
+impl<C: Curve> AffinePoint<C> {
+    pub fn new(x: FieldElement<C>, y: FieldElement<C>) -> Self {
+        Self {
+            x,
+            y,
+            z: FieldElement::<C>::new(U256::from_u32(1)),
+        }
+    }
 
-    pub const IDENTITY: Self = Self {
-        x: FieldElement::ZERO,
-        y: FieldElement::ONE,
-        z: FieldElement::ZERO,
-    };
+    pub fn new_identity() -> Self {
+        Self {
+            x: FieldElement::<C>::new(U256::from_u32(0)),
+            y: FieldElement::<C>::new(U256::from_u32(1)),
+            z: FieldElement::<C>::new(U256::from_u32(0)),
+        }
+    }
 
-    pub fn new(x: FieldElement<C>, y: FieldElement<C>, z: FieldElement<C>) -> Self {
-        Self { x, y, z }
+    pub fn into_point(self) -> Point<C> {
+        Point::<C>::new(self.x, self.y, self.z)
+    }
+
+    pub fn to_point(&self) -> Point<C> {
+        Point::<C>::new(self.x, self.y, self.z)
     }
 
     pub fn is_on_curve(&self) -> bool {
@@ -131,23 +167,18 @@ impl<C: Curve> Point<C> {
         let b = FieldElement::new(C::COEFF_B);
 
         let y2 = self.y * self.y;
-        let y2z = y2 * self.z;
         let x3 = self.x * self.x * self.x;
         let ax = a * self.x;
-        let z2 = self.z * self.z;
-        let axz2 = ax * z2;
-        let z3 = z2 * self.z;
-        let bz3 = b * z3;
-        let t5 = y2z - (x3 + axz2 + bz3);
+        let t5 = y2 - (x3 + ax + b);
 
         t5.inner() == &U256::ZERO
     }
 
-    pub fn double(&self) -> Self {
+    pub fn double(&self) -> Point<C> {
         self + self
     }
 
-    pub fn geometric_add(&self, rhs: &Self) -> Self {
+    pub fn geometric_add(&self, rhs: &Self) -> Point<C> {
         let b3 = FieldElement::new(mul_mod_u256(
             &U256::from_u8(3),
             &C::COEFF_B,
@@ -203,16 +234,12 @@ impl<C: Curve> Point<C> {
         sum_z *= t5;
         sum_z += t0;
 
-        Self {
-            x: sum_x,
-            y: sum_y,
-            z: sum_z,
-        }
+        Point::<C>::new(sum_x, sum_y, sum_z)
     }
 
-    pub fn scalar_mul(&self, scalar: &Scalar<C>) -> Self {
-        let mut q = Self::IDENTITY;
-        let mut current = Self::IDENTITY;
+    pub fn scalar_mul(&self, scalar: &Scalar<C>) -> Point<C> {
+        let mut q = Point::<C>::IDENTITY;
+        let mut current = Point::<C>::IDENTITY;
         let mut lookup = HashMap::with_capacity(16);
         for digit in &BASE_16_DIGITS {
             lookup.insert(digit, current.clone());
@@ -235,10 +262,10 @@ impl<C: Curve> Point<C> {
         this_scalar: &Scalar<C>,
         other_point: &Self,
         other_scalar: &Scalar<C>,
-    ) -> Self {
-        let mut q = Self::IDENTITY;
-        let mut this_current = Self::IDENTITY;
-        let mut other_current = Self::IDENTITY;
+    ) -> Point<C> {
+        let mut q = Point::<C>::IDENTITY;
+        let mut this_current = Point::<C>::IDENTITY;
+        let mut other_current = Point::<C>::IDENTITY;
         let mut this_lookup = HashMap::with_capacity(16);
         let mut other_lookup = HashMap::with_capacity(16);
         for digit in &BASE_16_DIGITS {
@@ -264,24 +291,6 @@ impl<C: Curve> Point<C> {
 
     pub fn is_identity(&self) -> bool {
         self.x == FieldElement::ZERO && self.y != FieldElement::ZERO && self.z == FieldElement::ZERO
-    }
-
-    pub fn into_affine(self) -> AffinePoint<C> {
-        if self.is_identity() {
-            AffinePoint::<C>::new_identity()
-        } else {
-            let z_inv = self.z.inverse();
-            AffinePoint::<C>::new(self.x * z_inv, self.y * z_inv)
-        }
-    }
-
-    pub fn to_affine(&self) -> AffinePoint<C> {
-        if self.is_identity() {
-            AffinePoint::<C>::new_identity()
-        } else {
-            let z_inv = self.z.inverse();
-            AffinePoint::<C>::new(self.x * z_inv, self.y * z_inv)
-        }
     }
 
     pub fn x(&self) -> &FieldElement<C> {
@@ -322,48 +331,49 @@ mod test {
         let tom_point = TomPoint::GENERATOR.scalar_mul(&tom_scalar);
         assert!(tom_point.is_on_curve());
 
-        let tom_on_sec = SecPoint {
-            x: FieldElement::new(Tom256k1::GENERATOR_X),
-            y: FieldElement::new(Tom256k1::GENERATOR_Y),
-            z: FieldElement::ONE,
-        };
+        let tom_on_sec = SecPoint::new(
+            FieldElement::new(Tom256k1::GENERATOR_X),
+            FieldElement::new(Tom256k1::GENERATOR_Y),
+            FieldElement::ONE,
+        )
+        .into_affine();
 
-        let sec_on_tom = TomPoint {
-            x: FieldElement::new(Secp256k1::GENERATOR_X),
-            y: FieldElement::new(Secp256k1::GENERATOR_Y),
-            z: FieldElement::ONE,
-        };
+        let sec_on_tom = TomPoint::new(
+            FieldElement::new(Secp256k1::GENERATOR_X),
+            FieldElement::new(Secp256k1::GENERATOR_Y),
+            FieldElement::ONE,
+        )
+        .into_affine();
         assert!(!tom_on_sec.is_on_curve());
         assert!(!sec_on_tom.is_on_curve());
     }
 
     #[test]
     fn point_addition() {
-        let g2 = SecPoint::GENERATOR.double();
+        let g2 = SecPoint::GENERATOR.double().into_affine();
         assert_eq!(
             g2.x().inner(),
-            &U256::from_be_hex("f40af3b6c6fdf9aa5402b9fdc39ac4b67827eb373c92077452348e044f109fc8")
+            &U256::from_be_hex("c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5")
         );
         assert_eq!(
             g2.y().inner(),
-            &U256::from_be_hex("56915849f52cc8f76f5fd7e4bf60db4a43bf633e1b1383f85fe89164bfadcbdb")
+            &U256::from_be_hex("1ae168fea63dc339a3c58419466ceaeef7f632653266d0e1236431a950cfe52a")
         );
         assert_eq!(
             g2.z().inner(),
-            &U256::from_be_hex("f8783c53dfb2a307b568a6ad931fc97023dc71cdc3eac498b0c6ba5554759a29")
+            &U256::from_be_hex("0000000000000000000000000000000000000000000000000000000000000001")
         );
 
-        println!("{}", g2.to_affine());
-
-        let random_double = SecPoint {
-            x: FieldElement::new(U256::from_be_hex(
+        let random_double = SecPoint::new(
+            FieldElement::new(U256::from_be_hex(
                 "B8F0170E293FCC9291BEE2665E9CA9B25D3B11810ED68D9EA0CB440D7064E4DA",
             )),
-            y: FieldElement::new(U256::from_be_hex(
+            FieldElement::new(U256::from_be_hex(
                 "0691AA44502212591132AA6F27582B78F9976998DE355C4EE5960DB05AC0A2A3",
             )),
-            z: FieldElement::ONE,
-        }
+            FieldElement::ONE,
+        )
+        .into_affine()
         .double()
         .into_affine();
         assert!(random_double.is_on_curve());
@@ -384,78 +394,27 @@ mod test {
     }
 
     #[test]
-    fn scalar_multiplication() {
-        let d = TomScalar::new(U256::from_be_hex(
-            "c51e4753afdec1e6b6c6a5b992f43f8dd0c7a8933072708b6522468b2ffb06fd",
-        ));
-        let e = TomScalar::new(U256::from_be_hex(
-            "d37f628ece72a462f0145cbefe3f0b355ee8332d37acdd83a358016aea029db7",
-        ));
-        let f = TomScalar::new(U256::from_be_hex(
-            "B8F0170E293FCC9291BEE2665E9CA9B25D3B11810ED68D9EA0CB440D7064E4DA",
-        ));
-
-        let t = TomPoint::GENERATOR.scalar_mul(&d).into_affine();
-        assert!(t.is_on_curve());
+    fn affine_point() {
+        let g2 = SecPoint::GENERATOR.double();
+        let g2_affine = g2.into_affine();
         assert_eq!(
-            t.x().inner(),
-            &U256::from_be_hex("3758fd961003dc291e21523313f0b4329d732b84e52f0159b2d6627bca8d2db2")
+            g2_affine.x().inner(),
+            &U256::from_be_hex("c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5")
         );
         assert_eq!(
-            t.y().inner(),
-            &U256::from_be_hex("0c21e4f939a5d91c1473416bb936e61bd688dd91db2778f832a54cdacc207deb")
+            g2_affine.y().inner(),
+            &U256::from_be_hex("1ae168fea63dc339a3c58419466ceaeef7f632653266d0e1236431a950cfe52a")
         );
+        assert_eq!(g2_affine.z(), &FieldElement::ONE);
 
-        let r = TomPoint::GENERATOR
-            .double_mul(&e, &t.to_point(), &f)
+        let id_aff = SecPoint::IDENTITY.into_affine();
+        assert_eq!(id_aff, SecPoint::IDENTITY.into_affine());
+
+        let g5 = SecPoint::GENERATOR
+            .scalar_mul(&SecScalar::new(U256::from_u8(5)))
             .into_affine();
-        assert!(r.is_on_curve());
-        assert_eq!(
-            r.x().inner(),
-            &U256::from_be_hex("8fdb6195754109cc23c635f41f799fd6e1f6078eb94fe0d9cde1eb80d36e5e31")
-        );
-        assert_eq!(
-            r.y().inner(),
-            &U256::from_be_hex("fddd45b8f6f633074edddcf1394a1c9498e6f7b5847b744adf01833f38553c01")
-        );
-
-        let mut g12 = TomPoint::IDENTITY;
-        for _ in 0..12 {
-            g12 = g12 + TomPoint::GENERATOR;
-        }
-
-        assert_eq!(
-            TomPoint::GENERATOR.scalar_mul(&TomScalar::new(U256::from_u32(12))),
-            g12
-        );
-
-        let scalars = &[
-            (
-                TomScalar::new(U256::from_u8(3)),
-                TomScalar::new(U256::from_u8(12)),
-            ),
-            (
-                TomScalar::new(U256::from_u8(36)),
-                TomScalar::new(U256::from_u8(220)),
-            ),
-            (
-                TomScalar::new(U256::from_u8(189)),
-                TomScalar::new(U256::from_u8(89)),
-            ),
-            (
-                TomScalar::new(U256::from_u8(92)),
-                TomScalar::new(U256::from_u8(105)),
-            ),
-        ];
-
-        let h_gen = TomPoint::GENERATOR.scalar_mul(&TomScalar::new(U256::from_u8(250)));
-
-        for (a, b) in scalars {
-            let dbl_mul = h_gen.double_mul(a, &TomPoint::GENERATOR, b);
-            let dbl_mul_rev = TomPoint::GENERATOR.double_mul(b, &h_gen, a);
-            let expected = &h_gen * *a + &TomPoint::GENERATOR * *b;
-            assert_eq!(dbl_mul, expected);
-            assert_eq!(dbl_mul_rev, expected);
-        }
+        let g2 = SecPoint::GENERATOR.double().into_affine();
+        let g4 = g2.double().into_affine();
+        assert_eq!((g4 + SecPoint::GENERATOR).into_affine(), g5);
     }
 }

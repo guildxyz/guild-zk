@@ -1,4 +1,5 @@
 use crate::arithmetic::multimult::{MultiMult, Relation};
+use crate::arithmetic::AffinePoint;
 use crate::arithmetic::{Point, Scalar};
 use crate::pedersen::*;
 use crate::proofs::point_add::{PointAddCommitmentPoints, PointAddProof, PointAddSecrets};
@@ -37,8 +38,8 @@ pub struct SingleExpProof<C: Curve, CC: Cycle<C>> {
 
 #[derive(Clone)]
 pub struct PointExpSecrets<C: Curve> {
+    point: AffinePoint<C>,
     exp: Scalar<C>,
-    point: Point<C>,
 }
 
 #[derive(Clone)]
@@ -46,7 +47,7 @@ pub struct PointExpCommitments<C: Curve, CC: Cycle<C>> {
     px: PedersenCommitment<CC>,
     py: PedersenCommitment<CC>,
     exp: PedersenCommitment<C>,
-    q: Option<Point<C>>,
+    q: Option<AffinePoint<C>>,
 }
 
 impl<C: Curve> PointExpSecrets<C> {
@@ -170,7 +171,12 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                 }
 
                 // Generate point add proof
-                let add_secret = PointAddSecrets::new(t1, secrets.point.clone(), t);
+                // TODO: affine_point to
+                let add_secret = PointAddSecrets {
+                    p: t1.into_affine(),
+                    q: secrets.point.clone(),
+                    r: t.into_affine(),
+                };
                 // TODO manually
                 let mut add_commitments = add_secret.commit(rng, tom_pedersen_generator);
                 add_commitments.qx = commitments.px.clone();

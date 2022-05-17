@@ -1,4 +1,5 @@
 use crate::arithmetic::multimult::MultiMult;
+use crate::arithmetic::AffinePoint;
 use crate::arithmetic::{Modular, Point, Scalar};
 use crate::pedersen::*;
 use crate::{Curve, Cycle};
@@ -11,9 +12,9 @@ use std::marker::PhantomData;
 
 #[derive(Clone)]
 pub struct PointAddSecrets<C: Curve> {
-    p: Point<C>,
-    q: Point<C>,
-    r: Point<C>,
+    pub(crate) p: AffinePoint<C>,
+    pub(crate) q: AffinePoint<C>,
+    pub(crate) r: AffinePoint<C>,
 }
 
 impl<C: Curve> PointAddSecrets<C> {
