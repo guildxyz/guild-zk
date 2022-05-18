@@ -30,15 +30,14 @@ impl<C: Curve, CC: Cycle<C>> TryFrom<ProofInput> for ParsedProofInput<C, CC> {
             return Err("invalid hash length".to_string());
         }
         Ok(Self {
-            msg_hash: Scalar::new(U256::from_be_hex(&hash)),
+            msg_hash: Scalar::new(U256::from_be_hex(hash)),
             pubkey: parse_pubkey(&value.pubkey)?,
             signature: parse_signature(&value.signature)?,
             index: value.index,
             ring: value
                 .ring
                 .iter()
-                .map(|addr| address_to_scalar(addr))
-                .flatten()
+                .flat_map(|addr| address_to_scalar(addr))
                 .collect(),
         })
     }

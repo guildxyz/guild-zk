@@ -17,7 +17,7 @@ use crate::pedersen::{PedersenCommitment, PedersenCycle};
 use rand_core::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 
-// NOTE 80 is conservative but slow, 40 is faster but quite low
+// NOTE 80 is conservative but slow, 40 is faster but quite low security
 const SEC_PARAM: usize = 60;
 
 #[derive(Deserialize, Serialize)]
@@ -25,7 +25,6 @@ pub struct ZkAttestProof<C: Curve, CC: Cycle<C>> {
     pub pedersen: PedersenCycle<C, CC>,
     pub msg_hash: Scalar<C>,
     pub r_point: Point<C>,
-    pub q_point: Option<Point<C>>,
     pub commitment_to_address: Point<CC>,
     pub exp_commitments: ExpCommitmentPoints<C, CC>, // s1, pkx, pxy
     pub signature_proof: ExpProof<C, CC>,
@@ -67,7 +66,7 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
             &exp_secrets,
             &exp_commitments,
             SEC_PARAM,
-            Some(&q_point),
+            Some(q_point),
         )?;
         let membership_proof = MembershipProof::construct(
             rng,
@@ -87,7 +86,6 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
             pedersen,
             msg_hash: input.msg_hash,
             r_point,
-            q_point: Some(q_point),
             commitment_to_address: commitment_to_address.into_commitment(),
             exp_commitments,
             signature_proof,
@@ -124,7 +122,7 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
             &self.pedersen,
             &self.exp_commitments,
             SEC_PARAM,
-            self.q_point.as_ref(),
+            Some(q_point),
         )?;
 
         Ok(())
