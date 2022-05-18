@@ -1,7 +1,7 @@
 use tom256::curve::{Secp256k1, Tom256k1};
+use tom256::parse::{ParsedProofInput, ProofInput};
 use tom256::pedersen::PedersenCycle;
-use tom256::proofs::{ZkAttestProof};
-use tom256::parse::{ProofInput, ParsedProofInput};
+use tom256::proofs::ZkAttestProof;
 
 use rand::rngs::StdRng;
 use rand_core::SeedableRng;
@@ -33,7 +33,7 @@ fn main() {
         ring,
     };
 
-    let parsed_input: ParsedProofInput::<Secp256k1, Tom256k1> = proof_input.try_into().unwrap();
+    let parsed_input: ParsedProofInput<Secp256k1, Tom256k1> = proof_input.try_into().unwrap();
 
     let address_parsed = parsed_input.ring[parsed_input.index];
     let address_committed = pedersen_cycle.cycle().commit(&mut rng, address_parsed);
@@ -59,5 +59,4 @@ fn main() {
     let zkattest_proof = zkattest_proof.unwrap();
     assert!(zkattest_proof.verify(&mut rng).is_ok());
     */
-    
 }

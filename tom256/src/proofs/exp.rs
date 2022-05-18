@@ -462,7 +462,7 @@ mod test {
     }
 
     #[test]
-    fn exp_proof_valid() {
+    fn exp_proof_valid_without_q() {
         let mut rng = StdRng::from_seed([2; 32]);
         let base_gen = Point::<Secp256k1>::GENERATOR;
         let pedersen = PedersenCycle::<Secp256k1, Tom256k1>::new(&mut rng);
@@ -493,6 +493,43 @@ mod test {
                 &commitments.into_commitments(),
                 security_param,
                 None
+            )
+            .is_ok())
+    }
+
+    #[test]
+    fn exp_proof_valid_with_q() {
+        let mut rng = StdRng::from_seed([2; 32]);
+        let base_gen = Point::<Secp256k1>::GENERATOR;
+        let pedersen = PedersenCycle::<Secp256k1, Tom256k1>::new(&mut rng);
+
+        let q_point = Point::<Secp256k1>::GENERATOR.double();
+        let exponent = Scalar::<Secp256k1>::random(&mut rng);
+        let result = &Point::<Secp256k1>::GENERATOR.scalar_mul(&exponent) - &q_point;
+
+        let secrets = ExpSecrets::new(exponent, result);
+        let commitments = secrets.commit(&mut rng, &pedersen);
+
+        let security_param = 10;
+        let exp_proof = ExpProof::construct(
+            &mut rng,
+            &base_gen,
+            &pedersen,
+            &secrets,
+            &commitments,
+            security_param,
+            Some(q_point.clone()),
+        )
+        .unwrap();
+
+        assert!(exp_proof
+            .verify(
+                &mut rng,
+                &base_gen,
+                &pedersen,
+                &commitments.into_commitments(),
+                security_param,
+                Some(q_point),
             )
             .is_ok())
     }
