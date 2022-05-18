@@ -38,20 +38,26 @@ pub struct SingleExpProof<C: Curve, CC: Cycle<C>> {
 }
 
 #[derive(Clone)]
-pub struct PointExpSecrets<C: Curve> {
+pub struct ExpSecrets<C: Curve> {
     exp: Scalar<C>,
     point: Point<C>,
 }
 
 #[derive(Clone)]
-pub struct PointExpCommitments<C: Curve, CC: Cycle<C>> {
+pub struct ExpCommitments<C: Curve, CC: Cycle<C>> {
     px: PedersenCommitment<CC>,
     py: PedersenCommitment<CC>,
     exp: PedersenCommitment<C>,
-    q: Option<Point<C>>,
 }
 
-impl<C: Curve> PointExpSecrets<C> {
+#[derive(Clone)]
+pub struct ExpCommitmentPoints<C: Curve, CC: Cycle<C>> {
+    px: Point<CC>,
+    py: Point<CC>,
+    exp: Point<C>,
+}
+
+impl<C: Curve> ExpSecrets<C> {
     // TODO: using `AffinePoint` this could be implied
     /// Ensures that the stored point is affine.
     pub fn new(exp: Scalar<C>, point: Point<C>) -> Self {
@@ -65,15 +71,12 @@ impl<C: Curve> PointExpSecrets<C> {
         &self,
         rng: &mut R,
         pedersen: &PedersenCycle<C, CC>,
-        q: Option<Point<C>>,
-    ) -> PointExpCommitments<C, CC>
+    ) -> ExpCommitments<C, CC>
     where
         R: CryptoRng + RngCore,
         CC: Cycle<C>,
     {
-        let q = q.map(|pt| pt.into_affine());
-
-        PointExpCommitments {
+        ExpCommitments {
             px: pedersen
                 .cycle()
                 .commit(rng, self.point.x().to_cycle_scalar()),
@@ -81,7 +84,16 @@ impl<C: Curve> PointExpSecrets<C> {
                 .cycle()
                 .commit(rng, self.point.y().to_cycle_scalar()),
             exp: pedersen.base().commit(rng, self.exp),
-            q,
+        }
+    }
+}
+
+impl<C: Curve, CC: Cycle<C>> ExpCommitments<C, CC> {
+    pub fn into_commitments(self) -> ExpCommitmentPoints<C, CC> {
+        ExpCommitmentPoints {
+            px: self.px.into_commitment(),
+            py: self.py.into_commitment(),
+            exp: self.exp.into_commitment(),
         }
     }
 }
@@ -98,9 +110,10 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         rng: &mut R,
         base_gen: &Point<C>,
         pedersen: &PedersenCycle<C, CC>,
-        secrets: &PointExpSecrets<C>,
-        commitments: &PointExpCommitments<C, CC>,
+        secrets: &ExpSecrets<C>,
+        commitments: &ExpCommitments<C, CC>,
         security_param: usize,
+        q_point: Option<Point<C>>,
     ) -> Result<Self, String> {
         let mut alpha_vec = Vec::<Scalar<C>>::with_capacity(security_param);
         let mut r_vec = Vec::<Scalar<C>>::with_capacity(security_param);
@@ -167,7 +180,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
             } else {
                 let z = alpha - secrets.exp;
                 let mut t1 = &Point::<C>::GENERATOR * z;
-                if let Some(pt) = commitments.q.as_ref() {
+                if let Some(pt) = q_point.as_ref() {
                     t1 += pt;
                 }
 
@@ -212,8 +225,9 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         rng: &mut R,
         base_gen: &Point<C>,
         pedersen: &PedersenCycle<C, CC>,
-        commitments: &PointExpCommitments<C, CC>,
+        commitments: &ExpCommitmentPoints<C, CC>,
         security_param: usize,
+        q_point: Option<Point<C>>,
     ) -> Result<(), String> {
         if security_param > self.proofs.len() {
             return Err("security level not achieved".to_owned());
@@ -227,11 +241,11 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
 
         base_multimult.add_known(base_gen.clone());
         base_multimult.add_known(pedersen.base().generator().clone());
-        base_multimult.add_known(commitments.exp.commitment().clone());
+        base_multimult.add_known(commitments.exp.clone());
 
         let mut point_hasher = PointHasher::new(Self::HASH_ID);
-        point_hasher.insert_point(commitments.px.commitment());
-        point_hasher.insert_point(commitments.py.commitment());
+        point_hasher.insert_point(&commitments.px);
+        point_hasher.insert_point(&commitments.py);
 
         for i in 0..security_param {
             point_hasher.insert_point(&self.proofs[i].a);
@@ -301,14 +315,14 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
 
                     let mut relation_a = Relation::<C>::new();
                     relation_a.insert(t.clone(), Scalar::<C>::ONE);
-                    relation_a.insert(commitments.exp.clone().into_commitment(), Scalar::<C>::ONE);
+                    relation_a.insert(commitments.exp.clone(), Scalar::<C>::ONE);
                     relation_a.insert((&self.proofs[i].a).neg(), Scalar::<C>::ONE);
                     relation_a.insert(pedersen.base().generator().clone(), *r);
 
                     relation_a.drain(rng, &mut base_multimult);
 
-                    if let Some(q) = commitments.q.as_ref() {
-                        t += q;
+                    if let Some(pt) = q_point.as_ref() {
+                        t += pt;
                     }
 
                     let coord_t = t.clone().into_affine();
@@ -325,8 +339,8 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                     let point_add_commitments = PointAddCommitmentPoints::new(
                         t1_com_x.into_commitment(),
                         t1_com_y.into_commitment(),
-                        commitments.px.commitment().clone(),
-                        commitments.py.commitment().clone(),
+                        commitments.px.clone(),
+                        commitments.py.clone(),
                         self.proofs[i].tx_p.clone(),
                         self.proofs[i].ty_p.clone(),
                     );
@@ -447,8 +461,8 @@ mod test {
         let exponent = Scalar::<Secp256k1>::random(&mut rng);
         let result = Point::<Secp256k1>::GENERATOR.scalar_mul(&exponent);
 
-        let secrets = PointExpSecrets::new(exponent, result);
-        let commitments = secrets.commit(&mut rng, &pedersen, None);
+        let secrets = ExpSecrets::new(exponent, result);
+        let commitments = secrets.commit(&mut rng, &pedersen);
 
         let security_param = 10;
         let exp_proof = ExpProof::construct(
@@ -458,11 +472,12 @@ mod test {
             &secrets,
             &commitments,
             security_param,
+            None,
         )
         .unwrap();
 
         assert!(exp_proof
-            .verify(&mut rng, &base_gen, &pedersen, &commitments, security_param,)
+            .verify(&mut rng, &base_gen, &pedersen, &commitments.into_commitments(), security_param, None)
             .is_ok())
     }
 
@@ -475,8 +490,8 @@ mod test {
         let exponent = Scalar::<Secp256k1>::random(&mut rng);
         let result = Point::<Secp256k1>::GENERATOR.scalar_mul(&(exponent + Scalar::ONE));
 
-        let secrets = PointExpSecrets::new(exponent, result);
-        let commitments = secrets.commit(&mut rng, &pedersen, None);
+        let secrets = ExpSecrets::new(exponent, result);
+        let commitments = secrets.commit(&mut rng, &pedersen);
 
         let security_param = 10;
         let exp_proof = ExpProof::construct(
@@ -486,11 +501,12 @@ mod test {
             &secrets,
             &commitments,
             security_param,
+            None
         )
         .unwrap();
 
         assert!(exp_proof
-            .verify(&mut rng, &base_gen, &pedersen, &commitments, security_param,)
+            .verify(&mut rng, &base_gen, &pedersen, &commitments.into_commitments(), security_param, None)
             .is_err());
     }
 }

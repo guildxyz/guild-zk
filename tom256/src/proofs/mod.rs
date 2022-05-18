@@ -5,7 +5,8 @@ mod multiplication;
 mod point_add;
 mod utils;
 
-pub use exp::{ExpProof, PointExpSecrets};
+// TODO these does not need to be public
+pub use exp::{ExpProof, ExpSecrets};
 pub use membership::MembershipProof;
 
 use crate::arithmetic::{Modular, Point, Scalar};
@@ -15,6 +16,9 @@ use crate::pedersen::{PedersenCommitment, PedersenCycle};
 
 use rand_core::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
+
+// NOTE 80 is conservative but slow, 40 is faster but quite low
+const SEC_PARAM: usize = 60;
 
 #[derive(Deserialize, Serialize)]
 pub struct ZkAttestProof<C: Curve, CC: Cycle<C>> {
@@ -54,11 +58,18 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
             .cycle()
             .commit(rng, input.pubkey.y().to_cycle_scalar());
 
-        let exp_secrets = PointExpSecrets::new(s1, input.pubkey);
-        let exp_commitments = exp_secrets.commit(rng, &pedersen, Some(q_point));
+        let exp_secrets = ExpSecrets::new(s1, input.pubkey);
+        let exp_commitments = exp_secrets.commit(rng, &pedersen);
 
-        let signature_proof =
-            ExpProof::construct(rng, &r_point, &pedersen, &exp_secrets, &exp_commitments, 60)?;
+        let signature_proof = ExpProof::construct(
+            rng,
+            &r_point,
+            &pedersen,
+            &exp_secrets,
+            &exp_commitments,
+            SEC_PARAM,
+            Some(q_point),
+        )?;
         let membership_proof = MembershipProof::construct(
             rng,
             pedersen.cycle(),
@@ -79,5 +90,38 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
             membership_proof,
             ring: input.ring,
         })
+    }
+
+    pub fn verify<R: CryptoRng + RngCore>(&self, rng: &mut R) -> Result<(), String> {
+        // TODO check msg hash using the commitment
+        // TODO verify the two proofs
+        // TODO verify all addresses in the ring via balancy (check hash?)
+        // TODO verify the address-pubkey relationship
+        let r_point_affine = self.r_point.to_affine();
+        if r_point_affine.is_identity() {
+            return Err("R is at infinity".to_string());
+        }
+
+        /*
+        let r_inv = r_point_affine.x().inverse();
+        let z1 = r_inv * self.msg_hash;
+        let q_point = &Point::<C>::GENERATOR * z1;
+
+        let membership_result = self.membership_proof.verify(
+            rng,
+            self.pedersen.cycle(),
+            &self.commitment_to_address,
+            &self.ring,
+        );
+
+        let signature_result = self.signature_proof.verify(
+            rng,
+            &self.r_point,
+            &self.pedersen,
+            // TODO commitments
+            SEC_PARAM,
+        );
+        */
+        todo!()
     }
 }

@@ -15,11 +15,16 @@ use proofs::MembershipProof;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(js_name = "generateProof")]
-pub fn generateProof(
+pub fn generate_proof(
     input: JsValue,
     commitment_to_address: JsValue,
     pedersen: JsValue,
 ) -> Result<JsValue, JsValue> {
+    todo!();
+}
+
+#[wasm_bindgen(js_name = "verifyProof")]
+pub fn verify_proof(proof: JsValue) -> Result<JsValue, JsValue> {
     todo!();
 }
 
