@@ -50,7 +50,7 @@ pub struct ExpCommitments<C: Curve, CC: Cycle<C>> {
     exp: PedersenCommitment<C>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct ExpCommitmentPoints<C: Curve, CC: Cycle<C>> {
     px: Point<CC>,
     py: Point<CC>,
@@ -98,6 +98,12 @@ impl<C: Curve, CC: Cycle<C>> ExpCommitments<C, CC> {
     }
 }
 
+impl<C: Curve, CC: Cycle<C>> ExpCommitmentPoints<C, CC> {
+    pub fn new(exp: Point<C>, px: Point<CC>, py: Point<CC>) -> Self {
+        Self { exp, px, py }
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct ExpProof<C: Curve, CC: Cycle<C>> {
     proofs: Vec<SingleExpProof<C, CC>>,
@@ -113,7 +119,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         secrets: &ExpSecrets<C>,
         commitments: &ExpCommitments<C, CC>,
         security_param: usize,
-        q_point: Option<Point<C>>,
+        q_point: Option<&Point<C>>,
     ) -> Result<Self, String> {
         let mut alpha_vec = Vec::<Scalar<C>>::with_capacity(security_param);
         let mut r_vec = Vec::<Scalar<C>>::with_capacity(security_param);
@@ -180,7 +186,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
             } else {
                 let z = alpha - secrets.exp;
                 let mut t1 = &Point::<C>::GENERATOR * z;
-                if let Some(pt) = q_point.as_ref() {
+                if let Some(pt) = q_point {
                     t1 += pt;
                 }
 
@@ -230,7 +236,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         pedersen: &PedersenCycle<C, CC>,
         commitments: &ExpCommitmentPoints<C, CC>,
         security_param: usize,
-        q_point: Option<Point<C>>,
+        q_point: Option<&Point<C>>,
     ) -> Result<(), String> {
         if security_param > self.proofs.len() {
             return Err("security level not achieved".to_owned());
@@ -324,7 +330,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
 
                     relation_a.drain(rng, &mut base_multimult);
 
-                    if let Some(pt) = q_point.as_ref() {
+                    if let Some(pt) = q_point {
                         t += pt;
                     }
 

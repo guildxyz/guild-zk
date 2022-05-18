@@ -6,7 +6,7 @@ mod point_add;
 mod utils;
 
 // TODO these does not need to be public
-pub use exp::{ExpProof, ExpSecrets};
+pub use exp::{ExpCommitmentPoints, ExpProof, ExpSecrets};
 pub use membership::MembershipProof;
 
 use crate::arithmetic::{Modular, Point, Scalar};
@@ -25,10 +25,9 @@ pub struct ZkAttestProof<C: Curve, CC: Cycle<C>> {
     pub pedersen: PedersenCycle<C, CC>,
     pub msg_hash: Scalar<C>,
     pub r_point: Point<C>,
-    pub commitment_to_s1: Point<C>,
+    pub q_point: Option<Point<C>>,
     pub commitment_to_address: Point<CC>,
-    pub commitment_to_pk_x: Point<CC>,
-    pub commitment_to_pk_y: Point<CC>,
+    pub exp_commitments: ExpCommitmentPoints<C, CC>, // s1, pkx, pxy
     pub signature_proof: ExpProof<C, CC>,
     pub membership_proof: MembershipProof<CC>,
     pub ring: Vec<Scalar<CC>>,
@@ -68,7 +67,7 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
             &exp_secrets,
             &exp_commitments,
             SEC_PARAM,
-            Some(q_point),
+            Some(&q_point),
         )?;
         let membership_proof = MembershipProof::construct(
             rng,
@@ -78,14 +77,19 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
             &input.ring,
         )?;
 
+        let exp_commitments = ExpCommitmentPoints::new(
+            commitment_to_s1.into_commitment(),
+            commitment_to_pk_x.into_commitment(),
+            commitment_to_pk_y.into_commitment(),
+        );
+
         Ok(Self {
             pedersen,
             msg_hash: input.msg_hash,
             r_point,
-            commitment_to_s1: commitment_to_s1.into_commitment(),
+            q_point: Some(q_point),
             commitment_to_address: commitment_to_address.into_commitment(),
-            commitment_to_pk_x: commitment_to_pk_x.into_commitment(),
-            commitment_to_pk_y: commitment_to_pk_y.into_commitment(),
+            exp_commitments,
             signature_proof,
             membership_proof,
             ring: input.ring,
@@ -94,7 +98,6 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
 
     pub fn verify<R: CryptoRng + RngCore>(&self, rng: &mut R) -> Result<(), String> {
         // TODO check msg hash using the commitment
-        // TODO verify the two proofs
         // TODO verify all addresses in the ring via balancy (check hash?)
         // TODO verify the address-pubkey relationship
         let r_point_affine = self.r_point.to_affine();
@@ -102,26 +105,28 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
             return Err("R is at infinity".to_string());
         }
 
-        /*
-        let r_inv = r_point_affine.x().inverse();
+        // NOTE weird: a field element Rx is converted
+        // directly into a scalar
+        let r_inv = Scalar::<C>::new(*r_point_affine.x().inverse().inner());
         let z1 = r_inv * self.msg_hash;
         let q_point = &Point::<C>::GENERATOR * z1;
 
-        let membership_result = self.membership_proof.verify(
+        self.membership_proof.verify(
             rng,
             self.pedersen.cycle(),
             &self.commitment_to_address,
             &self.ring,
-        );
+        )?;
 
-        let signature_result = self.signature_proof.verify(
+        self.signature_proof.verify(
             rng,
             &self.r_point,
             &self.pedersen,
-            // TODO commitments
+            &self.exp_commitments,
             SEC_PARAM,
-        );
-        */
-        todo!()
+            self.q_point.as_ref(),
+        )?;
+
+        Ok(())
     }
 }
