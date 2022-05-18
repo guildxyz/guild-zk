@@ -47,6 +47,29 @@ impl<C: Curve> PointAddSecrets<C> {
             ry: pedersen_generator.commit(rng, self.r.y().to_cycle_scalar()),
         }
     }
+
+    pub fn commit_p_only<R, CC>(
+        &self,
+        rng: &mut R,
+        pedersen_generator: &PedersenGenerator<CC>,
+        qx: PedersenCommitment<CC>,
+        qy: PedersenCommitment<CC>,
+        rx: PedersenCommitment<CC>,
+        ry: PedersenCommitment<CC>,
+    ) -> PointAddCommitments<CC>
+    where
+        R: CryptoRng + RngCore,
+        CC: Cycle<C>,
+    {
+        PointAddCommitments {
+            px: pedersen_generator.commit(rng, self.p.x().to_cycle_scalar()),
+            py: pedersen_generator.commit(rng, self.p.y().to_cycle_scalar()),
+            qx,
+            qy,
+            rx,
+            ry,
+        }
+    }
 }
 
 #[derive(Clone)]

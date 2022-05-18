@@ -190,12 +190,15 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
 
                 // Generate point add proof
                 let add_secret = PointAddSecrets::new(t1, secrets.point.clone(), t);
-                // TODO manually
-                let mut add_commitments = add_secret.commit(rng, pedersen.cycle());
-                add_commitments.qx = commitments.px.clone();
-                add_commitments.qy = commitments.py.clone();
-                add_commitments.rx = tx.clone();
-                add_commitments.ry = ty.clone();
+                // NOTE only commits t1 and uses existing commitments for the rest
+                let add_commitments = add_secret.commit_p_only(
+                    rng,
+                    pedersen.cycle(),
+                    commitments.px.clone(),
+                    commitments.py.clone(),
+                    tx.clone(),
+                    ty.clone(),
+                );
                 let add_proof =
                     PointAddProof::construct(rng, pedersen.cycle(), &add_commitments, &add_secret);
 
@@ -477,7 +480,14 @@ mod test {
         .unwrap();
 
         assert!(exp_proof
-            .verify(&mut rng, &base_gen, &pedersen, &commitments.into_commitments(), security_param, None)
+            .verify(
+                &mut rng,
+                &base_gen,
+                &pedersen,
+                &commitments.into_commitments(),
+                security_param,
+                None
+            )
             .is_ok())
     }
 
@@ -501,12 +511,19 @@ mod test {
             &secrets,
             &commitments,
             security_param,
-            None
+            None,
         )
         .unwrap();
 
         assert!(exp_proof
-            .verify(&mut rng, &base_gen, &pedersen, &commitments.into_commitments(), security_param, None)
+            .verify(
+                &mut rng,
+                &base_gen,
+                &pedersen,
+                &commitments.into_commitments(),
+                security_param,
+                None
+            )
             .is_err());
     }
 }
