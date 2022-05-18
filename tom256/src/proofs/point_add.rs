@@ -337,11 +337,13 @@ mod test {
 
         let proof = PointAddProof::construct(&mut rng, &pedersen_generator, &commitments, &secret);
 
-        assert!(proof.verify(
-            &mut rng,
-            &pedersen_generator,
-            &commitments.into_commitments()
-        ).is_ok());
+        assert!(proof
+            .verify(
+                &mut rng,
+                &pedersen_generator,
+                &commitments.into_commitments()
+            )
+            .is_ok());
     }
 
     #[test]
@@ -357,11 +359,13 @@ mod test {
 
         let proof = PointAddProof::construct(&mut rng, &pedersen_generator, &commitments, &secret);
 
-        assert!(proof.verify(
-            &mut rng,
-            &pedersen_generator,
-            &commitments.into_commitments()
-        ).is_err());
+        assert!(proof
+            .verify(
+                &mut rng,
+                &pedersen_generator,
+                &commitments.into_commitments()
+            )
+            .is_err());
     }
 
     // NOTE: Turning this test on probably fails due to the multimult iteration cap

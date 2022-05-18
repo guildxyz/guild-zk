@@ -160,22 +160,26 @@ mod test {
         );
 
         let invalid_pedersen_generator = PedersenGenerator::new(&mut rng);
-        assert!(equality_proof.verify(
-            &mut rng,
-            &invalid_pedersen_generator,
-            secret_commitment_1.commitment(),
-            secret_commitment_2.commitment(),
-        ).is_err());
+        assert!(equality_proof
+            .verify(
+                &mut rng,
+                &invalid_pedersen_generator,
+                secret_commitment_1.commitment(),
+                secret_commitment_2.commitment(),
+            )
+            .is_err());
 
         let invalid_secret = Scalar::<Tom256k1>::random(&mut rng);
         let invalid_secret_commitment_1 = pedersen_generator.commit(&mut rng, invalid_secret);
         let invalid_secret_commitment_2 = pedersen_generator.commit(&mut rng, invalid_secret);
 
-        assert!(equality_proof.verify(
-            &mut rng,
-            &pedersen_generator,
-            invalid_secret_commitment_1.commitment(),
-            invalid_secret_commitment_2.commitment(),
-        ).is_err());
+        assert!(equality_proof
+            .verify(
+                &mut rng,
+                &pedersen_generator,
+                invalid_secret_commitment_1.commitment(),
+                invalid_secret_commitment_2.commitment(),
+            )
+            .is_err());
     }
 }

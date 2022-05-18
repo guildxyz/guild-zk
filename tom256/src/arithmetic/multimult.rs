@@ -10,7 +10,7 @@ use rand_core::{CryptoRng, RngCore};
 use std::fmt;
 
 // Maximum iterations within the multimult evaluate() before terminating,
-// although infinite loops should not occur 
+// although infinite loops should not occur
 // Exp_proof verifications usually take less than 20_000 iterations
 const MULTIMULT_EVAL_MAX_ITERATIONS: usize = 50_000;
 
@@ -117,7 +117,6 @@ impl<C: Curve> MultiMult<C> {
                 pairs_heap.push(c);
             }
         }
-        
     }
 }
 

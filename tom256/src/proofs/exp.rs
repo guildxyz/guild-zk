@@ -464,8 +464,7 @@ mod test {
         )
         .unwrap();
 
-        let exp_verify_result = exp_proof
-        .verify(
+        let exp_verify_result = exp_proof.verify(
             &mut rng,
             &base_pedersen_generator,
             &tom_pedersen_generator,
