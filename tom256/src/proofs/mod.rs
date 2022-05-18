@@ -47,9 +47,6 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
         let s1 = r_inv * input.signature.s;
         let z1 = r_inv * input.msg_hash;
         let q_point = &Point::<C>::GENERATOR * z1;
-        println!("PROVE R_INV");
-        println!("{}", r_inv);
-        println!("{}", q_point);
 
         let commitment_to_s1 = pedersen.base().commit_with_generator(rng, s1, &r_point);
         let commitment_to_pk_x = pedersen
@@ -111,9 +108,6 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
         let r_inv = Scalar::<C>::new(*r_point_affine.x().inner()).inverse();
         let z1 = r_inv * self.msg_hash;
         let q_point = &Point::<C>::GENERATOR * z1;
-        println!("VER R_INV");
-        println!("{}", r_inv);
-        println!("{}", q_point);
 
         self.membership_proof.verify(
             rng,

@@ -185,7 +185,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                 });
             } else {
                 let z = alpha - secrets.exp;
-                let mut t1 = &Point::<C>::GENERATOR * z;
+                let mut t1 = base_gen * z;
                 if let Some(pt) = q_point.as_ref() {
                     t1 += pt;
                 }
@@ -320,7 +320,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                         return Err("challenge hash mismatch".to_owned());
                     }
 
-                    let mut t = Point::<C>::GENERATOR.scalar_mul(z);
+                    let mut t = base_gen.scalar_mul(z);
 
                     let mut relation_a = Relation::<C>::new();
                     relation_a.insert(t.clone(), Scalar::<C>::ONE);
