@@ -6,7 +6,7 @@ mod point_add;
 mod utils;
 
 // TODO these does not need to be public
-pub use exp::{ExpCommitmentPoints, ExpProof, ExpSecrets};
+pub use exp::{ExpCommitmentPoints, ExpCommitments, ExpProof, ExpSecrets};
 pub use membership::MembershipProof;
 
 use crate::arithmetic::{Modular, Point, Scalar};
@@ -47,8 +47,11 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
         let s1 = r_inv * input.signature.s;
         let z1 = r_inv * input.msg_hash;
         let q_point = &Point::<C>::GENERATOR * z1;
+        println!("PROVE R_INV");
+        println!("{}", r_inv);
+        println!("{}", q_point);
 
-        let commitment_to_s1 = pedersen.base().commit(rng, s1);
+        let commitment_to_s1 = pedersen.base().commit_with_generator(rng, s1, &r_point);
         let commitment_to_pk_x = pedersen
             .cycle()
             .commit(rng, input.pubkey.x().to_cycle_scalar());
@@ -57,7 +60,11 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
             .commit(rng, input.pubkey.y().to_cycle_scalar());
 
         let exp_secrets = ExpSecrets::new(s1, input.pubkey);
-        let exp_commitments = exp_secrets.commit(rng, &pedersen);
+        let exp_commitments = ExpCommitments {
+            px: commitment_to_pk_x,
+            py: commitment_to_pk_y,
+            exp: commitment_to_s1,
+        };
 
         let signature_proof = ExpProof::construct(
             rng,
@@ -76,11 +83,7 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
             &input.ring,
         )?;
 
-        let exp_commitments = ExpCommitmentPoints::new(
-            commitment_to_s1.into_commitment(),
-            commitment_to_pk_x.into_commitment(),
-            commitment_to_pk_y.into_commitment(),
-        );
+        let exp_commitments = exp_commitments.into_commitments();
 
         Ok(Self {
             pedersen,
@@ -105,9 +108,12 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
 
         // NOTE weird: a field element Rx is converted
         // directly into a scalar
-        let r_inv = Scalar::<C>::new(*r_point_affine.x().inverse().inner());
+        let r_inv = Scalar::<C>::new(*r_point_affine.x().inner()).inverse();
         let z1 = r_inv * self.msg_hash;
         let q_point = &Point::<C>::GENERATOR * z1;
+        println!("VER R_INV");
+        println!("{}", r_inv);
+        println!("{}", q_point);
 
         self.membership_proof.verify(
             rng,

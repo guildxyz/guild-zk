@@ -45,9 +45,9 @@ pub struct ExpSecrets<C: Curve> {
 
 #[derive(Clone)]
 pub struct ExpCommitments<C: Curve, CC: Cycle<C>> {
-    px: PedersenCommitment<CC>,
-    py: PedersenCommitment<CC>,
-    exp: PedersenCommitment<C>,
+    pub(crate) px: PedersenCommitment<CC>,
+    pub(crate) py: PedersenCommitment<CC>,
+    pub(crate) exp: PedersenCommitment<C>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
