@@ -1,24 +1,27 @@
 (async () => {
-	const { membershipProofTest, generatePedersenParams, commitAddress } = await import("../pkg");
+	const { generateZkProof, verifyZkProof, generatePedersenParams, commitAddress } = await import("../pkg");
 
 	try {
-		const address = "0x0679349AeA848f928cE886fbAE10a85660CBFecD"
+        const address = "0x2e3Eca6005eb4e30eA51692011612554586feaC9"
 		const pedersen = generatePedersenParams();
 		const commitment = commitAddress(address, pedersen);
-		// TODO sign this msg
-		// console.log(commitment.commitment.x + commitment.commitment.y + commitment.commitment.z)
-		const result = membershipProofTest(address, commitment, pedersen);
+		const input = {
+			msgHash: "0xb42062702a4acb9370edf5c571f2c7a6f448f8c42f3bfa59e622c1c064a94a14",
+			signature: "0xb2a7ff958cd78c8e896693b7b76550c8942d6499fb8cd621efb54909f9d51da02bfaadf918f09485740ba252445d40d44440fd810dbf8a9a18049157adcdaa8c1c",
+			pubkey: "0x0418a30afe39c280d2f43f05c070988dae7fbae9cdfd5fb6461acd7657e765e172fd55b3589c74fd4987b6004465afff77b039e631a68cdc7df9cd8cfd5cbe2887",
+			ring: [
+				"0x0e3Eca6005eb4e30eA51692011612554586feaC9",
+            	"0x1e3Eca6005eb4e30eA51692011612554586feaC9",
+            	address,
+            	"0x3e3Eca6005eb4e30eA51692011612554586feaC9",
+            	"0x4e3Eca6005eb4e30eA51692011612554586feaC9",
+			],
+			index: 2,
+		};
+		const proof = generateZkProof(input, commitment, pedersen);
+		const result = verifyZkProof(proof);
 		console.log(result)
 	} catch (error) {
 		console.log(error)
 	}
 }) ()
-/*
-{
-  "message": "hello-test",
-  "hashMessage": "0x1ab4850e7f0a85a521e87b274e3130efdb45f6a47e74e6dcebf5591c6bc8f16e",
-  "signature": "0x45c4039b611c0cc207ff7fb7a6899ea0431aac2cf37515d74a71f2df00e2c3e0096fad5e7eda762898fffd4644f8a7a406bf6bde868814ea03058c882fcd23311c",
-  "publicKey": "0x0408c6cd9400645819c8c556a6e83e0a7728f070a813bb9d24d5c24290e21fc5e438396f9333264d3e7c1d3e6ee1bc572b2f00b98db7065e9bf278f2b8dbe02718",
-  "address": "0x0679349AeA848f928cE886fbAE10a85660CBFecD"
-}
-*/
