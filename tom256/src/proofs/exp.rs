@@ -179,12 +179,6 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                     q: secrets.point.clone(),
                     r: t.into_affine(),
                 };
-                // TODO manually
-                let mut add_commitments = add_secret.commit(rng, tom_pedersen_generator);
-                add_commitments.qx = commitments.px.clone();
-                add_commitments.qy = commitments.py.clone();
-                add_commitments.rx = tx.clone();
-                add_commitments.ry = ty.clone();
 
                 let add_commitments = PointAddCommitments {
                     px: tom_pedersen_generator.commit(rng, t1_aff.x().to_cycle_scalar()),

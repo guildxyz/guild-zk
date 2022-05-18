@@ -29,6 +29,7 @@ impl<C: Curve> PointAddSecrets<C> {
         }
     }
 
+    #[allow(unused)]
     pub fn commit<R, CC>(
         &self,
         rng: &mut R,
