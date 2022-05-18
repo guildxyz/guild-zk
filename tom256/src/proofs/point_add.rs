@@ -20,6 +20,7 @@ pub struct PointAddSecrets<C: Curve> {
 impl<C: Curve> PointAddSecrets<C> {
     // TODO: using `AffinePoint` this could be implied
     /// Ensures that the stored point is affine.
+    #[allow(unused)]
     pub fn new(p: Point<C>, q: Point<C>, r: Point<C>) -> Self {
         // TODO debug_assert!(p + q = r) ?
         Self {
