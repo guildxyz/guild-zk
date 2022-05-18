@@ -2,7 +2,7 @@
 pub mod arithmetic;
 pub mod curve;
 mod hasher;
-mod parse;
+pub mod parse;
 pub mod pedersen;
 pub mod proofs;
 
