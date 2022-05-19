@@ -11,6 +11,7 @@ pub use membership::MembershipProof;
 
 use crate::arithmetic::{Modular, Point, Scalar};
 use crate::curve::{Curve, Cycle};
+use crate::hasher::PointHasher;
 use crate::parse::ParsedProofInput;
 use crate::pedersen::{PedersenCommitment, PedersenCycle};
 
@@ -98,12 +99,16 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
     }
 
     pub fn verify<R: CryptoRng + RngCore>(&self, rng: &mut R) -> Result<(), String> {
-        // TODO check msg hash using the commitment
-        // TODO verify all addresses in the ring via balancy (check hash?)
         // TODO verify the address-pubkey relationship
         let r_point_affine = self.r_point.to_affine();
         if r_point_affine.is_identity() {
             return Err("R is at infinity".to_string());
+        }
+
+        let mut hasher = PointHasher::new_empty();
+        hasher.insert_point(&self.commitment_to_address);
+        if Scalar::<C>::new(hasher.finalize()) != self.msg_hash {
+            return Err("invalid signed message".to_string());
         }
 
         // NOTE weird: a field element Rx is converted
