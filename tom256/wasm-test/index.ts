@@ -1,9 +1,10 @@
 (async () => {
-	const { generateZkProof, verifyZkProof, generatePedersenParams, commitAddress } = await import("../pkg");
+	const { generateProof, verifyProof, generatePedersenParameters, commitAddress } = await import("../pkg");
 
 	try {
-        const address = "0x2e3Eca6005eb4e30eA51692011612554586feaC9"
-		const pedersen = generatePedersenParams();
+		const start = performance.now();
+		const address = "0x2e3Eca6005eb4e30eA51692011612554586feaC9";
+		const pedersen = generatePedersenParameters();
 		const commitment = commitAddress(address, pedersen);
 		const input = {
 			msgHash: "0xb42062702a4acb9370edf5c571f2c7a6f448f8c42f3bfa59e622c1c064a94a14",
@@ -18,9 +19,11 @@
 			],
 			index: 2,
 		};
-		const proof = generateZkProof(input, commitment, pedersen);
-		const result = verifyZkProof(proof);
+		const proof = generateProof(input, commitment, pedersen);
+		const result = verifyProof(proof);
+		const elapsed = performance.now() - start;
 		console.log(result)
+		console.log(elapsed / 1000)
 	} catch (error) {
 		console.log(error)
 	}

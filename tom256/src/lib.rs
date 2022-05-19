@@ -13,8 +13,8 @@ use pedersen::PedersenCycle;
 use proofs::ZkAttestProof;
 use wasm_bindgen::prelude::*;
 
-#[wasm_bindgen(js_name = "generateZkProof")]
-pub fn generate_zk_proof(
+#[wasm_bindgen(js_name = "generateProof")]
+pub fn generate_proof(
     input: JsValue,
     commitment_to_address: JsValue,
     pedersen: JsValue,
@@ -36,8 +36,8 @@ pub fn generate_zk_proof(
     JsValue::from_serde(&zk_attest_proof).map_err(|e| JsValue::from(e.to_string()))
 }
 
-#[wasm_bindgen(js_name = "verifyZkProof")]
-pub fn verify_zk_proof(proof: JsValue) -> Result<JsValue, JsValue> {
+#[wasm_bindgen(js_name = "verifyProof")]
+pub fn verify_proof(proof: JsValue) -> Result<JsValue, JsValue> {
     let mut rng = rand_core::OsRng;
     let proof: ZkAttestProof<Secp256k1, Tom256k1> =
         proof.into_serde().map_err(|e| e.to_string())?;
@@ -45,8 +45,8 @@ pub fn verify_zk_proof(proof: JsValue) -> Result<JsValue, JsValue> {
     Ok(JsValue::from(true))
 }
 
-#[wasm_bindgen(js_name = "generatePedersenParams")]
-pub fn generate_pedersen_params() -> Result<JsValue, JsValue> {
+#[wasm_bindgen(js_name = "generatePedersenParameters")]
+pub fn generate_pedersen_parameters() -> Result<JsValue, JsValue> {
     let mut rng = rand_core::OsRng;
     let pedersen = PedersenCycle::<Secp256k1, Tom256k1>::new(&mut rng);
     JsValue::from_serde(&pedersen).map_err(|e| JsValue::from(e.to_string()))
