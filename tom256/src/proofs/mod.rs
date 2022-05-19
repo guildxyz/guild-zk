@@ -99,16 +99,19 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
     }
 
     pub fn verify<R: CryptoRng + RngCore>(&self, rng: &mut R) -> Result<(), String> {
-        // TODO verify the address-pubkey relationship
-        let r_point_affine = self.r_point.to_affine();
-        if r_point_affine.is_identity() {
-            return Err("R is at infinity".to_string());
-        }
-
         let mut hasher = PointHasher::new_empty();
         hasher.insert_point(&self.commitment_to_address);
         if Scalar::<C>::new(hasher.finalize()) != self.msg_hash {
             return Err("invalid signed message".to_string());
+        }
+        self.verify_without_hash(rng)
+    }
+
+    fn verify_without_hash<R: CryptoRng + RngCore>(&self, rng: &mut R) -> Result<(), String> {
+        // TODO verify the address-pubkey relationship
+        let r_point_affine = self.r_point.to_affine();
+        if r_point_affine.is_identity() {
+            return Err("R is at infinity".to_string());
         }
 
         // NOTE weird: a field element Rx is converted
@@ -149,7 +152,7 @@ mod test {
     use rand_core::SeedableRng;
 
     #[test]
-    fn zkp_attest_valid() {
+    fn zkp_attest_without_hash() {
         let mut rng = StdRng::from_seed([14; 32]);
         let pedersen_cycle = PedersenCycle::<Secp256k1, Tom256k1>::new(&mut rng);
 
@@ -188,6 +191,6 @@ mod test {
             parsed_input,
         )
         .unwrap();
-        assert!(zkattest_proof.verify(&mut rng).is_ok());
+        assert!(zkattest_proof.verify_without_hash(&mut rng).is_ok());
     }
 }
