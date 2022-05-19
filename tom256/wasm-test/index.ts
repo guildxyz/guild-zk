@@ -1,6 +1,8 @@
 (async () => {
 	const { generateProof, verifyProof, generatePedersenParameters, commitAddress } = await import("../pkg");
 
+	// NOTE this should now throw an exception because the hash is just a random msg hash
+	// Thus this test is just a placeholder for now to check that wasm builds
 	try {
 		const start = performance.now();
 		const address = "0x2e3Eca6005eb4e30eA51692011612554586feaC9";
