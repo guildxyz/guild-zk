@@ -1,5 +1,6 @@
 use crate::arithmetic::{Modular, Scalar};
-use crate::{Curve, U256};
+use crate::curve::Curve;
+use crate::U256;
 
 pub fn pad_ring_to_2n<C: Curve>(ring: &mut Vec<Scalar<C>>) -> Result<usize, String> {
     // TODO ensure that the ring is not empty
@@ -60,23 +61,21 @@ pub fn interpolate<C: Curve>(x: &[Scalar<C>], y: &[Scalar<C>]) -> Result<Vec<Sca
     Ok(coeffs)
 }
 
-// TODO do we need this?
-#[allow(unused)]
-fn eval_poly<C: Curve>(coeffs: &[Scalar<C>], x: Scalar<C>) -> Scalar<C> {
-    let mut ret = Scalar::ZERO;
-    for coeff in coeffs.iter().rev() {
-        ret = *coeff + x * ret;
-    }
-    ret
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::arithmetic::Modular;
-    use crate::{Tom256k1, U256};
+    use crate::curve::Tom256k1;
 
     type TomScalar = Scalar<Tom256k1>;
+
+    // TODO do we need this and the respective test below?
+    fn eval_poly<C: Curve>(coeffs: &[Scalar<C>], x: Scalar<C>) -> Scalar<C> {
+        let mut ret = Scalar::ZERO;
+        for coeff in coeffs.iter().rev() {
+            ret = *coeff + x * ret;
+        }
+        ret
+    }
 
     #[test]
     fn pad_ring() {

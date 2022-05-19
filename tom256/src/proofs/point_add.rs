@@ -1,7 +1,7 @@
 use crate::arithmetic::multimult::MultiMult;
 use crate::arithmetic::{Modular, Point, Scalar};
+use crate::curve::{Curve, Cycle};
 use crate::pedersen::*;
-use crate::{Curve, Cycle};
 
 use super::equality::EqualityProof;
 use super::multiplication::MultiplicationProof;
@@ -29,6 +29,7 @@ impl<C: Curve> PointAddSecrets<C> {
         }
     }
 
+    #[allow(unused)]
     pub fn commit<R, CC>(
         &self,
         rng: &mut R,
@@ -45,6 +46,29 @@ impl<C: Curve> PointAddSecrets<C> {
             qy: pedersen_generator.commit(rng, self.q.y().to_cycle_scalar()),
             rx: pedersen_generator.commit(rng, self.r.x().to_cycle_scalar()),
             ry: pedersen_generator.commit(rng, self.r.y().to_cycle_scalar()),
+        }
+    }
+
+    pub fn commit_p_only<R, CC>(
+        &self,
+        rng: &mut R,
+        pedersen_generator: &PedersenGenerator<CC>,
+        qx: PedersenCommitment<CC>,
+        qy: PedersenCommitment<CC>,
+        rx: PedersenCommitment<CC>,
+        ry: PedersenCommitment<CC>,
+    ) -> PointAddCommitments<CC>
+    where
+        R: CryptoRng + RngCore,
+        CC: Cycle<C>,
+    {
+        PointAddCommitments {
+            px: pedersen_generator.commit(rng, self.p.x().to_cycle_scalar()),
+            py: pedersen_generator.commit(rng, self.p.y().to_cycle_scalar()),
+            qx,
+            qy,
+            rx,
+            ry,
         }
     }
 }
@@ -308,7 +332,7 @@ impl<CC: Cycle<C>, C: Curve> PointAddProof<CC, C> {
 mod test {
     use super::*;
     use crate::arithmetic::FieldElement;
-    use crate::{Secp256k1, Tom256k1};
+    use crate::curve::{Secp256k1, Tom256k1};
     use rand::rngs::StdRng;
     use rand_core::SeedableRng;
 

@@ -1,6 +1,7 @@
 use super::modular::{mod_u256, Modular};
 use super::Scalar;
-use crate::{Curve, Cycle, U256};
+use crate::curve::{Curve, Cycle};
+use crate::U256;
 
 use bigint::Encoding;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -13,7 +14,7 @@ impl<C: Curve> FieldElement<C> {
     pub const ONE: Self = Self(U256::ONE, PhantomData);
     pub const ZERO: Self = Self(U256::ZERO, PhantomData);
 
-    pub fn to_cycle_scalar<CC: Cycle<C>>(&self) -> Scalar<CC> {
+    pub fn to_cycle_scalar<CC: Cycle<C>>(self) -> Scalar<CC> {
         Scalar::<CC>::new(self.0)
     }
 }
@@ -132,7 +133,7 @@ impl<C: Curve> std::ops::MulAssign<&FieldElement<C>> for FieldElement<C> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{Secp256k1, Tom256k1};
+    use crate::curve::{Secp256k1, Tom256k1};
 
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     struct TestCurveSmallMod;

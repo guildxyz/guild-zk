@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use tom256::arithmetic::{Point, Scalar};
-use tom256::Tom256k1;
+use tom256::curve::Tom256k1;
 
 use rand::rngs::OsRng;
 use rand::Rng;
