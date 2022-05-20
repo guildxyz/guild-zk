@@ -324,7 +324,7 @@ impl<CC: Cycle<C>, C: Curve> PointAddProof<CC, C> {
     ) -> bool {
         let mut multimult = MultiMult::new();
         self.aggregate(rng, pedersen_generator, commitments, &mut multimult);
-        multimult.evaluate() == Point::<CC>::IDENTITY
+        multimult.evaluate().is_identity()
     }
 }
 
@@ -412,6 +412,6 @@ mod test {
                 &mut multimult,
             );
         }
-        assert_eq!(multimult.evaluate(), Point::IDENTITY);
+        assert!(multimult.evaluate().is_identity());
     }
 }

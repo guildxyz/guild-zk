@@ -223,7 +223,7 @@ impl<C: Curve> MembershipProof<C> {
         rel_final.insert(pedersen_generator.generator().clone(), -self.zd);
         rel_final.drain(rng, &mut multimult);
 
-        if multimult.evaluate() == Point::IDENTITY {
+        if multimult.evaluate().is_identity() {
             Ok(())
         } else {
             Err("failed to verify membership".to_owned())

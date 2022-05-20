@@ -180,7 +180,7 @@ impl<C: Curve> MultiplicationProof<C> {
             commitment_to_z,
             &mut multimult,
         );
-        multimult.evaluate() == Point::<C>::IDENTITY
+        multimult.evaluate().is_identity()
     }
 }
 
