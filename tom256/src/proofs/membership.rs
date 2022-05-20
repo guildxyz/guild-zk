@@ -1,12 +1,15 @@
 use super::utils::*;
 use crate::arithmetic::multimult::*;
 use crate::arithmetic::{Modular, Point, Scalar};
+use crate::curve::Curve;
+use crate::hasher::PointHasher;
 use crate::pedersen::*;
-use crate::utils::PointHasher;
-use crate::{Curve, U256};
+use crate::U256;
 
 use rand_core::{CryptoRng, RngCore};
+use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MembershipProof<C: Curve> {
     cl: Vec<Point<C>>,
     ca: Vec<Point<C>>,
@@ -220,7 +223,7 @@ impl<C: Curve> MembershipProof<C> {
         rel_final.insert(pedersen_generator.generator().clone(), -self.zd);
         rel_final.drain(rng, &mut multimult);
 
-        if multimult.evaluate() == Point::IDENTITY {
+        if multimult.evaluate().is_identity() {
             Ok(())
         } else {
             Err("failed to verify membership".to_owned())
@@ -250,7 +253,7 @@ impl<C: Curve> MembershipProof<C> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::Tom256k1;
+    use crate::curve::Tom256k1;
     use rand::rngs::StdRng;
     use rand_core::SeedableRng;
 

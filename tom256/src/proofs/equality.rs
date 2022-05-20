@@ -1,14 +1,15 @@
 use crate::arithmetic::multimult::{MultiMult, Relation};
 use crate::arithmetic::{Modular, Point, Scalar};
+use crate::curve::Curve;
+use crate::hasher::PointHasher;
 use crate::pedersen::*;
-use crate::utils::PointHasher;
-use crate::Curve;
 
 use rand_core::{CryptoRng, RngCore};
+use serde::{Deserialize, Serialize};
 
 use std::ops::Neg;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct EqualityProof<C: Curve> {
     commitment_to_random_1: Point<C>,
     commitment_to_random_2: Point<C>,
@@ -104,14 +105,14 @@ impl<C: Curve> EqualityProof<C> {
             commitment_2,
             &mut multimult,
         );
-        multimult.evaluate() == Point::<C>::IDENTITY
+        multimult.evaluate().is_identity()
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::Tom256k1;
+    use crate::curve::Tom256k1;
     use rand::rngs::StdRng;
     use rand_core::SeedableRng;
 

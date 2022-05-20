@@ -1,9 +1,33 @@
 use crate::arithmetic::{Point, Scalar};
-use crate::Curve;
+use crate::curve::{Curve, Cycle};
 
 use rand_core::{CryptoRng, RngCore};
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct PedersenCycle<C: Curve, CC: Cycle<C>> {
+    base: PedersenGenerator<C>,
+    cycle: PedersenGenerator<CC>,
+}
+
+impl<C: Curve, CC: Cycle<C>> PedersenCycle<C, CC> {
+    pub fn new<R: CryptoRng + RngCore>(rng: &mut R) -> Self {
+        Self {
+            base: PedersenGenerator::new(rng),
+            cycle: PedersenGenerator::new(rng),
+        }
+    }
+
+    pub fn base(&self) -> &PedersenGenerator<C> {
+        &self.base
+    }
+
+    pub fn cycle(&self) -> &PedersenGenerator<CC> {
+        &self.cycle
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PedersenGenerator<C: Curve>(Point<C>);
 
 impl<C: Curve> PedersenGenerator<C> {
@@ -31,6 +55,20 @@ impl<C: Curve> PedersenGenerator<C> {
             randomness,
         }
     }
+    pub fn commit_with_generator<R: CryptoRng + RngCore>(
+        &self,
+        rng: &mut R,
+        secret: Scalar<C>,
+        generator: &Point<C>,
+    ) -> PedersenCommitment<C> {
+        let randomness = Scalar::random(rng);
+        let commitment = self.0.double_mul(&randomness, generator, &secret);
+
+        PedersenCommitment {
+            commitment,
+            randomness,
+        }
+    }
 
     pub fn commit_with_randomness(
         &self,
@@ -48,7 +86,7 @@ impl<C: Curve> PedersenGenerator<C> {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PedersenCommitment<C: Curve> {
     commitment: Point<C>,
     randomness: Scalar<C>,
@@ -109,7 +147,7 @@ impl<C: Curve> std::ops::Mul<&Scalar<C>> for &PedersenCommitment<C> {
 mod test {
     use super::*;
     use crate::arithmetic::Modular;
-    use crate::Tom256k1;
+    use crate::curve::Tom256k1;
     use bigint::U256;
     use rand::rngs::StdRng;
     use rand_core::SeedableRng;

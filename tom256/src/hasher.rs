@@ -1,5 +1,6 @@
 use crate::arithmetic::{Modular, Point};
-use crate::{Curve, U256};
+use crate::curve::Curve;
+use crate::U256;
 
 use bigint::Encoding;
 use sha3::{Digest, Sha3_256};
@@ -40,8 +41,8 @@ impl PointHasher {
 #[test]
 fn points_hash_test() {
     let hash_id = "test".as_bytes();
-    let g = Point::<crate::Secp256k1>::GENERATOR;
-    let g2 = Point::<crate::Secp256k1>::GENERATOR.double();
+    let g = Point::<crate::curve::Secp256k1>::GENERATOR;
+    let g2 = Point::<crate::curve::Secp256k1>::GENERATOR.double();
     let points = vec![&g, &g2];
     let expected_hash = "C9B5BD2009A84423D2CBCEB411CDDAF7423B372B5F63821DACFFFA0041A6B8F7";
     let mut hasher = PointHasher::new(hash_id);

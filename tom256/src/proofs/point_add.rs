@@ -1,13 +1,14 @@
 use crate::arithmetic::multimult::MultiMult;
 use crate::arithmetic::AffinePoint;
 use crate::arithmetic::{Modular, Point, Scalar};
+use crate::curve::{Curve, Cycle};
 use crate::pedersen::*;
-use crate::{Curve, Cycle};
 
 use super::equality::EqualityProof;
 use super::multiplication::MultiplicationProof;
 
 use rand_core::{CryptoRng, RngCore};
+use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 
 #[derive(Clone)]
@@ -30,6 +31,7 @@ impl<C: Curve> PointAddSecrets<C> {
         }
     }
 
+    #[allow(unused)]
     pub fn commit<R, CC>(
         &self,
         rng: &mut R,
@@ -46,6 +48,29 @@ impl<C: Curve> PointAddSecrets<C> {
             qy: pedersen_generator.commit(rng, self.q.y().to_cycle_scalar()),
             rx: pedersen_generator.commit(rng, self.r.x().to_cycle_scalar()),
             ry: pedersen_generator.commit(rng, self.r.y().to_cycle_scalar()),
+        }
+    }
+
+    pub fn commit_p_only<R, CC>(
+        &self,
+        rng: &mut R,
+        pedersen_generator: &PedersenGenerator<CC>,
+        qx: PedersenCommitment<CC>,
+        qy: PedersenCommitment<CC>,
+        rx: PedersenCommitment<CC>,
+        ry: PedersenCommitment<CC>,
+    ) -> PointAddCommitments<CC>
+    where
+        R: CryptoRng + RngCore,
+        CC: Cycle<C>,
+    {
+        PointAddCommitments {
+            px: pedersen_generator.commit(rng, self.p.x().to_cycle_scalar()),
+            py: pedersen_generator.commit(rng, self.p.y().to_cycle_scalar()),
+            qx,
+            qy,
+            rx,
+            ry,
         }
     }
 }
@@ -74,6 +99,7 @@ impl<C: Curve> PointAddCommitments<C> {
     }
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PointAddCommitmentPoints<C: Curve> {
     px: Point<C>,
     py: Point<C>,
@@ -103,6 +129,7 @@ impl<C: Curve> PointAddCommitmentPoints<C> {
     }
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MultCommitProof<C: Curve> {
     commitment: Point<C>,
     proof: MultiplicationProof<C>,
@@ -114,6 +141,7 @@ impl<C: Curve> MultCommitProof<C> {
     }
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PointAddProof<CC: Cycle<C>, C: Curve> {
     mult_proof_8: MultCommitProof<CC>,
     mult_proof_10: MultCommitProof<CC>,
@@ -298,7 +326,7 @@ impl<CC: Cycle<C>, C: Curve> PointAddProof<CC, C> {
     ) -> bool {
         let mut multimult = MultiMult::new();
         self.aggregate(rng, pedersen_generator, commitments, &mut multimult);
-        multimult.evaluate() == Point::<CC>::IDENTITY
+        multimult.evaluate().is_identity()
     }
 }
 
@@ -306,7 +334,7 @@ impl<CC: Cycle<C>, C: Curve> PointAddProof<CC, C> {
 mod test {
     use super::*;
     use crate::arithmetic::FieldElement;
-    use crate::{Secp256k1, Tom256k1};
+    use crate::curve::{Secp256k1, Tom256k1};
     use rand::rngs::StdRng;
     use rand_core::SeedableRng;
 
@@ -386,6 +414,6 @@ mod test {
                 &mut multimult,
             );
         }
-        assert_eq!(multimult.evaluate(), Point::IDENTITY);
+        assert!(multimult.evaluate().is_identity());
     }
 }

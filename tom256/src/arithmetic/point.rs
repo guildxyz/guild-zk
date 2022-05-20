@@ -2,8 +2,10 @@ use super::affine_point::AffinePoint;
 use super::field::FieldElement;
 use super::modular::{mul_mod_u256, Modular};
 use super::scalar::Scalar;
-use crate::{Curve, U256};
+use crate::curve::Curve;
+use crate::U256;
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
 use std::marker::PhantomData;
@@ -12,7 +14,7 @@ const BASE_16_DIGITS: [char; 16] = [
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
 ];
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Point<C: Curve> {
     x: FieldElement<C>,
     y: FieldElement<C>,
@@ -300,7 +302,7 @@ impl<C: Curve> Point<C> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{Secp256k1, Tom256k1};
+    use crate::curve::{Secp256k1, Tom256k1};
 
     type SecPoint = Point<Secp256k1>;
     type TomPoint = Point<Tom256k1>;
