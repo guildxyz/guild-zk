@@ -99,11 +99,11 @@ impl<'a, 'b, C: Curve> std::ops::Sub<&'b AffinePoint<C>> for &'a Point<C> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::curve::{Secp256k1, Tom256k1};
     use crate::arithmetic::Scalar;
+    use crate::curve::{Secp256k1, Tom256k1};
 
     use bigint::U256;
-    
+
     type SecPoint = Point<Secp256k1>;
     type TomPoint = Point<Tom256k1>;
 

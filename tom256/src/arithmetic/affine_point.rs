@@ -14,7 +14,6 @@ pub struct AffinePoint<C: Curve> {
     z: FieldElement<C>,
 }
 
-
 impl<C: Curve + PartialEq> PartialEq for AffinePoint<C> {
     fn eq(&self, other: &Self) -> bool {
         (self.is_identity() && other.is_identity()) || (self.x == other.x && self.y == other.y)
@@ -41,17 +40,13 @@ impl<C: Curve> From<&AffinePoint<C>> for Point<C> {
 
 impl<C: Curve> AffinePoint<C> {
     pub fn new(x: FieldElement<C>, y: FieldElement<C>, z: FieldElement<C>) -> Self {
-        let z = if z != FieldElement::<C>::ZERO{
+        let z = if z != FieldElement::<C>::ZERO {
             FieldElement::<C>::ONE
         } else {
             FieldElement::<C>::ZERO
         };
 
-        Self {
-            x,
-            y,
-            z,
-        }
+        Self { x, y, z }
     }
 
     pub fn new_identity() -> Self {
@@ -91,8 +86,8 @@ impl<C: Curve> AffinePoint<C> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{Secp256k1, Tom256k1};
     use crate::arithmetic::Scalar;
+    use crate::{Secp256k1, Tom256k1};
 
     type SecPoint = Point<Secp256k1>;
     type TomPoint = Point<Tom256k1>;
