@@ -1,33 +1,16 @@
 use super::affine_point::AffinePoint;
 use super::field::FieldElement;
-use super::modular::{mul_mod_u256, Modular};
-use super::scalar::Scalar;
+use super::modular::Modular;
 use crate::curve::Curve;
-use crate::U256;
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::fmt;
 use std::marker::PhantomData;
-
-const BASE_16_DIGITS: [char; 16] = [
-    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
-];
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Point<C: Curve> {
     x: FieldElement<C>,
     y: FieldElement<C>,
     z: FieldElement<C>,
-}
-
-impl<C: Curve> fmt::Display for Point<C> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f)?;
-        writeln!(f, "x: {}", self.x.inner())?;
-        writeln!(f, "y: {}", self.y.inner())?;
-        writeln!(f, "z: {}", self.z.inner())
-    }
 }
 
 impl<C: Curve + PartialEq> PartialEq for Point<C> {
@@ -41,76 +24,6 @@ impl<C: Curve + PartialEq> PartialEq for Point<C> {
     }
 }
 
-impl<C: Curve> std::ops::Neg for Point<C> {
-    type Output = Self;
-    fn neg(self) -> Self {
-        Self {
-            x: self.x,
-            y: -self.y,
-            z: self.z,
-        }
-    }
-}
-
-impl<C: Curve> std::ops::Neg for &Point<C> {
-    type Output = Point<C>;
-    fn neg(self) -> Self::Output {
-        Point {
-            x: self.x,
-            y: -self.y,
-            z: self.z,
-        }
-    }
-}
-
-impl<C: Curve> std::ops::Add for Point<C> {
-    type Output = Self;
-    fn add(self, rhs: Self) -> Self {
-        self.geometric_add(&rhs)
-    }
-}
-
-impl<'a, 'b, C: Curve> std::ops::Add<&'b Point<C>> for &'a Point<C> {
-    type Output = Point<C>;
-    fn add(self, rhs: &'b Point<C>) -> Self::Output {
-        self.geometric_add(rhs)
-    }
-}
-
-impl<C: Curve> std::ops::AddAssign<&Point<C>> for Point<C> {
-    fn add_assign(&mut self, rhs: &Self) {
-        *self = &*self + rhs
-    }
-}
-
-impl<C: Curve> std::ops::Sub for Point<C> {
-    type Output = Point<C>;
-    fn sub(self, rhs: Self) -> Self {
-        self + (-rhs)
-    }
-}
-
-impl<'a, 'b, C: Curve> std::ops::Sub<&'b Point<C>> for &'a Point<C> {
-    type Output = Point<C>;
-    fn sub(self, rhs: &'b Point<C>) -> Self::Output {
-        self + &(-rhs)
-    }
-}
-
-impl<C: Curve> std::ops::Mul<Scalar<C>> for &Point<C> {
-    type Output = Point<C>;
-    fn mul(self, rhs: Scalar<C>) -> Self::Output {
-        self.scalar_mul(&rhs)
-    }
-}
-
-impl<'a, 'b, C: Curve> std::ops::Mul<&'b Scalar<C>> for &'a Point<C> {
-    type Output = Point<C>;
-    fn mul(self, rhs: &'b Scalar<C>) -> Self::Output {
-        self.scalar_mul(rhs)
-    }
-}
-
 impl<C: Curve> Point<C> {
     pub const GENERATOR: Self = Self {
         x: FieldElement(C::GENERATOR_X, PhantomData),
@@ -118,7 +31,7 @@ impl<C: Curve> Point<C> {
         z: FieldElement::ONE,
     };
 
-    pub const IDENTITY: Self = Self {
+    pub const IDENTITY: Point<C> = Point::<C> {
         x: FieldElement::ZERO,
         y: FieldElement::ONE,
         z: FieldElement::ZERO,
@@ -128,152 +41,12 @@ impl<C: Curve> Point<C> {
         Self { x, y, z }
     }
 
-    pub fn is_on_curve(&self) -> bool {
-        let a = FieldElement::new(C::COEFF_A);
-        let b = FieldElement::new(C::COEFF_B);
-
-        let y2 = self.y * self.y;
-        let y2z = y2 * self.z;
-        let x3 = self.x * self.x * self.x;
-        let ax = a * self.x;
-        let z2 = self.z * self.z;
-        let axz2 = ax * z2;
-        let z3 = z2 * self.z;
-        let bz3 = b * z3;
-        let t5 = y2z - (x3 + axz2 + bz3);
-
-        t5.inner() == &U256::ZERO
-    }
-
-    pub fn double(&self) -> Self {
-        self + self
-    }
-
-    pub fn geometric_add(&self, rhs: &Self) -> Self {
-        let b3 = FieldElement::new(mul_mod_u256(
-            &U256::from_u8(3),
-            &C::COEFF_B,
-            &C::PRIME_MODULUS,
-        ));
-        let a = FieldElement::new(C::COEFF_A);
-
-        let mut t0 = self.x * rhs.x;
-        let mut t1 = self.y * rhs.y;
-        let mut t2 = self.z * rhs.z;
-        let mut t3 = self.x + self.y;
-        let mut t4 = rhs.x + rhs.y;
-
-        t3 *= t4;
-        t4 = t0 + t1;
-        t3 -= t4;
-        t4 = self.x + self.z;
-        let mut t5 = rhs.x + rhs.z;
-
-        t4 *= t5;
-        t5 = t0 + t2;
-        t4 -= t5;
-        t5 = self.y + self.z;
-        let mut sum_x = rhs.y + rhs.z;
-
-        t5 *= sum_x;
-        sum_x = t1 + t2;
-        t5 -= sum_x;
-        let mut sum_z = a * t4;
-        sum_x = b3 * t2;
-
-        sum_z += sum_x;
-        sum_x = t1 - sum_z;
-        sum_z += t1;
-        let mut sum_y = sum_x * sum_z;
-        t1 = t0 + t0;
-
-        t1 += t0;
-        t2 = a * t2;
-        t4 *= b3;
-        t1 += t2;
-        t2 = t0 - t2;
-
-        t2 *= a;
-        t4 += t2;
-        t0 = t1 * t4;
-        sum_y += t0;
-        t0 = t4 * t5;
-
-        sum_x *= t3;
-        sum_x -= t0;
-        t0 = t1 * t3;
-        sum_z *= t5;
-        sum_z += t0;
-
-        Self {
-            x: sum_x,
-            y: sum_y,
-            z: sum_z,
-        }
-    }
-
-    pub fn scalar_mul(&self, scalar: &Scalar<C>) -> Self {
-        let mut q = Self::IDENTITY;
-        let mut current = Self::IDENTITY;
-        let mut lookup = HashMap::with_capacity(16);
-        for digit in &BASE_16_DIGITS {
-            lookup.insert(digit, current.clone());
-            current += self;
-        }
-        for ch in scalar.to_unpadded_string().chars() {
-            q = q.double();
-            q = q.double();
-            q = q.double();
-            q = q.double();
-            // NOTE: unwrap is fine because ch is definitely
-            // one of the keys in the map
-            q += lookup.get(&ch).unwrap()
-        }
-        q
-    }
-
-    pub fn double_mul(
-        &self,
-        this_scalar: &Scalar<C>,
-        other_point: &Self,
-        other_scalar: &Scalar<C>,
-    ) -> Self {
-        let mut q = Self::IDENTITY;
-        let mut this_current = Self::IDENTITY;
-        let mut other_current = Self::IDENTITY;
-        let mut this_lookup = HashMap::with_capacity(16);
-        let mut other_lookup = HashMap::with_capacity(16);
-        for digit in &BASE_16_DIGITS {
-            this_lookup.insert(digit, this_current.clone());
-            other_lookup.insert(digit, other_current.clone());
-            this_current += self;
-            other_current += other_point;
-        }
-
-        let (this_string, other_string) = this_scalar.pad_to_equal_len_strings(other_scalar);
-        for (this_ch, other_ch) in this_string.chars().zip(other_string.chars()) {
-            q = q.double();
-            q = q.double();
-            q = q.double();
-            q = q.double();
-            // NOTE: both unwraps are fine because chars are definitely
-            // one of the keys in the respective maps
-            q += this_lookup.get(&this_ch).unwrap();
-            q += other_lookup.get(&other_ch).unwrap();
-        }
-        q
-    }
-
-    pub fn is_identity(&self) -> bool {
-        self.x == FieldElement::ZERO && self.y != FieldElement::ZERO && self.z == FieldElement::ZERO
-    }
-
     pub fn into_affine(self) -> AffinePoint<C> {
         if self.is_identity() {
             AffinePoint::<C>::new_identity()
         } else {
             let z_inv = self.z.inverse();
-            AffinePoint::<C>::new(self.x * z_inv, self.y * z_inv)
+            AffinePoint::<C>::new(self.x * z_inv, self.y * z_inv, FieldElement::<C>::ONE)
         }
     }
 
@@ -282,20 +55,44 @@ impl<C: Curve> Point<C> {
             AffinePoint::<C>::new_identity()
         } else {
             let z_inv = self.z.inverse();
-            AffinePoint::<C>::new(self.x * z_inv, self.y * z_inv)
+            AffinePoint::<C>::new(self.x * z_inv, self.y * z_inv, FieldElement::<C>::ONE)
         }
     }
 
+    #[inline(always)]
     pub fn x(&self) -> &FieldElement<C> {
         &self.x
     }
 
+    #[inline(always)]
     pub fn y(&self) -> &FieldElement<C> {
         &self.y
     }
 
+    #[inline(always)]
     pub fn z(&self) -> &FieldElement<C> {
         &self.z
+    }
+}
+
+impl<C: Curve> std::ops::Add<AffinePoint<C>> for Point<C> {
+    type Output = Self;
+    fn add(self, rhs: AffinePoint<C>) -> Self {
+        self.geometric_add(&rhs.into_point())
+    }
+}
+
+impl<'a, 'b, C: Curve> std::ops::Add<&'b AffinePoint<C>> for &'a Point<C> {
+    type Output = Point<C>;
+    fn add(self, rhs: &'b AffinePoint<C>) -> Self::Output {
+        self.geometric_add(&rhs.to_point())
+    }
+}
+
+impl<'a, 'b, C: Curve> std::ops::Sub<&'b AffinePoint<C>> for &'a Point<C> {
+    type Output = Point<C>;
+    fn sub(self, rhs: &'b AffinePoint<C>) -> Self::Output {
+        self + &(-rhs)
     }
 }
 
@@ -303,7 +100,10 @@ impl<C: Curve> Point<C> {
 mod test {
     use super::*;
     use crate::curve::{Secp256k1, Tom256k1};
+    use crate::arithmetic::Scalar;
 
+    use bigint::U256;
+    
     type SecPoint = Point<Secp256k1>;
     type TomPoint = Point<Tom256k1>;
 
