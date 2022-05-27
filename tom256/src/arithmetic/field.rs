@@ -9,7 +9,8 @@ use std::marker::PhantomData;
 
 use std::fmt;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Eq, PartialEq, Clone, Copy, Debug)]
 pub struct FieldElement<C>(pub(crate) U256, pub(crate) PhantomData<C>);
 
 impl<C: Curve> FieldElement<C> {
