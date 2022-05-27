@@ -1,12 +1,10 @@
 #![feature(int_log)]
 pub mod arithmetic;
 pub mod curve;
-/*
 mod hasher;
 pub mod parse;
 pub mod pedersen;
 pub mod proofs;
-*/
 
 pub use bigint::U256;
 /*

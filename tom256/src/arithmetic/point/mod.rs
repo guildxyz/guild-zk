@@ -26,6 +26,15 @@ impl<C: Curve> Point<C> {
     pub fn new(x: FieldElement<C>, y: FieldElement<C>, z: FieldElement<C>) -> Self {
         Self { x, y, z }
     }
+
+    pub fn to_affine(&self) -> AffinePoint<C> {
+        let z_inv = self.z.inverse();
+        AffinePoint {
+            x: self.x * z_inv,
+            y: self.y * z_inv,
+            z: FieldElement::ONE,
+        }
+    }
 }
 
 impl<C: Curve> PartialEq for Point<C> {
@@ -63,8 +72,12 @@ impl<'a, 'b, C: Curve> std::ops::Sub<&'b AffinePoint<C>> for &'a Point<C> {
 // Affine point impls
 
 impl<C: Curve> AffinePoint<C> {
-    pub fn new(x: FieldElement<C>, y: FieldElement<C>, z: FieldElement<C>) -> Self {
-        Point::new(x, y, z).into()
+    pub fn new(x: FieldElement<C>, y: FieldElement<C>) -> Self {
+        AffinePoint {
+            x,
+            y,
+            z: FieldElement::ONE,
+        }
     }
 }
 
@@ -78,35 +91,27 @@ impl<C: Curve> PartialEq for AffinePoint<C> {
 
 impl<C: Curve> From<Point<C>> for AffinePoint<C> {
     fn from(point: Point<C>) -> AffinePoint<C> {
-        if point.is_identity() {
-            AffinePoint::<C>::IDENTITY
-        } else {
-            let z_inv = point.z.inverse();
-            AffinePoint::<C>::new(point.x * z_inv, point.y * z_inv, FieldElement::<C>::ONE)
-        }
-    }
-}
-
-impl<C: Curve> From<&Point<C>> for AffinePoint<C> {
-    fn from(point: &Point<C>) -> AffinePoint<C> {
-        if point.is_identity() {
-            AffinePoint::<C>::IDENTITY
-        } else {
-            let z_inv = point.z.inverse();
-            AffinePoint::<C>::new(point.x * z_inv, point.y * z_inv, FieldElement::<C>::ONE)
-        }
+        point.to_affine()
     }
 }
 
 impl<C: Curve> From<AffinePoint<C>> for Point<C> {
     fn from(point: AffinePoint<C>) -> Point<C> {
-        Point::<C>::new(point.x, point.y, point.z)
+        Point {
+            x: point.x,
+            y: point.y,
+            z: point.z,
+        }
     }
 }
 
 impl<C: Curve> From<&AffinePoint<C>> for Point<C> {
     fn from(point: &AffinePoint<C>) -> Point<C> {
-        Point::<C>::new(point.x, point.y, point.z)
+        Point {
+            x: point.x,
+            y: point.y,
+            z: point.z,
+        }
     }
 }
 

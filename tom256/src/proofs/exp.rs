@@ -59,13 +59,8 @@ pub struct ExpCommitmentPoints<C: Curve, CC: Cycle<C>> {
 }
 
 impl<C: Curve> ExpSecrets<C> {
-    // TODO: using `AffinePoint` this could be implied
-    /// Ensures that the stored point is affine.
-    pub fn new(exp: Scalar<C>, point: Point<C>) -> Self {
-        Self {
-            point: point.into(),
-            exp,
-        }
+    pub fn new(exp: Scalar<C>, point: AffinePoint<C>) -> Self {
+        Self { exp, point }
     }
 
     pub fn commit<R, CC>(
@@ -143,7 +138,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
             // A = g^alpha + h^r (essentially a commitment in the base curve)
             a_vec.push(&t_vec[i] + &(pedersen.base().generator() * r_vec[i]));
 
-            let coord_t: AffinePoint<C> = (&t_vec[i]).into();
+            let coord_t = t_vec[i].to_affine();
             if coord_t.is_identity() {
                 return Err("intermediate value is identity".to_owned());
             }
@@ -196,7 +191,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                 }
 
                 // Generate point add proof
-                let add_secret = PointAddSecrets::new(t1, (&secrets.point).into(), t);
+                let add_secret = PointAddSecrets::new(t1.into(), secrets.point.clone(), t.into());
                 // NOTE only commits t1 and uses existing commitments for the rest
                 let add_commitments = add_secret.commit_p_only(
                     rng,
@@ -471,7 +466,7 @@ mod test {
         let exponent = Scalar::<Secp256k1>::random(&mut rng);
         let result = Point::<Secp256k1>::GENERATOR.scalar_mul(&exponent);
 
-        let secrets = ExpSecrets::new(exponent, result);
+        let secrets = ExpSecrets::new(exponent, result.into());
         let commitments = secrets.commit(&mut rng, &pedersen);
 
         let security_param = 10;
@@ -508,7 +503,7 @@ mod test {
         let exponent = Scalar::<Secp256k1>::random(&mut rng);
         let result = &Point::<Secp256k1>::GENERATOR.scalar_mul(&exponent) - &q_point;
 
-        let secrets = ExpSecrets::new(exponent, result);
+        let secrets = ExpSecrets::new(exponent, result.into());
         let commitments = secrets.commit(&mut rng, &pedersen);
 
         let security_param = 10;
@@ -544,7 +539,7 @@ mod test {
         let exponent = Scalar::<Secp256k1>::random(&mut rng);
         let result = Point::<Secp256k1>::GENERATOR.scalar_mul(&(exponent + Scalar::ONE));
 
-        let secrets = ExpSecrets::new(exponent, result);
+        let secrets = ExpSecrets::new(exponent, result.into());
         let commitments = secrets.commit(&mut rng, &pedersen);
 
         let security_param = 10;
