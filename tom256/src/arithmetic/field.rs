@@ -11,7 +11,7 @@ use std::fmt;
 
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
-pub struct FieldElement<C>(pub(crate) U256, pub(crate) PhantomData<C>);
+pub struct FieldElement<C>(pub(super) U256, pub(super) PhantomData<C>);
 
 impl<C: Curve> FieldElement<C> {
     pub const ONE: Self = Self(U256::ONE, PhantomData);

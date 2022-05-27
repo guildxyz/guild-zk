@@ -1,9 +1,34 @@
-use super::field::FieldElement;
-use super::AffinePoint;
-use super::Point;
-use crate::curve::Curve;
+mod impl_macro;
 
-impl<C: Curve + PartialEq> PartialEq for Point<C> {
+use super::{FieldElement, Modular};
+use crate::curve::Curve;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Point<C: Curve> {
+    x: FieldElement<C>,
+    y: FieldElement<C>,
+    z: FieldElement<C>,
+}
+
+// z can only be 1 (general point) or 0 (identity)
+// This invariable is preserved in the methods
+#[derive(Debug, Clone)]
+pub struct AffinePoint<C: Curve> {
+    x: FieldElement<C>,
+    y: FieldElement<C>,
+    z: FieldElement<C>,
+}
+
+// Point impls
+
+impl<C: Curve> Point<C> {
+    pub fn new(x: FieldElement<C>, y: FieldElement<C>, z: FieldElement<C>) -> Self {
+        Self { x, y, z }
+    }
+}
+
+impl<C: Curve> PartialEq for Point<C> {
     fn eq(&self, other: &Self) -> bool {
         let x0z1 = self.x * other.z;
         let x1z0 = other.x * self.z;
@@ -11,27 +36,6 @@ impl<C: Curve + PartialEq> PartialEq for Point<C> {
         let y1z0 = other.y * self.z;
 
         x0z1 == x1z0 && y0z1 == y1z0
-    }
-}
-
-impl<C: Curve> Point<C> {
-    pub fn new(x: FieldElement<C>, y: FieldElement<C>, z: FieldElement<C>) -> Self {
-        Self { x, y, z }
-    }
-
-    #[inline(always)]
-    pub fn x(&self) -> &FieldElement<C> {
-        &self.x
-    }
-
-    #[inline(always)]
-    pub fn y(&self) -> &FieldElement<C> {
-        &self.y
-    }
-
-    #[inline(always)]
-    pub fn z(&self) -> &FieldElement<C> {
-        &self.z
     }
 }
 
@@ -53,6 +57,56 @@ impl<'a, 'b, C: Curve> std::ops::Sub<&'b AffinePoint<C>> for &'a Point<C> {
     type Output = Point<C>;
     fn sub(self, rhs: &'b AffinePoint<C>) -> Self::Output {
         self + &(-rhs)
+    }
+}
+
+// Affine point impls
+
+impl<C: Curve> AffinePoint<C> {
+    pub fn new(x: FieldElement<C>, y: FieldElement<C>, z: FieldElement<C>) -> Self {
+        Point::new(x, y, z).into()
+    }
+}
+
+impl<C: Curve> PartialEq for AffinePoint<C> {
+    fn eq(&self, other: &Self) -> bool {
+        (self.is_identity() && other.is_identity()) || (self.x == other.x && self.y == other.y)
+    }
+}
+
+// Conversions
+
+impl<C: Curve> From<Point<C>> for AffinePoint<C> {
+    fn from(point: Point<C>) -> AffinePoint<C> {
+        if point.is_identity() {
+            AffinePoint::<C>::IDENTITY
+        } else {
+            let z_inv = point.z.inverse();
+            AffinePoint::<C>::new(point.x * z_inv, point.y * z_inv, FieldElement::<C>::ONE)
+        }
+    }
+}
+
+impl<C: Curve> From<&Point<C>> for AffinePoint<C> {
+    fn from(point: &Point<C>) -> AffinePoint<C> {
+        if point.is_identity() {
+            AffinePoint::<C>::IDENTITY
+        } else {
+            let z_inv = point.z.inverse();
+            AffinePoint::<C>::new(point.x * z_inv, point.y * z_inv, FieldElement::<C>::ONE)
+        }
+    }
+}
+
+impl<C: Curve> From<AffinePoint<C>> for Point<C> {
+    fn from(point: AffinePoint<C>) -> Point<C> {
+        Point::<C>::new(point.x, point.y, point.z)
+    }
+}
+
+impl<C: Curve> From<&AffinePoint<C>> for Point<C> {
+    fn from(point: &AffinePoint<C>) -> Point<C> {
+        Point::<C>::new(point.x, point.y, point.z)
     }
 }
 
@@ -144,6 +198,31 @@ mod test {
         let g4 = SecPoint::GENERATOR.scalar_mul(&four);
         assert_eq!(g2.double(), g4);
         assert_eq!(&g2 + &g2, g4);
+    }
+
+    #[test]
+    fn affine_point() {
+        let g2 = SecPoint::GENERATOR.double();
+        let g2_affine: SecAffine = g2.into();
+        assert_eq!(
+            g2_affine.x().inner(),
+            &U256::from_be_hex("c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5")
+        );
+        assert_eq!(
+            g2_affine.y().inner(),
+            &U256::from_be_hex("1ae168fea63dc339a3c58419466ceaeef7f632653266d0e1236431a950cfe52a")
+        );
+        assert_eq!(g2_affine.z(), &FieldElement::ONE);
+
+        let id_aff: SecAffine = SecPoint::IDENTITY.into();
+        assert_eq!(id_aff, SecPoint::IDENTITY.into());
+
+        let g5: SecAffine = SecPoint::GENERATOR
+            .scalar_mul(&SecScalar::new(U256::from_u8(5)))
+            .into();
+        let g2: SecAffine = SecPoint::GENERATOR.double().into();
+        let g4: SecAffine = g2.double().into();
+        assert_eq!(g5, (g4 + SecAffine::GENERATOR).into());
     }
 
     #[test]

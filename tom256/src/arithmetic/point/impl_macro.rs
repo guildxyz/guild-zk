@@ -1,8 +1,6 @@
-use super::field::FieldElement;
-use super::modular::{mul_mod_u256, Modular};
-use super::scalar::Scalar;
-use super::AffinePoint;
-use super::Point;
+use super::super::modular::{mul_mod_u256, Modular};
+use super::super::Scalar;
+use super::*;
 use crate::curve::Curve;
 use crate::U256;
 
@@ -20,14 +18,14 @@ macro_rules! impl_point_arithmetic {
         impl<C: Curve> std::ops::Neg for $this {
             type Output = Self;
             fn neg(self) -> Self {
-                Self::new(*self.x(), -*self.y(), *self.z())
+                Self::new(self.x, -self.y, self.z)
             }
         }
 
         impl<C: Curve> std::ops::Neg for &$this {
             type Output = $this;
             fn neg(self) -> Self::Output {
-                <$this>::new(*self.x(), -*self.y(), *self.z())
+                <$this>::new(self.x, -self.y, self.z)
             }
         }
 
@@ -97,6 +95,21 @@ macro_rules! impl_point_arithmetic {
                 self.x() == &FieldElement::<C>::ZERO
                     && self.y() != &FieldElement::ZERO
                     && self.z() == &FieldElement::ZERO
+            }
+
+            #[inline(always)]
+            pub fn x(&self) -> &FieldElement<C> {
+                &self.x
+            }
+
+            #[inline(always)]
+            pub fn y(&self) -> &FieldElement<C> {
+                &self.y
+            }
+
+            #[inline(always)]
+            pub fn z(&self) -> &FieldElement<C> {
+                &self.z
             }
 
             pub fn is_on_curve(&self) -> bool {

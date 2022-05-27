@@ -1,12 +1,13 @@
-use tom256::arithmetic::{Point, Scalar};
-use tom256::curve::{Secp256k1, Tom256k1};
-use tom256::pedersen::PedersenCycle;
-use tom256::proofs::{ExpProof, ExpSecrets};
-
-use rand::rngs::StdRng;
-use rand_core::SeedableRng;
+//use tom256::arithmetic::{Point, Scalar};
+//use tom256::curve::{Secp256k1, Tom256k1};
+//use tom256::pedersen::PedersenCycle;
+//use tom256::proofs::{ExpProof, ExpSecrets};
+//
+//use rand::rngs::StdRng;
+//use rand_core::SeedableRng;
 
 fn main() {
+    /*
     let mut rng = StdRng::from_seed([14; 32]);
     let base_gen = Point::<Secp256k1>::GENERATOR;
     let pedersen_cycle = PedersenCycle::<Secp256k1, Tom256k1>::new(&mut rng);
@@ -39,4 +40,5 @@ fn main() {
             None,
         )
         .is_ok());
+    */
 }
