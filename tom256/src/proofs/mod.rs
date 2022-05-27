@@ -9,7 +9,7 @@ mod utils;
 pub use exp::{ExpCommitmentPoints, ExpCommitments, ExpProof, ExpSecrets};
 pub use membership::MembershipProof;
 
-use crate::arithmetic::{Modular, Point, Scalar};
+use crate::arithmetic::{AffinePoint, Modular, Point, Scalar};
 use crate::curve::{Curve, Cycle};
 use crate::parse::ParsedProofInput;
 use crate::pedersen::{PedersenCommitment, PedersenCycle};
@@ -101,7 +101,7 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
         // TODO check msg hash using the commitment
         // TODO verify all addresses in the ring via balancy (check hash?)
         // TODO verify the address-pubkey relationship
-        let r_point_affine = self.r_point.to_affine();
+        let r_point_affine: AffinePoint<C> = (&self.r_point).into();
         if r_point_affine.is_identity() {
             return Err("R is at infinity".to_string());
         }

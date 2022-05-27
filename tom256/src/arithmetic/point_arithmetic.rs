@@ -1,13 +1,15 @@
-use super::affine_point::AffinePoint;
 use super::field::FieldElement;
 use super::modular::{mul_mod_u256, Modular};
-use super::point::Point;
 use super::scalar::Scalar;
+use super::AffinePoint;
+use super::Point;
 use crate::curve::Curve;
 use crate::U256;
 
 use std::collections::HashMap;
 use std::fmt;
+
+use std::marker::PhantomData;
 
 const BASE_16_DIGITS: [char; 16] = [
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
@@ -78,6 +80,18 @@ macro_rules! impl_point_arithmetic {
         }
 
         impl<C: Curve> $this {
+            pub const IDENTITY: Self = Self {
+                x: FieldElement::ZERO,
+                y: FieldElement::ONE,
+                z: FieldElement::ZERO,
+            };
+
+            pub const GENERATOR: Self = Self {
+                x: FieldElement(C::GENERATOR_X, PhantomData),
+                y: FieldElement(C::GENERATOR_Y, PhantomData),
+                z: FieldElement::ONE,
+            };
+
             #[inline(always)]
             pub fn is_identity(&self) -> bool {
                 self.x() == &FieldElement::<C>::ZERO
@@ -229,5 +243,5 @@ macro_rules! impl_point_arithmetic {
     };
 }
 
-impl_point_arithmetic!(Point::<C>);
-impl_point_arithmetic!(AffinePoint::<C>);
+impl_point_arithmetic!(Point<C>);
+impl_point_arithmetic!(AffinePoint<C>);

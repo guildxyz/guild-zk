@@ -63,7 +63,7 @@ impl<C: Curve> ExpSecrets<C> {
     /// Ensures that the stored point is affine.
     pub fn new(exp: Scalar<C>, point: Point<C>) -> Self {
         Self {
-            point: point.into_affine(),
+            point: point.into(),
             exp,
         }
     }
@@ -143,7 +143,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
             // A = g^alpha + h^r (essentially a commitment in the base curve)
             a_vec.push(&t_vec[i] + &(pedersen.base().generator() * r_vec[i]));
 
-            let coord_t = t_vec[i].to_affine();
+            let coord_t: AffinePoint<C> = (&t_vec[i]).into();
             if coord_t.is_identity() {
                 return Err("intermediate value is identity".to_owned());
             }
@@ -196,7 +196,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                 }
 
                 // Generate point add proof
-                let add_secret = PointAddSecrets::new(t1, secrets.point.to_point(), t);
+                let add_secret = PointAddSecrets::new(t1, (&secrets.point).into(), t);
                 // NOTE only commits t1 and uses existing commitments for the rest
                 let add_commitments = add_secret.commit_p_only(
                     rng,
@@ -288,7 +288,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
 
                     relation_a.drain(rng, &mut base_multimult);
 
-                    let coord_t = t.into_affine();
+                    let coord_t: AffinePoint<C> = t.into();
                     if coord_t.is_identity() {
                         return Err("intermediate value is identity".to_owned());
                     }
@@ -335,7 +335,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                         t += pt;
                     }
 
-                    let coord_t = t.clone().into_affine();
+                    let coord_t: AffinePoint<C> = t.clone().into();
                     if coord_t.is_identity() {
                         return Err("intermediate value is identity".to_owned());
                     }

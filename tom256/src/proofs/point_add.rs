@@ -25,9 +25,9 @@ impl<C: Curve> PointAddSecrets<C> {
     pub fn new(p: Point<C>, q: Point<C>, r: Point<C>) -> Self {
         // TODO debug_assert!(p + q = r) ?
         Self {
-            p: p.into_affine(),
-            q: q.into_affine(),
-            r: r.into_affine(),
+            p: p.into(),
+            q: q.into(),
+            r: r.into(),
         }
     }
 

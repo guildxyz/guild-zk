@@ -1,18 +1,8 @@
 use super::field::FieldElement;
 use super::modular::Modular;
-use super::point::Point;
+use super::Point;
+use crate::arithmetic::AffinePoint;
 use crate::curve::Curve;
-
-use bigint::U256;
-
-// z can only be 1 (general point) or 0 (identity)
-// This invariable is preserved in the methods
-#[derive(Debug, Clone)]
-pub struct AffinePoint<C: Curve> {
-    x: FieldElement<C>,
-    y: FieldElement<C>,
-    z: FieldElement<C>,
-}
 
 impl<C: Curve + PartialEq> PartialEq for AffinePoint<C> {
     fn eq(&self, other: &Self) -> bool {
@@ -21,20 +11,36 @@ impl<C: Curve + PartialEq> PartialEq for AffinePoint<C> {
 }
 
 impl<C: Curve> From<Point<C>> for AffinePoint<C> {
-    fn from(point: Point<C>) -> Self {
-        point.into_affine()
+    fn from(point: Point<C>) -> AffinePoint<C> {
+        if point.is_identity() {
+            AffinePoint::<C>::IDENTITY
+        } else {
+            let z_inv = point.z.inverse();
+            AffinePoint::<C>::new(point.x * z_inv, point.y * z_inv, FieldElement::<C>::ONE)
+        }
+    }
+}
+
+impl<C: Curve> From<&Point<C>> for AffinePoint<C> {
+    fn from(point: &Point<C>) -> AffinePoint<C> {
+        if point.is_identity() {
+            AffinePoint::<C>::IDENTITY
+        } else {
+            let z_inv = point.z.inverse();
+            AffinePoint::<C>::new(point.x * z_inv, point.y * z_inv, FieldElement::<C>::ONE)
+        }
     }
 }
 
 impl<C: Curve> From<AffinePoint<C>> for Point<C> {
-    fn from(point: AffinePoint<C>) -> Self {
-        point.into_point()
+    fn from(point: AffinePoint<C>) -> Point<C> {
+        Point::<C>::new(point.x, point.y, point.z)
     }
 }
 
 impl<C: Curve> From<&AffinePoint<C>> for Point<C> {
-    fn from(point: &AffinePoint<C>) -> Self {
-        point.to_point()
+    fn from(point: &AffinePoint<C>) -> Point<C> {
+        Point::<C>::new(point.x, point.y, point.z)
     }
 }
 
@@ -47,24 +53,6 @@ impl<C: Curve> AffinePoint<C> {
         };
 
         Self { x, y, z }
-    }
-
-    pub fn new_identity() -> Self {
-        Self {
-            x: FieldElement::<C>::new(U256::from_u32(0)),
-            y: FieldElement::<C>::new(U256::from_u32(1)),
-            z: FieldElement::<C>::new(U256::from_u32(0)),
-        }
-    }
-
-    #[inline(always)]
-    pub fn into_point(self) -> Point<C> {
-        Point::<C>::new(self.x, self.y, self.z)
-    }
-
-    #[inline(always)]
-    pub fn to_point(&self) -> Point<C> {
-        Point::<C>::new(self.x, self.y, self.z)
     }
 
     #[inline(always)]
@@ -89,8 +77,12 @@ mod test {
     use crate::arithmetic::Scalar;
     use crate::{Secp256k1, Tom256k1};
 
+    use bigint::U256;
+
     type SecPoint = Point<Secp256k1>;
     type TomPoint = Point<Tom256k1>;
+
+    type SecAffine = AffinePoint<Secp256k1>;
 
     type SecScalar = Scalar<Secp256k1>;
     type TomScalar = Scalar<Tom256k1>;
@@ -113,22 +105,20 @@ mod test {
             FieldElement::new(Tom256k1::GENERATOR_X),
             FieldElement::new(Tom256k1::GENERATOR_Y),
             FieldElement::ONE,
-        )
-        .into_affine();
+        );
 
         let sec_on_tom = TomPoint::new(
             FieldElement::new(Secp256k1::GENERATOR_X),
             FieldElement::new(Secp256k1::GENERATOR_Y),
             FieldElement::ONE,
-        )
-        .into_affine();
+        );
         assert!(!tom_on_sec.is_on_curve());
         assert!(!sec_on_tom.is_on_curve());
     }
 
     #[test]
     fn point_addition() {
-        let g2 = SecPoint::GENERATOR.double().into_affine();
+        let g2: SecAffine = SecPoint::GENERATOR.double().into();
         assert_eq!(
             g2.x().inner(),
             &U256::from_be_hex("c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5")
@@ -142,7 +132,7 @@ mod test {
             &U256::from_be_hex("0000000000000000000000000000000000000000000000000000000000000001")
         );
 
-        let random_double = SecPoint::new(
+        let random_double: SecAffine = SecPoint::new(
             FieldElement::new(U256::from_be_hex(
                 "B8F0170E293FCC9291BEE2665E9CA9B25D3B11810ED68D9EA0CB440D7064E4DA",
             )),
@@ -151,9 +141,8 @@ mod test {
             )),
             FieldElement::ONE,
         )
-        .into_affine()
         .double()
-        .into_affine();
+        .into();
         assert!(random_double.is_on_curve());
         assert_eq!(
             random_double.x().inner(),
@@ -174,7 +163,7 @@ mod test {
     #[test]
     fn affine_point() {
         let g2 = SecPoint::GENERATOR.double();
-        let g2_affine = g2.into_affine();
+        let g2_affine: SecAffine = g2.into();
         assert_eq!(
             g2_affine.x().inner(),
             &U256::from_be_hex("c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5")
@@ -185,14 +174,14 @@ mod test {
         );
         assert_eq!(g2_affine.z(), &FieldElement::ONE);
 
-        let id_aff = SecPoint::IDENTITY.into_affine();
-        assert_eq!(id_aff, SecPoint::IDENTITY.into_affine());
+        let id_aff: SecAffine = SecPoint::IDENTITY.into();
+        assert_eq!(id_aff, SecPoint::IDENTITY.into());
 
-        let g5 = SecPoint::GENERATOR
+        let g5: SecAffine = SecPoint::GENERATOR
             .scalar_mul(&SecScalar::new(U256::from_u8(5)))
-            .into_affine();
-        let g2 = SecPoint::GENERATOR.double().into_affine();
-        let g4 = g2.double().into_affine();
-        assert_eq!((g4 + SecPoint::GENERATOR.into_affine()).into_affine(), g5);
+            .into();
+        let g2: SecAffine = SecPoint::GENERATOR.double().into();
+        let g4: SecAffine = g2.double().into();
+        assert_eq!(g5, (g4 + SecAffine::GENERATOR).into());
     }
 }

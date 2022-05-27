@@ -1,17 +1,7 @@
-use super::affine_point::AffinePoint;
 use super::field::FieldElement;
-use super::modular::Modular;
+use super::AffinePoint;
+use super::Point;
 use crate::curve::Curve;
-
-use serde::{Deserialize, Serialize};
-use std::marker::PhantomData;
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct Point<C: Curve> {
-    x: FieldElement<C>,
-    y: FieldElement<C>,
-    z: FieldElement<C>,
-}
 
 impl<C: Curve + PartialEq> PartialEq for Point<C> {
     fn eq(&self, other: &Self) -> bool {
@@ -25,38 +15,8 @@ impl<C: Curve + PartialEq> PartialEq for Point<C> {
 }
 
 impl<C: Curve> Point<C> {
-    pub const GENERATOR: Self = Self {
-        x: FieldElement(C::GENERATOR_X, PhantomData),
-        y: FieldElement(C::GENERATOR_Y, PhantomData),
-        z: FieldElement::ONE,
-    };
-
-    pub const IDENTITY: Point<C> = Point::<C> {
-        x: FieldElement::ZERO,
-        y: FieldElement::ONE,
-        z: FieldElement::ZERO,
-    };
-
     pub fn new(x: FieldElement<C>, y: FieldElement<C>, z: FieldElement<C>) -> Self {
         Self { x, y, z }
-    }
-
-    pub fn into_affine(self) -> AffinePoint<C> {
-        if self.is_identity() {
-            AffinePoint::<C>::new_identity()
-        } else {
-            let z_inv = self.z.inverse();
-            AffinePoint::<C>::new(self.x * z_inv, self.y * z_inv, FieldElement::<C>::ONE)
-        }
-    }
-
-    pub fn to_affine(&self) -> AffinePoint<C> {
-        if self.is_identity() {
-            AffinePoint::<C>::new_identity()
-        } else {
-            let z_inv = self.z.inverse();
-            AffinePoint::<C>::new(self.x * z_inv, self.y * z_inv, FieldElement::<C>::ONE)
-        }
     }
 
     #[inline(always)]
@@ -78,14 +38,14 @@ impl<C: Curve> Point<C> {
 impl<C: Curve> std::ops::Add<AffinePoint<C>> for Point<C> {
     type Output = Self;
     fn add(self, rhs: AffinePoint<C>) -> Self {
-        self.geometric_add(&rhs.into_point())
+        self.geometric_add(&rhs.into())
     }
 }
 
 impl<'a, 'b, C: Curve> std::ops::Add<&'b AffinePoint<C>> for &'a Point<C> {
     type Output = Point<C>;
     fn add(self, rhs: &'b AffinePoint<C>) -> Self::Output {
-        self.geometric_add(&rhs.to_point())
+        self.geometric_add(&rhs.into())
     }
 }
 
@@ -99,10 +59,13 @@ impl<'a, 'b, C: Curve> std::ops::Sub<&'b AffinePoint<C>> for &'a Point<C> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::arithmetic::Scalar;
+    use crate::arithmetic::{Modular, Scalar};
     use crate::curve::{Secp256k1, Tom256k1};
 
     use bigint::U256;
+
+    type SecAffine = AffinePoint<Secp256k1>;
+    type TomAffine = AffinePoint<Tom256k1>;
 
     type SecPoint = Point<Secp256k1>;
     type TomPoint = Point<Tom256k1>;
@@ -155,9 +118,7 @@ mod test {
             &U256::from_be_hex("f8783c53dfb2a307b568a6ad931fc97023dc71cdc3eac498b0c6ba5554759a29")
         );
 
-        println!("{}", g2.to_affine());
-
-        let random_double = SecPoint {
+        let random_double: SecAffine = SecPoint {
             x: FieldElement::new(U256::from_be_hex(
                 "B8F0170E293FCC9291BEE2665E9CA9B25D3B11810ED68D9EA0CB440D7064E4DA",
             )),
@@ -167,7 +128,7 @@ mod test {
             z: FieldElement::ONE,
         }
         .double()
-        .into_affine();
+        .into();
         assert!(random_double.is_on_curve());
         assert_eq!(
             random_double.x().inner(),
@@ -197,7 +158,7 @@ mod test {
             "B8F0170E293FCC9291BEE2665E9CA9B25D3B11810ED68D9EA0CB440D7064E4DA",
         ));
 
-        let t = TomPoint::GENERATOR.scalar_mul(&d).into_affine();
+        let t: TomAffine = TomPoint::GENERATOR.scalar_mul(&d).into();
         assert!(t.is_on_curve());
         assert_eq!(
             t.x().inner(),
@@ -208,9 +169,7 @@ mod test {
             &U256::from_be_hex("0c21e4f939a5d91c1473416bb936e61bd688dd91db2778f832a54cdacc207deb")
         );
 
-        let r = TomPoint::GENERATOR
-            .double_mul(&e, &t.to_point(), &f)
-            .into_affine();
+        let r: TomAffine = TomPoint::GENERATOR.double_mul(&e, &t.into(), &f).into();
         assert!(r.is_on_curve());
         assert_eq!(
             r.x().inner(),
