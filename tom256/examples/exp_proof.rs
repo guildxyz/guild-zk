@@ -1,13 +1,12 @@
-//use tom256::arithmetic::{Point, Scalar};
-//use tom256::curve::{Secp256k1, Tom256k1};
-//use tom256::pedersen::PedersenCycle;
-//use tom256::proofs::{ExpProof, ExpSecrets};
-//
-//use rand::rngs::StdRng;
-//use rand_core::SeedableRng;
+use tom256::arithmetic::{Point, Scalar};
+use tom256::curve::{Secp256k1, Tom256k1};
+use tom256::pedersen::PedersenCycle;
+use tom256::proofs::{ExpProof, ExpSecrets};
+
+use rand::rngs::StdRng;
+use rand_core::SeedableRng;
 
 fn main() {
-    /*
     let mut rng = StdRng::from_seed([14; 32]);
     let base_gen = Point::<Secp256k1>::GENERATOR;
     let pedersen_cycle = PedersenCycle::<Secp256k1, Tom256k1>::new(&mut rng);
@@ -15,7 +14,7 @@ fn main() {
     let exponent = Scalar::<Secp256k1>::random(&mut rng);
     let result = base_gen.scalar_mul(&exponent);
 
-    let secrets = ExpSecrets::new(exponent, result);
+    let secrets = ExpSecrets::new(exponent, result.into());
     let commitments = secrets.commit(&mut rng, &pedersen_cycle);
 
     let security_param = 60;
@@ -40,5 +39,4 @@ fn main() {
             None,
         )
         .is_ok());
-    */
 }

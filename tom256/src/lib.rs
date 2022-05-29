@@ -7,7 +7,6 @@ pub mod pedersen;
 pub mod proofs;
 
 pub use bigint::U256;
-/*
 use curve::{Secp256k1, Tom256k1};
 use parse::{address_to_scalar, ParsedProofInput, ProofInput};
 use pedersen::PedersenCycle;
@@ -64,4 +63,3 @@ pub fn commit_address(address: String, pedersen: JsValue) -> Result<JsValue, JsV
     let commitment = pedersen.cycle().commit(&mut rng, secret);
     JsValue::from_serde(&commitment).map_err(|e| JsValue::from(e.to_string()))
 }
-*/
