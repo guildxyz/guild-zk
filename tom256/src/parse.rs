@@ -34,11 +34,7 @@ impl<C: Curve, CC: Cycle<C>> TryFrom<ProofInput> for ParsedProofInput<C, CC> {
             pubkey: parse_pubkey(&value.pubkey)?,
             signature: parse_signature(&value.signature)?,
             index: value.index,
-            ring: value
-                .ring
-                .iter()
-                .flat_map(|addr| address_to_scalar(addr))
-                .collect(),
+            ring: value.ring.iter().flat_map(|x| pad_to_scalar(x)).collect(),
         })
     }
 }
@@ -53,14 +49,14 @@ enum Parse {
     Signature,
 }
 
-pub fn address_to_scalar<C: Curve>(address: &str) -> Result<Scalar<C>, String> {
+fn pad_to_scalar<C: Curve>(address: &str) -> Result<Scalar<C>, String> {
     let stripped = address.trim_start_matches("0x");
-    let mut padded = "000000000000000000000000".to_string(); // 24 zeros to pad 20 bit address to 32 bit scalar
-    padded.push_str(stripped);
     // NOTE this check avoids explicit panics by `from_be_hex`
-    if padded.len() != 64 {
+    if stripped.len() > 64 {
         return Err("invalid address".to_string());
     }
+    let mut padded = "0".repeat(64 - stripped.len());
+    padded.push_str(stripped);
     Ok(Scalar::new(U256::from_be_hex(&padded)))
 }
 
@@ -111,7 +107,7 @@ mod test {
     #[test]
     fn address_conversion() {
         let address = "0x0123456789012345678901234567890123456789";
-        let scalar = address_to_scalar::<Tom256k1>(address).unwrap();
+        let scalar = pad_to_scalar::<Tom256k1>(address).unwrap();
         assert_eq!(
             scalar,
             Scalar::new(U256::from_be_hex(
@@ -120,14 +116,19 @@ mod test {
         );
 
         let address = "0000000000000000000000000000000000000000";
-        let scalar = address_to_scalar::<Tom256k1>(address).unwrap();
+        let scalar = pad_to_scalar::<Tom256k1>(address).unwrap();
         assert_eq!(scalar, Scalar::<Tom256k1>::ZERO);
 
         let address = "0x12345";
-        assert!(address_to_scalar::<Tom256k1>(address).is_err());
+        assert_eq!(
+            pad_to_scalar::<Tom256k1>(address).unwrap(),
+            Scalar::new(U256::from_be_hex(
+                "0000000000000000000000000000000000000000000000000000000000012345"
+            ))
+        );
 
-        let address = "3".repeat(42);
-        assert!(address_to_scalar::<Tom256k1>(&address).is_err());
+        let address = "3".repeat(66);
+        assert!(pad_to_scalar::<Tom256k1>(&address).is_err());
     }
 
     #[test]
