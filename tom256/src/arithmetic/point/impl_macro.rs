@@ -98,20 +98,24 @@ macro_rules! impl_point_arithmetic {
                 z: FieldElement::ONE,
             };
 
+            #[inline(always)]
             pub fn is_identity(&self) -> bool {
                 self.x() == &FieldElement::<C>::ZERO
                     && self.y() != &FieldElement::ZERO
                     && self.z() == &FieldElement::ZERO
             }
 
+            #[inline(always)]
             pub fn x(&self) -> &FieldElement<C> {
                 &self.x
             }
 
+            #[inline(always)]
             pub fn y(&self) -> &FieldElement<C> {
                 &self.y
             }
 
+            #[inline(always)]
             pub fn z(&self) -> &FieldElement<C> {
                 &self.z
             }
