@@ -1,4 +1,4 @@
-use crate::arithmetic::{FieldElement, Modular, Point, Scalar};
+use crate::arithmetic::{AffinePoint, FieldElement, Modular, Scalar};
 use crate::curve::{Curve, Cycle};
 use crate::U256;
 
@@ -16,7 +16,7 @@ pub struct ProofInput {
 
 pub struct ParsedProofInput<C: Curve, CC: Cycle<C>> {
     pub msg_hash: Scalar<C>,
-    pub pubkey: Point<C>,
+    pub pubkey: AffinePoint<C>,
     pub signature: Signature<C>,
     pub index: usize,
     pub ring: Vec<Scalar<CC>>,
@@ -64,12 +64,11 @@ pub fn address_to_scalar<C: Curve>(address: &str) -> Result<Scalar<C>, String> {
     Ok(Scalar::new(U256::from_be_hex(&padded)))
 }
 
-fn parse_pubkey<C: Curve>(pubkey: &str) -> Result<Point<C>, String> {
+fn parse_pubkey<C: Curve>(pubkey: &str) -> Result<AffinePoint<C>, String> {
     let (x, y) = parse_str(pubkey, Parse::Pubkey)?;
-    Ok(Point::new(
+    Ok(AffinePoint::new(
         FieldElement::<C>::new(x),
         FieldElement::<C>::new(y),
-        FieldElement::<C>::ONE,
     ))
 }
 
