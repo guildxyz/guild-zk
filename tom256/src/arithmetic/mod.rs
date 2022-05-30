@@ -6,5 +6,5 @@ mod scalar;
 
 pub use field::FieldElement;
 pub use modular::Modular;
-pub use point::Point;
+pub use point::{AffinePoint, Point};
 pub use scalar::Scalar;

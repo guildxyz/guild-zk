@@ -146,11 +146,13 @@ impl<C: Curve> std::ops::Mul<&Scalar<C>> for &PedersenCommitment<C> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::arithmetic::Modular;
+    use crate::arithmetic::{AffinePoint, Modular};
     use crate::curve::Tom256k1;
     use bigint::U256;
     use rand::rngs::StdRng;
     use rand_core::SeedableRng;
+
+    type TomAffine = AffinePoint<Tom256k1>;
 
     #[test]
     fn single_commitment() {
@@ -162,7 +164,7 @@ mod test {
 
         let commitment = p.commit(&mut rng, secret);
         let randomness = commitment.randomness().to_owned();
-        let c = commitment.commitment.into_affine();
+        let c: TomAffine = commitment.commitment.into();
         assert_eq!(
             c.x().inner(),
             &U256::from_be_hex("0c4606f42cfd890d7ab5cba7ab084c47e0b39f156930d3c4ded8774f70d7cbee")
@@ -174,7 +176,7 @@ mod test {
         assert_eq!(c.z().inner(), &U256::ONE);
 
         let commitment_with_randomness = p.commit_with_randomness(secret, randomness);
-        let cr = commitment_with_randomness.into_commitment().into_affine();
+        let cr = commitment_with_randomness.into_commitment().into();
         assert_eq!(c, cr);
     }
 }

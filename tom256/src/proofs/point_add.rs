@@ -1,4 +1,5 @@
 use crate::arithmetic::multimult::MultiMult;
+use crate::arithmetic::AffinePoint;
 use crate::arithmetic::{Modular, Point, Scalar};
 use crate::curve::{Curve, Cycle};
 use crate::pedersen::*;
@@ -12,21 +13,15 @@ use std::marker::PhantomData;
 
 #[derive(Clone)]
 pub struct PointAddSecrets<C: Curve> {
-    p: Point<C>,
-    q: Point<C>,
-    r: Point<C>,
+    pub(super) p: AffinePoint<C>,
+    pub(super) q: AffinePoint<C>,
+    pub(super) r: AffinePoint<C>,
 }
 
 impl<C: Curve> PointAddSecrets<C> {
-    // TODO: using `AffinePoint` this could be implied
-    /// Ensures that the stored point is affine.
-    pub fn new(p: Point<C>, q: Point<C>, r: Point<C>) -> Self {
+    pub fn new(p: AffinePoint<C>, q: AffinePoint<C>, r: AffinePoint<C>) -> Self {
         // TODO debug_assert!(p + q = r) ?
-        Self {
-            p: p.into_affine(),
-            q: q.into_affine(),
-            r: r.into_affine(),
-        }
+        Self { p, q, r }
     }
 
     #[allow(unused)]
@@ -331,23 +326,9 @@ impl<CC: Cycle<C>, C: Curve> PointAddProof<CC, C> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::arithmetic::FieldElement;
     use crate::curve::{Secp256k1, Tom256k1};
     use rand::rngs::StdRng;
     use rand_core::SeedableRng;
-
-    #[test]
-    fn affine_secrets() {
-        let p = Point::<Secp256k1>::GENERATOR;
-        let q = Point::<Secp256k1>::GENERATOR.double();
-        let r = &p + &q;
-        assert_ne!(*r.z(), FieldElement::ONE);
-
-        let affine_secret = PointAddSecrets::new(p, q, r);
-        assert_eq!(*affine_secret.p.z(), FieldElement::ONE);
-        assert_eq!(*affine_secret.q.z(), FieldElement::ONE);
-        assert_eq!(*affine_secret.r.z(), FieldElement::ONE);
-    }
 
     #[test]
     fn valid_point_add_proof() {
@@ -357,7 +338,7 @@ mod test {
         let p = &Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(&mut rng);
         let q = &Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(&mut rng);
         let r = &p + &q;
-        let secret = PointAddSecrets::new(p, q, r);
+        let secret = PointAddSecrets::new(p.into(), q.into(), r.into());
         let commitments = secret.commit(&mut rng, &pedersen_generator);
 
         let proof = PointAddProof::construct(&mut rng, &pedersen_generator, &commitments, &secret);
@@ -377,7 +358,7 @@ mod test {
         let p = &Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(&mut rng);
         let q = &Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(&mut rng);
         let r = (&p + &q) + Point::<Secp256k1>::GENERATOR; // invalid sum
-        let secret = PointAddSecrets::new(p, q, r);
+        let secret = PointAddSecrets::new(p.into(), q.into(), r.into());
         let commitments = secret.commit(&mut rng, &pedersen_generator);
 
         let proof = PointAddProof::construct(&mut rng, &pedersen_generator, &commitments, &secret);
@@ -400,7 +381,7 @@ mod test {
             let p = &Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(&mut rng);
             let q = &Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(&mut rng);
             let r = &p + &q;
-            let secret = PointAddSecrets::new(p, q, r);
+            let secret = PointAddSecrets::new(p.into(), q.into(), r.into());
             let commitments = secret.commit(&mut rng, &pedersen_generator);
 
             let proof =

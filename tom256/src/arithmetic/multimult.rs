@@ -1,4 +1,4 @@
-use super::{Point, Scalar};
+use super::{AffinePoint, Point, Scalar};
 use crate::curve::Curve;
 
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
@@ -144,7 +144,7 @@ impl<C: Curve> fmt::Display for MultiMult<C> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for pair in &self.pairs {
             writeln!(f, "scalar: {}", pair.scalar)?;
-            let pt_aff = pair.point.clone().into_affine();
+            let pt_aff: AffinePoint<C> = pair.point.clone().into();
             writeln!(f, "point: {}", pt_aff)?;
         }
         fmt::Result::Ok(())
@@ -155,7 +155,7 @@ impl<C: Curve> fmt::Display for Relation<C> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for pair in &self.pairs {
             writeln!(f, "scalar: {}", pair.scalar)?;
-            let pt_aff = pair.point.clone().into_affine();
+            let pt_aff: AffinePoint<C> = pair.point.clone().into();
             writeln!(f, "point: {}", pt_aff)?;
         }
         fmt::Result::Ok(())
@@ -194,9 +194,11 @@ mod test {
 
     use std::time::{Duration, Instant};
 
+    type SecAffine = AffinePoint<Secp256k1>;
     type SecPoint = Point<Secp256k1>;
     type SecScalar = Scalar<Secp256k1>;
 
+    type TomAffine = AffinePoint<Tom256k1>;
     type TomPoint = Point<Tom256k1>;
     type TomScalar = Scalar<Tom256k1>;
 
@@ -257,7 +259,7 @@ mod test {
         }
 
         let now = Instant::now();
-        let actual = multimult.evaluate().into_affine();
+        let actual = multimult.evaluate();
         mm_time += now.elapsed();
 
         println!("Normal time: {:?}", normal_time);
@@ -278,10 +280,10 @@ mod test {
             scalars.push(scalar);
         }
 
-        let mut pt = SecPoint::GENERATOR;
+        let mut pt: SecAffine = SecPoint::GENERATOR.into();
         for scalar in scalars.iter() {
-            pt = pt.double().into_affine();
-            rel.insert(pt.clone(), *scalar);
+            pt = pt.double().into();
+            rel.insert(pt.clone().into(), *scalar);
         }
 
         let mut multimult = MultiMult::new();
@@ -312,10 +314,10 @@ mod test {
             scalars.push(scalar);
         }
 
-        let mut pt = TomPoint::GENERATOR;
+        let mut pt: TomAffine = TomPoint::GENERATOR.into();
         for scalar in scalars.iter() {
-            pt = pt.double().into_affine();
-            rel.insert(pt.clone(), *scalar);
+            pt = pt.double().into();
+            rel.insert(pt.clone().into(), *scalar);
         }
 
         let mut multimult = MultiMult::new();

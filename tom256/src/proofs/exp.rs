@@ -1,4 +1,5 @@
 use crate::arithmetic::multimult::{MultiMult, Relation};
+use crate::arithmetic::AffinePoint;
 use crate::arithmetic::{Point, Scalar};
 use crate::curve::{Curve, Cycle};
 use crate::hasher::PointHasher;
@@ -39,8 +40,8 @@ pub struct SingleExpProof<C: Curve, CC: Cycle<C>> {
 
 #[derive(Clone)]
 pub struct ExpSecrets<C: Curve> {
+    point: AffinePoint<C>,
     exp: Scalar<C>,
-    point: Point<C>,
 }
 
 #[derive(Clone)]
@@ -58,13 +59,8 @@ pub struct ExpCommitmentPoints<C: Curve, CC: Cycle<C>> {
 }
 
 impl<C: Curve> ExpSecrets<C> {
-    // TODO: using `AffinePoint` this could be implied
-    /// Ensures that the stored point is affine.
-    pub fn new(exp: Scalar<C>, point: Point<C>) -> Self {
-        Self {
-            point: point.into_affine(),
-            exp,
-        }
+    pub fn new(exp: Scalar<C>, point: AffinePoint<C>) -> Self {
+        Self { exp, point }
     }
 
     pub fn commit<R, CC>(
@@ -195,7 +191,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                 }
 
                 // Generate point add proof
-                let add_secret = PointAddSecrets::new(t1, secrets.point.clone(), t);
+                let add_secret = PointAddSecrets::new(t1.into(), secrets.point.clone(), t.into());
                 // NOTE only commits t1 and uses existing commitments for the rest
                 let add_commitments = add_secret.commit_p_only(
                     rng,
@@ -287,7 +283,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
 
                     relation_a.drain(rng, &mut base_multimult);
 
-                    let coord_t = t.into_affine();
+                    let coord_t: AffinePoint<C> = t.into();
                     if coord_t.is_identity() {
                         return Err("intermediate value is identity".to_owned());
                     }
@@ -334,7 +330,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                         t += pt;
                     }
 
-                    let coord_t = t.clone().into_affine();
+                    let coord_t: AffinePoint<C> = t.clone().into();
                     if coord_t.is_identity() {
                         return Err("intermediate value is identity".to_owned());
                     }
@@ -470,7 +466,7 @@ mod test {
         let exponent = Scalar::<Secp256k1>::random(&mut rng);
         let result = Point::<Secp256k1>::GENERATOR.scalar_mul(&exponent);
 
-        let secrets = ExpSecrets::new(exponent, result);
+        let secrets = ExpSecrets::new(exponent, result.into());
         let commitments = secrets.commit(&mut rng, &pedersen);
 
         let security_param = 10;
@@ -507,7 +503,7 @@ mod test {
         let exponent = Scalar::<Secp256k1>::random(&mut rng);
         let result = &Point::<Secp256k1>::GENERATOR.scalar_mul(&exponent) - &q_point;
 
-        let secrets = ExpSecrets::new(exponent, result);
+        let secrets = ExpSecrets::new(exponent, result.into());
         let commitments = secrets.commit(&mut rng, &pedersen);
 
         let security_param = 10;
@@ -543,7 +539,7 @@ mod test {
         let exponent = Scalar::<Secp256k1>::random(&mut rng);
         let result = Point::<Secp256k1>::GENERATOR.scalar_mul(&(exponent + Scalar::ONE));
 
-        let secrets = ExpSecrets::new(exponent, result);
+        let secrets = ExpSecrets::new(exponent, result.into());
         let commitments = secrets.commit(&mut rng, &pedersen);
 
         let security_param = 10;

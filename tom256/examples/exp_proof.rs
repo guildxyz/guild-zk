@@ -14,7 +14,7 @@ fn main() {
     let exponent = Scalar::<Secp256k1>::random(&mut rng);
     let result = base_gen.scalar_mul(&exponent);
 
-    let secrets = ExpSecrets::new(exponent, result);
+    let secrets = ExpSecrets::new(exponent, result.into());
     let commitments = secrets.commit(&mut rng, &pedersen_cycle);
 
     let security_param = 60;

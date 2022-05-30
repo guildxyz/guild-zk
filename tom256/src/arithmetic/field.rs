@@ -7,8 +7,11 @@ use bigint::Encoding;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::marker::PhantomData;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct FieldElement<C>(pub(crate) U256, pub(crate) PhantomData<C>);
+use std::fmt;
+
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Eq, PartialEq, Clone, Copy, Debug)]
+pub struct FieldElement<C>(pub(super) U256, pub(super) PhantomData<C>);
 
 impl<C: Curve> FieldElement<C> {
     pub const ONE: Self = Self(U256::ONE, PhantomData);
@@ -111,6 +114,13 @@ impl<C: Curve> std::ops::Mul for FieldElement<C> {
     }
 }
 
+impl<C: Curve> std::ops::Mul<&FieldElement<C>> for FieldElement<C> {
+    type Output = Self;
+    fn mul(self, rhs: &Self) -> Self::Output {
+        Modular::mul(&self, rhs)
+    }
+}
+
 impl<'a, 'b, C: Curve> std::ops::Mul<&'b FieldElement<C>> for &'a FieldElement<C> {
     type Output = FieldElement<C>;
     fn mul(self, rhs: &FieldElement<C>) -> Self::Output {
@@ -126,7 +136,13 @@ impl<C: Curve> std::ops::MulAssign for FieldElement<C> {
 
 impl<C: Curve> std::ops::MulAssign<&FieldElement<C>> for FieldElement<C> {
     fn mul_assign(&mut self, rhs: &Self) {
-        *self = &*self * rhs;
+        *self = *self * rhs;
+    }
+}
+
+impl<C: Curve> fmt::Display for FieldElement<C> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.inner())
     }
 }
 

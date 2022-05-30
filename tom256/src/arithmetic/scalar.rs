@@ -8,6 +8,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::marker::PhantomData;
 
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Scalar<C>(U256, PhantomData<C>);
 
