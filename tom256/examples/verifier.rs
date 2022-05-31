@@ -1,16 +1,25 @@
-/*
-fn main() -> Result<String, String> {
-    let mut rng = OsRng;
-    let ring = read_ring_file();
-    let proof = read_proof_file();
+use rand_core::OsRng;
+use structopt::StructOpt;
+use tom256::curve::{Secp256k1, Tom256k1};
+use tom256::parse::*;
+use tom256::proofs::ZkAttestProof;
 
-    let result = proof.verify(&mut rng, &ring);
-
-    if result.is_ok() {
-        Ok("OK".to_string())
-    } else {
-        result
-    }
+#[derive(StructOpt)]
+struct Opt {
+    #[structopt(long, help = "zk ecdsa and membership proof")]
+    proof: String,
+    #[structopt(long, help = "array of public keys as string")]
+    ring: String,
 }
-*/
-fn main() {}
+
+fn main() -> Result<(), String> {
+    let mut rng = OsRng;
+    let opt = Opt::from_args();
+    let ring: Ring = serde_json::from_str(&opt.ring).map_err(|e| e.to_string())?;
+    let parsed_ring = parse_ring(ring)?;
+
+    let proof: ZkAttestProof<Secp256k1, Tom256k1> =
+        serde_json::from_str(&opt.proof).map_err(|e| e.to_string())?;
+
+    proof.verify(&mut rng, &parsed_ring)
+}
