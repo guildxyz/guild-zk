@@ -43,7 +43,7 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
     pub fn construct<R: CryptoRng + RngCore>(
         rng: &mut R,
         pedersen: PedersenCycle<C, CC>,
-        input: ParsedProofInput<C, CC>,
+        input: ParsedProofInput<C>,
         ring: &ParsedRing<CC>,
     ) -> Result<Self, String> {
         let s_inv = input.signature.s.inverse();
@@ -69,7 +69,7 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
             pedersen.cycle(),
             &commitment_to_pk_x,
             input.index,
-            input.ring,
+            ring,
         )?;
 
         // generate ECDSA proof on signature
@@ -170,16 +170,16 @@ mod test {
             index,
         };
 
-        let parsed_input: ParsedProofInput<Secp256k1, Tom256k1> = proof_input.try_into().unwrap();
+        let parsed_input: ParsedProofInput<Secp256k1> = proof_input.try_into().unwrap();
         let parsed_ring = parse_ring(ring).unwrap();
 
         let zkattest_proof = ZkAttestProof::<Secp256k1, Tom256k1>::construct(
             &mut rng,
             pedersen_cycle,
-            &parsed_input,
+            parsed_input,
             &parsed_ring,
         )
         .unwrap();
-        assert!(zkattest_proof.verify(&mut rng, &parsed_input.ring).is_ok());
+        assert!(zkattest_proof.verify(&mut rng, &parsed_ring).is_ok());
     }
 }
