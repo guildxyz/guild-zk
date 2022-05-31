@@ -50,19 +50,20 @@ enum Parse {
 }
 
 pub fn parse_ring<C: Curve>(ring: Ring) -> Result<ParsedRing<C>, String> {
-    let parsed: ParsedRing<C> = ring.iter().flat_map(|x| pad_to_scalar(x)).collect();
+    let mut parsed = ParsedRing::with_capacity(ring.len());
+    for pk in ring.iter() {
+        parsed.push(extract_x_coordinate(pk)?);
+    }
     Ok(parsed)
 }
 
-fn pad_to_scalar<C: Curve>(address: &str) -> Result<Scalar<C>, String> {
-    let stripped = address.trim_start_matches("0x");
+fn extract_x_coordinate<C: Curve>(pubkey: &str) -> Result<Scalar<C>, String> {
+    let stripped = pubkey.trim_start_matches("0x").trim_start_matches("04");
     // NOTE this check avoids explicit panics by `from_be_hex`
-    if stripped.len() > 64 {
-        return Err("invalid address".to_string());
+    if stripped.len() > 128 {
+        return Err("invalid pubkey".to_string());
     }
-    let mut padded = "0".repeat(64 - stripped.len());
-    padded.push_str(stripped);
-    Ok(Scalar::new(U256::from_be_hex(&padded)))
+    Ok(Scalar::new(U256::from_be_hex(&stripped[..64])))
 }
 
 fn parse_pubkey<C: Curve>(pubkey: &str) -> Result<AffinePoint<C>, String> {
