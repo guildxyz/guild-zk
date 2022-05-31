@@ -23,6 +23,12 @@ const SEC_PARAM: usize = 60;
 #[cfg(test)]
 const SEC_PARAM: usize = 10;
 
+/// Zero-knowledge proof consisting of an ECDSA and a Groth-Kohlweiss
+/// membership proof.
+///
+/// Note, that the ring on which the membership proof is generated is not
+/// explicitly part of this proof because the backend does additional checks on
+/// its integrity before passing it to the veriication function.
 #[derive(Deserialize, Serialize)]
 pub struct ZkAttestProof<C: Curve, CC: Cycle<C>> {
     pub pedersen: PedersenCycle<C, CC>,
@@ -31,7 +37,6 @@ pub struct ZkAttestProof<C: Curve, CC: Cycle<C>> {
     pub exp_commitments: ExpCommitmentPoints<C, CC>, // s1, pkx, pxy
     pub signature_proof: ExpProof<C, CC>,
     pub membership_proof: MembershipProof<CC>,
-    pub ring: Vec<Scalar<CC>>,
 }
 
 impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
@@ -63,7 +68,7 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
             pedersen.cycle(),
             &commitment_to_pk_x,
             input.index,
-            &input.ring,
+            input.ring,
         )?;
 
         // generate ECDSA proof on signature
@@ -91,14 +96,14 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
             exp_commitments: exp_commitments.into_commitments(),
             signature_proof,
             membership_proof,
-            ring: input.ring,
         })
     }
 
-    pub fn verify<R: CryptoRng + RngCore>(&self, rng: &mut R) -> Result<(), String> {
-        // TODO check msg hash using the commitment
-        // TODO verify all addresses in the ring via balancy (check hash?)
-        // TODO verify the address-pubkey relationship
+    pub fn verify<R: CryptoRng + RngCore>(
+        &self,
+        rng: &mut R,
+        ring: &[Scalar<CC>],
+    ) -> Result<(), String> {
         let r_point_affine = self.r_point.to_affine();
         if r_point_affine.is_identity() {
             return Err("R is at infinity".to_string());
@@ -110,12 +115,8 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
         let z1 = r_inv * self.msg_hash;
         let q_point = &Point::<C>::GENERATOR * z1;
 
-        self.membership_proof.verify(
-            rng,
-            self.pedersen.cycle(),
-            &self.exp_commitments.px,
-            &self.ring,
-        )?;
+        self.membership_proof
+            .verify(rng, self.pedersen.cycle(), &self.exp_commitments.px, ring)?;
 
         self.signature_proof.verify(
             rng,
@@ -171,9 +172,12 @@ mod test {
 
         let parsed_input: ParsedProofInput<Secp256k1, Tom256k1> = proof_input.try_into().unwrap();
 
-        let zkattest_proof =
-            ZkAttestProof::<Secp256k1, Tom256k1>::construct(&mut rng, pedersen_cycle, parsed_input)
-                .unwrap();
-        assert!(zkattest_proof.verify(&mut rng).is_ok());
+        let zkattest_proof = ZkAttestProof::<Secp256k1, Tom256k1>::construct(
+            &mut rng,
+            pedersen_cycle,
+            &parsed_input,
+        )
+        .unwrap();
+        assert!(zkattest_proof.verify(&mut rng, &parsed_input.ring).is_ok());
     }
 }
