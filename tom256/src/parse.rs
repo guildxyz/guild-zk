@@ -4,6 +4,9 @@ use crate::U256;
 
 use serde::Deserialize;
 
+pub type Ring = Vec<String>;
+pub type ParsedRing<C> = Vec<Scalar<C>>;
+
 #[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProofInput {
@@ -14,28 +17,25 @@ pub struct ProofInput {
     pub ring: Vec<String>,
 }
 
-pub struct ParsedProofInput<'a, C: Curve, CC: Cycle<C>> {
+pub struct ParsedProofInput<C: Curve, CC: Cycle<C>> {
     pub msg_hash: Scalar<C>,
     pub pubkey: AffinePoint<C>,
     pub signature: Signature<C>,
     pub index: usize,
-    pub ring: &'a [Scalar<CC>],
 }
 
-impl<C: Curve, CC: Cycle<C>> TryFrom<ProofInput> for ParsedProofInput<'_, C, CC> {
+impl<C: Curve, CC: Cycle<C>> TryFrom<ProofInput> for ParsedProofInput<C, CC> {
     type Error = String;
     fn try_from(value: ProofInput) -> Result<Self, Self::Error> {
         let hash = value.msg_hash.trim_start_matches("0x");
         if hash.len() != 64 {
             return Err("invalid hash length".to_string());
         }
-        let ring: Vec<Scalar<CC>> = value.ring.iter().flat_map(|x| pad_to_scalar(x)).collect();
         Ok(Self {
             msg_hash: Scalar::new(U256::from_be_hex(hash)),
             pubkey: parse_pubkey(&value.pubkey)?,
             signature: parse_signature(&value.signature)?,
             index: value.index,
-            ring: &ring,
         })
     }
 }
@@ -48,6 +48,10 @@ pub struct Signature<C> {
 enum Parse {
     Pubkey,
     Signature,
+}
+
+pub fn parse_ring(ring: Ring) -> Result<ParsedRing, String> {
+    ring.iter().flat_map(|x| pad_to_scalar(x)).collect()
 }
 
 fn pad_to_scalar<C: Curve>(address: &str) -> Result<Scalar<C>, String> {

@@ -11,7 +11,7 @@ pub use membership::MembershipProof;
 
 use crate::arithmetic::{Modular, Point, Scalar};
 use crate::curve::{Curve, Cycle};
-use crate::parse::ParsedProofInput;
+use crate::parse::{ParsedProofInput, ParsedRing};
 use crate::pedersen::PedersenCycle;
 
 use rand_core::{CryptoRng, RngCore};
@@ -44,6 +44,7 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
         rng: &mut R,
         pedersen: PedersenCycle<C, CC>,
         input: ParsedProofInput<C, CC>,
+        ring: &ParsedRing<CC>,
     ) -> Result<Self, String> {
         let s_inv = input.signature.s.inverse();
         let r_inv = input.signature.r.inverse();
@@ -102,7 +103,7 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
     pub fn verify<R: CryptoRng + RngCore>(
         &self,
         rng: &mut R,
-        ring: &[Scalar<CC>],
+        ring: &ParsedRing<CC>,
     ) -> Result<(), String> {
         let r_point_affine = self.r_point.to_affine();
         if r_point_affine.is_identity() {
@@ -136,7 +137,7 @@ mod test {
     use super::ZkAttestProof;
 
     use crate::curve::{Secp256k1, Tom256k1};
-    use crate::parse::{ParsedProofInput, ProofInput};
+    use crate::parse::{ParsedProofInput, ProofInput, Ring, ParsedRing};
     use crate::pedersen::PedersenCycle;
 
     use rand::rngs::StdRng;
