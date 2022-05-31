@@ -137,7 +137,7 @@ mod test {
     use super::ZkAttestProof;
 
     use crate::curve::{Secp256k1, Tom256k1};
-    use crate::parse::{ParsedProofInput, ProofInput, Ring, ParsedRing};
+    use crate::parse::{parse_ring, ParsedProofInput, ProofInput};
     use crate::pedersen::PedersenCycle;
 
     use rand::rngs::StdRng;
@@ -168,15 +168,16 @@ mod test {
             pubkey,
             signature,
             index,
-            ring,
         };
 
         let parsed_input: ParsedProofInput<Secp256k1, Tom256k1> = proof_input.try_into().unwrap();
+        let parsed_ring = parse_ring(ring).unwrap();
 
         let zkattest_proof = ZkAttestProof::<Secp256k1, Tom256k1>::construct(
             &mut rng,
             pedersen_cycle,
             &parsed_input,
+            &parsed_ring,
         )
         .unwrap();
         assert!(zkattest_proof.verify(&mut rng, &parsed_input.ring).is_ok());
