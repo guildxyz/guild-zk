@@ -23,10 +23,10 @@ jobs:
 
       - uses: actions/checkout@v2
       - run: |
-          git config --global user.name "Your Name"
-          git config --global user.email "your@email.xyz"
+          git config --global user.name "PopcornPaws"
+          git config --global user.email "mark@gold.xyz"
           cd ${WASM_DIR}/${WASM_OUT}
-          rm .gitignore
+          rm -f .gitignore
           git add -A
           git commit -m "Auto-generated wasm binaries"
           git remote add origin https://${ACCESS_HEADER}github.com/agoraxyz/${WASM_HUB_REPO}.git
