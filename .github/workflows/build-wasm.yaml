@@ -13,7 +13,7 @@ jobs:
       WASM_HUB_REPO: agora-wasm-hub
       WASM_HUB_BRANCH: ${{ github.repository }}:${{ github.ref_name }}
     steps:
-      - uses: action-rs/toolchain@v1
+      - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
           override: true
