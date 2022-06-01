@@ -1,7 +1,8 @@
 name: Build wasm binaries
 
 on:
-  push: [main, wasm-dev]
+  push:
+    branches: [main, wasm-dev]
 
 jobs:
   build-wasm:
