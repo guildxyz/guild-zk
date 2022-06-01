@@ -111,30 +111,16 @@ mod test {
     use crate::U256;
 
     #[test]
-    fn address_conversion() {
-        let address = "0x0123456789012345678901234567890123456789";
-        let scalar = pad_to_scalar::<Tom256k1>(address).unwrap();
+    fn pubkey_extraction() {
+        let pubkey = "0x0408c6cd9400645819c8c556a6e83e0a7728f070a813bb9d24d5c24290e21fc5e438396f9333264d3e7c1d3e6ee1bc572b2f00b98db7065e9bf278f2b8dbe02718";
+        let x_coord = extract_x_coordinate::<Tom256k1>(pubkey).unwrap();
+
         assert_eq!(
-            scalar,
-            Scalar::new(U256::from_be_hex(
-                "0000000000000000000000000123456789012345678901234567890123456789"
+            x_coord,
+            Scalar::<Tom256k1>::new(U256::from_be_hex(
+                "08c6cd9400645819c8c556a6e83e0a7728f070a813bb9d24d5c24290e21fc5e4"
             ))
         );
-
-        let address = "0000000000000000000000000000000000000000";
-        let scalar = pad_to_scalar::<Tom256k1>(address).unwrap();
-        assert_eq!(scalar, Scalar::<Tom256k1>::ZERO);
-
-        let address = "0x12345";
-        assert_eq!(
-            pad_to_scalar::<Tom256k1>(address).unwrap(),
-            Scalar::new(U256::from_be_hex(
-                "0000000000000000000000000000000000000000000000000000000000012345"
-            ))
-        );
-
-        let address = "3".repeat(66);
-        assert!(pad_to_scalar::<Tom256k1>(&address).is_err());
     }
 
     #[test]
@@ -183,9 +169,9 @@ mod test {
             index: 1,
         };
         let ring = vec![
-            "0x1679349AeA848f928cE886fbAE10a85660CBFecE".to_string(),
-            "0x0679349AeA848f928cE886fbAE10a85660CBFecD".to_string(),
-            "0x7679349AeA848f928cE886fbAE10a85660CBFecF".to_string(),
+            "0x1679349AeA848f928cE886fbAE10a85660CBFecE0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".to_string(),
+            "0x0679349AeA848f928cE886fbAE10a85660CBFecD0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".to_string(),
+            "0x7679349AeA848f928cE886fbAE10a85660CBFecF0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".to_string(),
         ];
 
         let parsed_input: ParsedProofInput<Secp256k1> = input.try_into().unwrap();
@@ -200,19 +186,19 @@ mod test {
         assert_eq!(
             parsed_ring[0],
             Scalar::new(U256::from_be_hex(
-                "0000000000000000000000001679349AeA848f928cE886fbAE10a85660CBFecE"
+                "1679349AeA848f928cE886fbAE10a85660CBFecE000000000000000000000000"
             ))
         );
         assert_eq!(
             parsed_ring[1],
             Scalar::new(U256::from_be_hex(
-                "0000000000000000000000000679349AeA848f928cE886fbAE10a85660CBFecD"
+                "0679349AeA848f928cE886fbAE10a85660CBFecD000000000000000000000000"
             ))
         );
         assert_eq!(
             parsed_ring[2],
             Scalar::new(U256::from_be_hex(
-                "0000000000000000000000007679349AeA848f928cE886fbAE10a85660CBFecF"
+                "7679349AeA848f928cE886fbAE10a85660CBFecF000000000000000000000000"
             ))
         );
     }

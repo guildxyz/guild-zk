@@ -5,23 +5,26 @@ use tom256::parse::*;
 use tom256::pedersen::PedersenCycle;
 use tom256::proofs::ZkAttestProof;
 
+use std::error::Error;
 use std::fs::File;
-use std::io::Write;
+use std::io::{BufReader, Write};
+use std::path::PathBuf;
 
 #[derive(StructOpt)]
 struct Opt {
     #[structopt(long, help = "array of public keys as string")]
-    ring: String,
+    ring: PathBuf,
 }
 
-fn main() -> Result<(), String> {
+fn main() -> Result<(), Box<dyn Error>> {
     let opt = Opt::from_args();
+    let ring_file = File::open(opt.ring)?;
+    let ring_reader = BufReader::new(ring_file);
+    let ring: Ring = serde_json::from_reader(ring_reader)?;
 
     // generate pedersen parameters
     let mut rng = OsRng;
     let pedersen = PedersenCycle::<Secp256k1, Tom256k1>::new(&mut rng);
-
-    let ring: Ring = serde_json::from_str(&opt.ring).map_err(|e| e.to_string())?;
 
     let msg_hash = "0xb42062702a4acb9370edf5c571f2c7a6f448f8c42f3bfa59e622c1c064a94a14".to_string();
     let signature = "0xb2a7ff958cd78c8e896693b7b76550c8942d6499fb8cd621efb54909f9d51da02bfaadf918f09485740ba252445d40d44440fd810dbf8a9a18049157adcdaa8c1c".to_string();
@@ -44,7 +47,9 @@ fn main() -> Result<(), String> {
         &parsed_ring,
     )?;
 
-    let mut file = File::create("proof.json").map_err(|e| e.to_string())?;
-    let proof = serde_json::to_string(&zkattest_proof).map_err(|e| e.to_string())?;
-    write!(file, "{}", proof).map_err(|e| e.to_string())
+    let mut file = File::create("proof.json")?;
+    let proof = serde_json::to_string(&zkattest_proof)?;
+    write!(file, "{}", proof).map_err(|e| e.to_string())?;
+    println!("Proof generated successfully");
+    Ok(())
 }

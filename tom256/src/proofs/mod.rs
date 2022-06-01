@@ -154,11 +154,11 @@ mod test {
         let pubkey = "0x0418a30afe39c280d2f43f05c070988dae7fbae9cdfd5fb6461acd7657e765e172fd55b3589c74fd4987b6004465afff77b039e631a68cdc7df9cd8cfd5cbe2887".to_string();
 
         let ring = vec![
-            "0x0e3Eca6005eb4e30eA51692011612554586feaC9".to_string(),
-            "0x1e3Eca6005eb4e30eA51692011612554586feaC9".to_string(),
+            "ddd40afe39c280d2f43f05c070988dae7fbae9cdfd5fb6461acd7657e765e172".to_string(), // our pubkey x
+            "ccc50afe39c280d2f43f05c070988dae7fbae9cdfd5fb6461acd7657e765e172".to_string(), // our pubkey x
             "18a30afe39c280d2f43f05c070988dae7fbae9cdfd5fb6461acd7657e765e172".to_string(), // our pubkey x
-            "0x3e3Eca6005eb4e30eA51692011612554586feaC9".to_string(),
-            "0x4e3Eca6005eb4e30eA51692011612554586feaC9".to_string(),
+            "aaa70afe39c280d2f43f05c070988dae7fbae9cdfd5fb6461acd7657e765e172".to_string(), // our pubkey x
+            "bbb80afe39c280d2f43f05c070988dae7fbae9cdfd5fb6461acd7657e765e172".to_string(), // our pubkey x
         ];
 
         let index = 2;
