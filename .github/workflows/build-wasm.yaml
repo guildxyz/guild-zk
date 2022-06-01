@@ -1,0 +1,27 @@
+name: Build wasm binaries
+
+on:
+  push: [main, wasm-dev]
+
+jobs:
+  build-wasm:
+    name: wasm-pack build
+    runs-on: ubuntu-latest
+    env:
+      ACCESS_HEADER: user:${{ secrets.GH_ACTIONS_PAT }}@
+      WASM_HUB_REPO: agora-wasm-hub
+      WASM_HUB_BRANCH: ${{ github.repository }}:${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v2
+      - run: |
+          cargo install wasm-pack
+          wasm-pack build tom256 --target bundler --out-name index --out-dir wasm-output
+          git config --global user.name "Your Name"
+          git config --global user.email "your@email.xyz"
+          cd wasm-output
+          rm .gitignore
+          git add -A
+          git commit -m "Auto-generated wasm binaries"
+          git remote add origin https://${ACCESS_HEADER}github.com/agoraxyz/${WASM_HUB_REPO}.git
+          git branch -M $WASM_HUB_REPO
+          git push -uf origin $WASM_HUB_BRANCH
