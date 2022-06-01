@@ -12,6 +12,8 @@ jobs:
       ACCESS_HEADER: user:${{ secrets.GH_ACTIONS_PAT }}@
       WASM_HUB_REPO: agora-wasm-hub
       WASM_HUB_BRANCH: ${{ github.repository }}:${{ github.ref_name }}
+      WASM_DIR: tom256
+      WASM_OUT: wasm-output
     steps:
       - uses: actions-rs/toolchain@v1
         with:
@@ -22,10 +24,10 @@ jobs:
       - uses: actions/checkout@v2
       - run: |
           cargo install wasm-pack
-          wasm-pack build tom256 --target bundler --out-name index --out-dir wasm-output
+          wasm-pack build $WASM_DIR --target bundler --out-name index --out-dir $WASM_OUT
           git config --global user.name "Your Name"
           git config --global user.email "your@email.xyz"
-          cd wasm-output
+          cd ${WASM_DIR}/${WASM_OUT}
           rm .gitignore
           git add -A
           git commit -m "Auto-generated wasm binaries"
