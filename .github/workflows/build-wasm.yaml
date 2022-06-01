@@ -15,16 +15,14 @@ jobs:
       WASM_DIR: tom256
       WASM_OUT: wasm-output
     steps:
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          override: true
-          profile: minimal
+      #- uses: actions-rs/toolchain@v1
+      #  with:
+      #    toolchain: nightly
+      #    override: true
+      #    profile: minimal
 
       - uses: actions/checkout@v2
       - run: |
-          cargo install wasm-pack
-          wasm-pack build $WASM_DIR --target bundler --out-name index --out-dir $WASM_OUT
           git config --global user.name "Your Name"
           git config --global user.email "your@email.xyz"
           cd ${WASM_DIR}/${WASM_OUT}
@@ -32,5 +30,8 @@ jobs:
           git add -A
           git commit -m "Auto-generated wasm binaries"
           git remote add origin https://${ACCESS_HEADER}github.com/agoraxyz/${WASM_HUB_REPO}.git
+          git remote get-url origin
           git branch -M $WASM_HUB_REPO
           git push -uf origin $WASM_HUB_BRANCH
+        #cargo install wasm-pack
+        #wasm-pack build $WASM_DIR --target bundler --out-name index --out-dir $WASM_OUT

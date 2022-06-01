@@ -1,0 +1,3 @@
+fn fun() {
+	println!("HELLO");
+}
