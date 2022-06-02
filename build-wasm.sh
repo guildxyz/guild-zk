@@ -1,7 +1,7 @@
 #!/bin/sh
-ACCESS_HEADER_TRIMMED="${ACCESS_HEADER#"${ACCESS_HEADER%%[![:space:]]*}"}"
+PAT_TRIMMED="${PAT#"${PAT%%[![:space:]]*}"}" # remove leading whitespace
 OUT_DIR="wasm-output"
-TARGET_BRANCH=${TARGET_BRANCH##*/}
+TARGET_BRANCH=${TARGET_BRANCH##*/} # remove everything until the first '/'
 
 wasm-pack build ${WASM_DIR} --target bundler --out-dir ${OUT_DIR}
 
@@ -11,7 +11,7 @@ echo ${TARGET_BRANCH}
 cd ${WASM_DIR}/${OUT_DIR}
 rm -f .gitignore
 git init
-git remote add origin https://${ACCESS_HEADER_TRIMMED}@github.com/agoraxyz/agora-wasm-hub.git
+git remote add origin https://${PAT_TRIMMED}@github.com/${TARGET_REPO}
 git branch -M ${TARGET_BRANCH}
 git add -A
 git commit -m "Auto-generated wasm code"
