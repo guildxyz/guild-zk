@@ -9,8 +9,9 @@ TARGET_BRANCH=${TARGET_BRANCH##*/}
 echo ${TARGET_REPO}
 echo ${TARGET_BRANCH}
 
+mkdir ${WASM_DIR}/${OUT_DIR} # remove
 cd ${WASM_DIR}/${OUT_DIR}
-touch hellobello
+touch hellobello # remove
 rm -f .gitignore
 git init
 git add -A
