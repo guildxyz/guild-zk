@@ -1,11 +1,14 @@
 #!/bin/sh
 
-wasm-pack build ${WASM_DIR} --target bundler --out-dir wasm-output
+OUT_DIR="wasm-output"
+TARGET_BRANCH=${TARGET_BRANCH##*/}
+
+wasm-pack build ${WASM_DIR} --target bundler --out-dir ${OUT_DIR}
 
 echo ${TARGET_REPO}
 echo ${TARGET_BRANCH}
 
-cd wasm-output
+cd ${WASM_DIR}/${OUT_DIR}
 rm -f .gitignore
 git add -A
 git commit -m "Auto-generated wasm code"
