@@ -1,6 +1,6 @@
 #!/bin/sh
-
-ORIGIN=https://${ACCESS_HEADER}@github.com/agoraxyz/agora-wasm-hub.git
+ACCESS_HEADER_TRIMMED="${ACCESS_HEADER#"${ACCESS_HEADER%%[![:space:]]*}"}"
+ORIGIN=https://${ACCESS_HEADER_TRIMMED}@github.com/agoraxyz/agora-wasm-hub.git
 OUT_DIR="wasm-output"
 TARGET_BRANCH=${TARGET_BRANCH##*/}
 
