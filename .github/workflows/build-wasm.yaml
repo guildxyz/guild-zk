@@ -22,7 +22,7 @@ jobs:
       #    override: true
       #    profile: minimal
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v1
         with:
           token: $ACCESS_TOKEN
       - run: |
