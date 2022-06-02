@@ -1,6 +1,6 @@
 #!/bin/sh
 
-ORIGIN=https://${ACCESS_HEADER}github.com/agoraxyz/agora-wasm-hub.git
+ORIGIN=https://github.com/agoraxyz/agora-wasm-hub.git # ${ACCESS_HEADER}
 OUT_DIR="wasm-output"
 TARGET_BRANCH=${TARGET_BRANCH##*/}
 
@@ -15,10 +15,10 @@ cd ${WASM_DIR}/${OUT_DIR}
 touch hellobello # remove
 rm -f .gitignore
 git init
-git add -A
-git commit -m "Auto-generated wasm code"
 git remote add origin ${ORIGIN}
 git branch -M ${TARGET_BRANCH}
+git add -A
+git commit -m "Auto-generated wasm code"
 git push -uf origin ${TARGET_BRANCH}
 
 cd ..
