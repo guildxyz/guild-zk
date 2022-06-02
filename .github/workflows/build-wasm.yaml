@@ -11,7 +11,7 @@ jobs:
     env:
       ACCESS_HEADER: ${{ secrets.GH_ACTIONS_PAT }}
       WASM_HUB_REPO: agora-wasm-hub
-      WASM_HUB_BRANCH: ${{ github.repository }}:${{ github.ref_name }}
+      WASM_HUB_BRANCH: ${{ github.repository }}@${{ github.ref_name }}
       WASM_DIR: tom256
       WASM_OUT: wasm-output
     steps:
