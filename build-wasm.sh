@@ -1,5 +1,6 @@
 #!/bin/sh
 
+ORIGIN=
 OUT_DIR="wasm-output"
 TARGET_BRANCH=${TARGET_BRANCH##*/}
 
@@ -10,6 +11,7 @@ echo ${TARGET_BRANCH}
 
 cd ${WASM_DIR}/${OUT_DIR}
 rm -f .gitignore
+git init
 git add -A
 git commit -m "Auto-generated wasm code"
 git remote add origin https://${ACCESS_HEADER}github.com/${TARGET_REPO}
