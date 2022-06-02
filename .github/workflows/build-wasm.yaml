@@ -31,7 +31,7 @@ jobs:
           git init # remove this
           touch hello.rs # remove this
           rm -f .gitignore
-          git remote add origin https://x-access-token:"$ACCESS_TOKEN"github.com/agoraxyz/"$WASM_HUB_REPO"
+          git remote add origin https://x-access-token:"$ACCESS_TOKEN"@github.com/agoraxyz/"$WASM_HUB_REPO"
           git branch -M $WASM_HUB_BRANCH
           git add -A
           git commit -m "Auto-generated wasm binaries"
