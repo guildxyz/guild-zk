@@ -1,22 +1,17 @@
 #!/bin/sh
 ACCESS_HEADER_TRIMMED="${ACCESS_HEADER#"${ACCESS_HEADER%%[![:space:]]*}"}"
-ORIGIN=https://${ACCESS_HEADER_TRIMMED}@github.com/agoraxyz/agora-wasm-hub.git
 OUT_DIR="wasm-output"
 TARGET_BRANCH=${TARGET_BRANCH##*/}
 
-#wasm-pack build ${WASM_DIR} --target bundler --out-dir ${OUT_DIR}
+wasm-pack build ${WASM_DIR} --target bundler --out-dir ${OUT_DIR}
 
 echo ${TARGET_REPO}
 echo ${TARGET_BRANCH}
-echo ${ORIGIN}
 
-mkdir ${WASM_DIR}/${OUT_DIR} # remove
 cd ${WASM_DIR}/${OUT_DIR}
-touch hellobello # remove
 rm -f .gitignore
 git init
-git remote add origin ${ORIGIN}
-git remote get-url origin
+git remote add origin https://${ACCESS_HEADER_TRIMMED}@github.com/agoraxyz/agora-wasm-hub.git
 git branch -M ${TARGET_BRANCH}
 git add -A
 git commit -m "Auto-generated wasm code"
