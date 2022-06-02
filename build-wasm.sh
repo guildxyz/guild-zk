@@ -16,6 +16,7 @@ touch hellobello # remove
 rm -f .gitignore
 git init
 git remote add origin ${ORIGIN}
+git remote get-url origin
 git branch -M ${TARGET_BRANCH}
 git add -A
 git commit -m "Auto-generated wasm code"
