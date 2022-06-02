@@ -14,15 +14,15 @@ jobs:
       TARGET_BRANCH: ${{ github.repository }}@${{ github.ref_name }}
       WASM_DIR: tom256
     steps:
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          override: true
-          profile: minimal
+      #- uses: actions-rs/toolchain@v1
+      #  with:
+      #    toolchain: nightly
+      #    override: true
+      #    profile: minimal
 
       - uses: actions/checkout@v2
       - run: |
-          cargo install wasm-pack
           git config --global user.name "PopcornPaws"
           git config --global user.email "mark@gold.xyz"
           bash build-wasm.sh
+        #cargo install wasm-pack

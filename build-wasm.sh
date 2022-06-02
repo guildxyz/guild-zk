@@ -4,12 +4,13 @@ ORIGIN=
 OUT_DIR="wasm-output"
 TARGET_BRANCH=${TARGET_BRANCH##*/}
 
-wasm-pack build ${WASM_DIR} --target bundler --out-dir ${OUT_DIR}
+#wasm-pack build ${WASM_DIR} --target bundler --out-dir ${OUT_DIR}
 
 echo ${TARGET_REPO}
 echo ${TARGET_BRANCH}
 
 cd ${WASM_DIR}/${OUT_DIR}
+touch hellobello
 rm -f .gitignore
 git init
 git add -A
@@ -19,4 +20,4 @@ git branch -M ${TARGET_BRANCH}
 git push -uf origin ${TARGET_BRANCH}
 
 cd ..
-rm -rf wasm-output
+rm -rf ${WASM_DIR}/${OUT_DIR}
