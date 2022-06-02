@@ -25,12 +25,15 @@ jobs:
       - run: |
           git config --global user.name "PopcornPaws"
           git config --global user.email "mark@gold.xyz"
+          mkdir ${WASM_DIR}/${WASM_OUT} # remove this
           cd ${WASM_DIR}/${WASM_OUT}
+          git init # remove this
+          touch hello.rs
           rm -f .gitignore
           git add -A
           git commit -m "Auto-generated wasm binaries"
           git remote add origin https://${ACCESS_HEADER}github.com/agoraxyz/${WASM_HUB_REPO}.git
-          git remote get-url origin
+          git remote get-url origin # remove this
           git branch -M $WASM_HUB_REPO
           git push -uf origin $WASM_HUB_BRANCH
         #cargo install wasm-pack
