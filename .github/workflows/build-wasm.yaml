@@ -23,6 +23,8 @@ jobs:
       #    profile: minimal
 
       - uses: actions/checkout@v2
+        with:
+          token: $ACCESS_TOKEN
       - run: |
           echo $ACCESS_TOKEN
           git config --global user.name $USERNAME
@@ -32,10 +34,9 @@ jobs:
           git init # remove this
           touch hello.rs
           rm -f .gitignore
-          git add -A
-          git commit -m "Auto-generated wasm binaries"
-          git remote add origin https://x-access-token:"$ACCESS_TOKEN"@github.com/agoraxyz/"$WASM_HUB_REPO".git
+          git remote add origin https://github.com/agoraxyz/"$WASM_HUB_REPO".git
           git branch -M $WASM_HUB_BRANCH
+          git commit -am "Auto-generated wasm binaries"
           git push -uf origin $WASM_HUB_BRANCH
         #cargo install wasm-pack
         #wasm-pack build $WASM_DIR --target bundler --out-name index --out-dir $WASM_OUT
