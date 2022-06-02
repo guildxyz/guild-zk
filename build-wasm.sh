@@ -3,7 +3,7 @@
 #wasm-pack build client --target ${WASM_TARGET} --out-name index --out-dir ../wasm-output
 
 mkdir wasm-output
-touch wasm-output/hello
+touch wasm-output/bello
 
 cd wasm-output
 rm -f .gitignore
