@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ACCESS_HEADER: ${{ secrets.GH_ACTIONS_PAT }}
+      USERNAME: PopcornPaws
       WASM_HUB_REPO: agora-wasm-hub
       WASM_HUB_BRANCH: ${{ github.repository }}@${{ github.ref_name }}
       WASM_DIR: tom256
@@ -24,7 +25,7 @@ jobs:
       - uses: actions/checkout@v2
       - run: |
           echo $ACCESS_HEADER
-          git config --global user.name "PopcornPaws"
+          git config --global user.name $USERNAME
           git config --global user.email "mark@gold.xyz"
           mkdir ${WASM_DIR}/${WASM_OUT} # remove this
           cd ${WASM_DIR}/${WASM_OUT}
@@ -33,7 +34,7 @@ jobs:
           rm -f .gitignore
           git add -A
           git commit -m "Auto-generated wasm binaries"
-          git remote add origin https://"$ACCESS_HEADER"@github.com/agoraxyz/"$WASM_HUB_REPO".git
+          git remote add origin https://"$USERNAME":"$ACCESS_HEADER"@github.com/agoraxyz/"$WASM_HUB_REPO".git
           git branch -M $WASM_HUB_BRANCH
           git push -uf origin $WASM_HUB_BRANCH
         #cargo install wasm-pack
