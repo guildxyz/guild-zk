@@ -9,7 +9,6 @@ jobs:
     name: wasm-pack build
     runs-on: ubuntu-latest
     env:
-      ACCESS_TOKEN: ${{ secrets.GH_ACTIONS_PAT }}
       USERNAME: PopcornPaws
       WASM_HUB_REPO: agora-wasm-hub
       WASM_HUB_BRANCH: ${{ github.repository }}@${{ github.ref_name }}
@@ -31,7 +30,7 @@ jobs:
           git init # remove this
           touch hello.rs # remove this
           rm -f .gitignore
-          git remote add origin https://x-access-token:"$ACCESS_TOKEN"@github.com/agoraxyz/"$WASM_HUB_REPO".git
+          git remote add origin https://x-access-token:${{ secrets.GH_ACTIONS_PAT }}@github.com/agoraxyz/"$WASM_HUB_REPO".git
           git branch -M $WASM_HUB_BRANCH
           git add -A
           git commit -m "Auto-generated wasm binaries"
