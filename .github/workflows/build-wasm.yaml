@@ -33,7 +33,7 @@ jobs:
           rm -f .gitignore
           git add -A
           git commit -m "Auto-generated wasm binaries"
-          git remote add origin https://user:"$ACCESS_HEADER"@github.com/agoraxyz/${WASM_HUB_REPO}.git
+          git remote add origin https://"$ACCESS_HEADER"@github.com/agoraxyz/${WASM_HUB_REPO}.git
           git branch -M $WASM_HUB_BRANCH
           git push -uf origin $WASM_HUB_BRANCH
         #cargo install wasm-pack
