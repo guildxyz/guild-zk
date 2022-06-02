@@ -2,6 +2,9 @@
 
 wasm-pack build ${WASM_DIR} --target bundler --out-dir wasm-output
 
+echo ${TARGET_REPO}
+echo ${TARGET_BRANCH}
+
 cd wasm-output
 rm -f .gitignore
 git add -A
