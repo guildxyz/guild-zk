@@ -14,6 +14,7 @@ pub struct ProofInput {
     pub pubkey: String,
     pub signature: String,
     pub index: usize,
+    pub guild_id: String,
 }
 
 pub struct ParsedProofInput<C: Curve> {
@@ -21,20 +22,22 @@ pub struct ParsedProofInput<C: Curve> {
     pub pubkey: AffinePoint<C>,
     pub signature: Signature<C>,
     pub index: usize,
+    pub guild_id: String,
 }
 
 impl<C: Curve> TryFrom<ProofInput> for ParsedProofInput<C> {
     type Error = String;
-    fn try_from(value: ProofInput) -> Result<Self, Self::Error> {
-        let hash = value.msg_hash.trim_start_matches("0x");
+    fn try_from(rhs: ProofInput) -> Result<Self, Self::Error> {
+        let hash = rhs.msg_hash.trim_start_matches("0x");
         if hash.len() != 64 {
             return Err("invalid hash length".to_string());
         }
         Ok(Self {
             msg_hash: Scalar::new(U256::from_be_hex(hash)),
-            pubkey: parse_pubkey(&value.pubkey)?,
-            signature: parse_signature(&value.signature)?,
-            index: value.index,
+            pubkey: parse_pubkey(&rhs.pubkey)?,
+            signature: parse_signature(&rhs.signature)?,
+            index: rhs.index,
+            guild_id: rhs.guild_id,
         })
     }
 }
@@ -167,6 +170,7 @@ mod test {
             signature:"0x45c4039b611c0cc207ff7fb7a6899ea0431aac2cf37515d74a71f2df00e2c3e0096fad5e7eda762898fffd4644f8a7a406bf6bde868814ea03058c882fcd23311c".to_string(),
             pubkey:"0x0408c6cd9400645819c8c556a6e83e0a7728f070a813bb9d24d5c24290e21fc5e438396f9333264d3e7c1d3e6ee1bc572b2f00b98db7065e9bf278f2b8dbe02718".to_string(),
             index: 1,
+            guild_id: "Our-guild#2314".to_string(),
         };
         let ring = vec![
             "0x1679349AeA848f928cE886fbAE10a85660CBFecE0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".to_string(),
@@ -183,6 +187,7 @@ mod test {
                 "1ab4850e7f0a85a521e87b274e3130efdb45f6a47e74e6dcebf5591c6bc8f16e"
             ))
         );
+        assert_eq!(parsed_input.guild_id, "Our-guild#2314");
         assert_eq!(
             parsed_ring[0],
             Scalar::new(U256::from_be_hex(
