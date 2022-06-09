@@ -3,15 +3,15 @@ use crate::curve::Curve;
 use crate::U256;
 
 use bigint::Encoding;
-use sha3::{Digest, Sha3_256};
+use sha3::{Digest, Keccak256};
 
 pub struct PointHasher {
-    hasher: Sha3_256,
+    hasher: Keccak256,
 }
 
 impl PointHasher {
     pub fn new(hash_id: &[u8]) -> Self {
-        let mut hasher = Sha3_256::new();
+        let mut hasher = Keccak256::new();
         hasher.update(hash_id);
 
         Self { hasher }
@@ -38,14 +38,37 @@ impl PointHasher {
     }
 }
 
-#[test]
-fn points_hash_test() {
-    let hash_id = "test".as_bytes();
-    let g = Point::<crate::curve::Secp256k1>::GENERATOR;
-    let g2 = Point::<crate::curve::Secp256k1>::GENERATOR.double();
-    let points = vec![&g, &g2];
-    let expected_hash = "C9B5BD2009A84423D2CBCEB411CDDAF7423B372B5F63821DACFFFA0041A6B8F7";
-    let mut hasher = PointHasher::new(hash_id);
-    hasher.insert_points(&points);
-    assert_eq!(hasher.finalize(), U256::from_be_hex(expected_hash));
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::arithmetic::FieldElement;
+    use crate::curve::Tom256k1;
+
+    impl PointHasher {
+        pub fn new_empty() -> Self {
+            let hasher = Keccak256::new();
+            Self { hasher }
+        }
+    }
+
+    #[test]
+    fn keccak_test() {
+        let test_point = Point::<Tom256k1>::new(
+            FieldElement::new(U256::from_be_hex(
+                "7849ef496dac1bedd153886aee3eaa4ff31a3966b0f1b48268c0ec47386ff895",
+            )),
+            FieldElement::new(U256::from_be_hex(
+                "c84bf6c971421a75b055899760b864e9e1b1d0213bb905f8ccc2bc1c5a41e6b4",
+            )),
+            FieldElement::new(U256::from_be_hex(
+                "f57a7930cff4c9d8636802e0a2aa2804067c58182dedfb20541a0bfe50752ab4",
+            )),
+        );
+        let expected =
+            U256::from_be_hex("a446b4fe7f655042c87c4a669d57dc85abdae2d969c40c0ca497ea709faa1bc0");
+
+        let mut hasher = PointHasher::new_empty();
+        hasher.insert_point(&test_point);
+        assert_eq!(hasher.finalize(), expected);
+    }
 }
