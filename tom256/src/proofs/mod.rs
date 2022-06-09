@@ -11,8 +11,9 @@ pub use membership::MembershipProof;
 
 use crate::arithmetic::{Modular, Point, Scalar};
 use crate::curve::{Curve, Cycle};
-use crate::parse::ParsedProofInput;
-use crate::pedersen::{PedersenCommitment, PedersenCycle};
+use crate::hasher::PointHasher;
+use crate::parse::{ParsedProofInput, ParsedRing};
+use crate::pedersen::PedersenCycle;
 
 use rand_core::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
@@ -23,24 +24,31 @@ const SEC_PARAM: usize = 60;
 #[cfg(test)]
 const SEC_PARAM: usize = 10;
 
+const JOIN_GUILD_MSG: &str = "#zkp/join.guild.xyz/";
+
+/// Zero-knowledge proof consisting of an ECDSA and a Groth-Kohlweiss
+/// membership proof.
+///
+/// Note, that the ring on which the membership proof is generated is not
+/// explicitly part of this proof because the backend does additional checks on
+/// its integrity before passing it to the veriication function.
 #[derive(Deserialize, Serialize)]
 pub struct ZkAttestProof<C: Curve, CC: Cycle<C>> {
     pub pedersen: PedersenCycle<C, CC>,
     pub msg_hash: Scalar<C>,
     pub r_point: Point<C>,
-    pub commitment_to_address: Point<CC>,
     pub exp_commitments: ExpCommitmentPoints<C, CC>, // s1, pkx, pxy
     pub signature_proof: ExpProof<C, CC>,
     pub membership_proof: MembershipProof<CC>,
-    pub ring: Vec<Scalar<CC>>,
+    pub guild_id: String,
 }
 
 impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
     pub fn construct<R: CryptoRng + RngCore>(
         rng: &mut R,
         pedersen: PedersenCycle<C, CC>,
-        commitment_to_address: PedersenCommitment<CC>,
-        input: ParsedProofInput<C, CC>,
+        input: ParsedProofInput<C>,
+        ring: &ParsedRing<CC>,
     ) -> Result<Self, String> {
         let s_inv = input.signature.s.inverse();
         let r_inv = input.signature.r.inverse();
@@ -59,6 +67,16 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
             .cycle()
             .commit(rng, input.pubkey.y().to_cycle_scalar());
 
+        // generate membership proof on pubkey x coordinate
+        let membership_proof = MembershipProof::construct(
+            rng,
+            pedersen.cycle(),
+            &commitment_to_pk_x,
+            input.index,
+            ring,
+        )?;
+
+        // generate ECDSA proof on signature
         let exp_secrets = ExpSecrets::new(s1, input.pubkey);
         let exp_commitments = ExpCommitments {
             px: commitment_to_pk_x,
@@ -75,35 +93,33 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
             SEC_PARAM,
             Some(q_point),
         )?;
-        let membership_proof = MembershipProof::construct(
-            rng,
-            pedersen.cycle(),
-            &commitment_to_address,
-            input.index,
-            &input.ring,
-        )?;
-
-        let exp_commitments = exp_commitments.into_commitments();
 
         Ok(Self {
             pedersen,
             msg_hash: input.msg_hash,
             r_point,
-            commitment_to_address: commitment_to_address.into_commitment(),
-            exp_commitments,
+            exp_commitments: exp_commitments.into_commitments(),
             signature_proof,
             membership_proof,
-            ring: input.ring,
+            guild_id: input.guild_id,
         })
     }
 
-    pub fn verify<R: CryptoRng + RngCore>(&self, rng: &mut R) -> Result<(), String> {
-        // TODO check msg hash using the commitment
-        // TODO verify all addresses in the ring via balancy (check hash?)
-        // TODO verify the address-pubkey relationship
+    pub fn verify<R: CryptoRng + RngCore>(
+        &self,
+        rng: &mut R,
+        ring: &ParsedRing<CC>,
+    ) -> Result<(), String> {
         let r_point_affine = self.r_point.to_affine();
         if r_point_affine.is_identity() {
             return Err("R is at infinity".to_string());
+        }
+
+        let expected_msg = JOIN_GUILD_MSG.to_string() + &self.guild_id;
+        let hasher = PointHasher::new(expected_msg.as_bytes());
+        let expected_hash = Scalar::<C>::new(hasher.finalize());
+        if expected_hash != self.msg_hash {
+            return Err("Signed message hash mismatch".to_string());
         }
 
         // NOTE weird: a field element Rx is converted
@@ -112,12 +128,8 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
         let z1 = r_inv * self.msg_hash;
         let q_point = &Point::<C>::GENERATOR * z1;
 
-        self.membership_proof.verify(
-            rng,
-            self.pedersen.cycle(),
-            &self.commitment_to_address,
-            &self.ring,
-        )?;
+        self.membership_proof
+            .verify(rng, self.pedersen.cycle(), &self.exp_commitments.px, ring)?;
 
         self.signature_proof.verify(
             rng,
@@ -137,7 +149,7 @@ mod test {
     use super::ZkAttestProof;
 
     use crate::curve::{Secp256k1, Tom256k1};
-    use crate::parse::{ParsedProofInput, ProofInput};
+    use crate::parse::{parse_ring, ParsedProofInput, ProofInput};
     use crate::pedersen::PedersenCycle;
 
     use rand::rngs::StdRng;
@@ -149,17 +161,18 @@ mod test {
         let pedersen_cycle = PedersenCycle::<Secp256k1, Tom256k1>::new(&mut rng);
 
         let msg_hash =
-            "0xb42062702a4acb9370edf5c571f2c7a6f448f8c42f3bfa59e622c1c064a94a14".to_string();
-        let signature = "0xb2a7ff958cd78c8e896693b7b76550c8942d6499fb8cd621efb54909f9d51da02bfaadf918f09485740ba252445d40d44440fd810dbf8a9a18049157adcdaa8c1c".to_string();
-        let address = "0x2e3Eca6005eb4e30eA51692011612554586feaC9".to_string();
-        let pubkey = "0x0418a30afe39c280d2f43f05c070988dae7fbae9cdfd5fb6461acd7657e765e172fd55b3589c74fd4987b6004465afff77b039e631a68cdc7df9cd8cfd5cbe2887".to_string();
+            "0x2c31a901b06d2727f458c7eb5c15eb7a794d69f841970f95c39ac092274c2a5a".to_string();
+        let pubkey =
+            "0x041296d6ed4e96bc378b8a460de783cdfbf58afbe04b355f1c225fb3e0b92cdc6e349d7005833c933898e2b88eae1cf40250c16352ace3915de65ec86f5bb9b349".to_string();
+        let signature =
+            "0xc945f22f92bc9afa7c8929637d3f8694b95a6ae9e276103b2061a0f88d61d8e92aaa9b9eec482d8befd1e1d2a9e2e219f21bd660278aefa9b0641184280cc2d91b".to_string();
 
         let ring = vec![
-            "0x0e3Eca6005eb4e30eA51692011612554586feaC9".to_string(),
-            "0x1e3Eca6005eb4e30eA51692011612554586feaC9".to_string(),
-            address,
-            "0x3e3Eca6005eb4e30eA51692011612554586feaC9".to_string(),
-            "0x4e3Eca6005eb4e30eA51692011612554586feaC9".to_string(),
+            "ddd40afe39c280d2f43f05c070988dae7fbae9cdfd5fb6461acd7657e765e172".to_string(),
+            "ccc50afe39c280d2f43f05c070988dae7fbae9cdfd5fb6461acd7657e765e172".to_string(),
+            "1296d6ed4e96bc378b8a460de783cdfbf58afbe04b355f1c225fb3e0b92cdc6e".to_string(), // our pubkey x
+            "aaa70afe39c280d2f43f05c070988dae7fbae9cdfd5fb6461acd7657e765e172".to_string(),
+            "bbb80afe39c280d2f43f05c070988dae7fbae9cdfd5fb6461acd7657e765e172".to_string(),
         ];
 
         let index = 2;
@@ -169,20 +182,19 @@ mod test {
             pubkey,
             signature,
             index,
-            ring,
+            guild_id: "almafa".to_string(),
         };
 
-        let parsed_input: ParsedProofInput<Secp256k1, Tom256k1> = proof_input.try_into().unwrap();
-        let address_parsed = parsed_input.ring[index];
-        let address_committed = pedersen_cycle.cycle().commit(&mut rng, address_parsed);
+        let parsed_input: ParsedProofInput<Secp256k1> = proof_input.try_into().unwrap();
+        let parsed_ring = parse_ring(ring).unwrap();
 
         let zkattest_proof = ZkAttestProof::<Secp256k1, Tom256k1>::construct(
             &mut rng,
             pedersen_cycle,
-            address_committed,
             parsed_input,
+            &parsed_ring,
         )
         .unwrap();
-        assert!(zkattest_proof.verify(&mut rng).is_ok());
+        assert!(zkattest_proof.verify(&mut rng, &parsed_ring).is_ok());
     }
 }

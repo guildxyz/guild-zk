@@ -1,8 +1,11 @@
 use crate::arithmetic::{AffinePoint, FieldElement, Modular, Scalar};
-use crate::curve::{Curve, Cycle};
+use crate::curve::Curve;
 use crate::U256;
 
 use serde::Deserialize;
+
+pub type Ring = Vec<String>;
+pub type ParsedRing<C> = Vec<Scalar<C>>;
 
 #[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -11,34 +14,30 @@ pub struct ProofInput {
     pub pubkey: String,
     pub signature: String,
     pub index: usize,
-    pub ring: Vec<String>,
+    pub guild_id: String,
 }
 
-pub struct ParsedProofInput<C: Curve, CC: Cycle<C>> {
+pub struct ParsedProofInput<C: Curve> {
     pub msg_hash: Scalar<C>,
     pub pubkey: AffinePoint<C>,
     pub signature: Signature<C>,
     pub index: usize,
-    pub ring: Vec<Scalar<CC>>,
+    pub guild_id: String,
 }
 
-impl<C: Curve, CC: Cycle<C>> TryFrom<ProofInput> for ParsedProofInput<C, CC> {
+impl<C: Curve> TryFrom<ProofInput> for ParsedProofInput<C> {
     type Error = String;
-    fn try_from(value: ProofInput) -> Result<Self, Self::Error> {
-        let hash = value.msg_hash.trim_start_matches("0x");
+    fn try_from(rhs: ProofInput) -> Result<Self, Self::Error> {
+        let hash = rhs.msg_hash.trim_start_matches("0x");
         if hash.len() != 64 {
             return Err("invalid hash length".to_string());
         }
         Ok(Self {
             msg_hash: Scalar::new(U256::from_be_hex(hash)),
-            pubkey: parse_pubkey(&value.pubkey)?,
-            signature: parse_signature(&value.signature)?,
-            index: value.index,
-            ring: value
-                .ring
-                .iter()
-                .flat_map(|addr| address_to_scalar(addr))
-                .collect(),
+            pubkey: parse_pubkey(&rhs.pubkey)?,
+            signature: parse_signature(&rhs.signature)?,
+            index: rhs.index,
+            guild_id: rhs.guild_id,
         })
     }
 }
@@ -53,15 +52,21 @@ enum Parse {
     Signature,
 }
 
-pub fn address_to_scalar<C: Curve>(address: &str) -> Result<Scalar<C>, String> {
-    let stripped = address.trim_start_matches("0x");
-    let mut padded = "000000000000000000000000".to_string(); // 24 zeros to pad 20 bit address to 32 bit scalar
-    padded.push_str(stripped);
-    // NOTE this check avoids explicit panics by `from_be_hex`
-    if padded.len() != 64 {
-        return Err("invalid address".to_string());
+pub fn parse_ring<C: Curve>(ring: Ring) -> Result<ParsedRing<C>, String> {
+    let mut parsed = ParsedRing::with_capacity(ring.len());
+    for pk in ring.iter() {
+        parsed.push(extract_x_coordinate(pk)?);
     }
-    Ok(Scalar::new(U256::from_be_hex(&padded)))
+    Ok(parsed)
+}
+
+fn extract_x_coordinate<C: Curve>(pubkey: &str) -> Result<Scalar<C>, String> {
+    let stripped = pubkey.trim_start_matches("0x").trim_start_matches("04");
+    // NOTE this check avoids explicit panics by `from_be_hex`
+    if stripped.len() > 128 {
+        return Err("invalid pubkey".to_string());
+    }
+    Ok(Scalar::new(U256::from_be_hex(&stripped[..64])))
 }
 
 fn parse_pubkey<C: Curve>(pubkey: &str) -> Result<AffinePoint<C>, String> {
@@ -109,25 +114,16 @@ mod test {
     use crate::U256;
 
     #[test]
-    fn address_conversion() {
-        let address = "0x0123456789012345678901234567890123456789";
-        let scalar = address_to_scalar::<Tom256k1>(address).unwrap();
+    fn pubkey_extraction() {
+        let pubkey = "0x0408c6cd9400645819c8c556a6e83e0a7728f070a813bb9d24d5c24290e21fc5e438396f9333264d3e7c1d3e6ee1bc572b2f00b98db7065e9bf278f2b8dbe02718";
+        let x_coord = extract_x_coordinate::<Tom256k1>(pubkey).unwrap();
+
         assert_eq!(
-            scalar,
-            Scalar::new(U256::from_be_hex(
-                "0000000000000000000000000123456789012345678901234567890123456789"
+            x_coord,
+            Scalar::<Tom256k1>::new(U256::from_be_hex(
+                "08c6cd9400645819c8c556a6e83e0a7728f070a813bb9d24d5c24290e21fc5e4"
             ))
         );
-
-        let address = "0000000000000000000000000000000000000000";
-        let scalar = address_to_scalar::<Tom256k1>(address).unwrap();
-        assert_eq!(scalar, Scalar::<Tom256k1>::ZERO);
-
-        let address = "0x12345";
-        assert!(address_to_scalar::<Tom256k1>(address).is_err());
-
-        let address = "3".repeat(42);
-        assert!(address_to_scalar::<Tom256k1>(&address).is_err());
     }
 
     #[test]
@@ -174,36 +170,40 @@ mod test {
             signature:"0x45c4039b611c0cc207ff7fb7a6899ea0431aac2cf37515d74a71f2df00e2c3e0096fad5e7eda762898fffd4644f8a7a406bf6bde868814ea03058c882fcd23311c".to_string(),
             pubkey:"0x0408c6cd9400645819c8c556a6e83e0a7728f070a813bb9d24d5c24290e21fc5e438396f9333264d3e7c1d3e6ee1bc572b2f00b98db7065e9bf278f2b8dbe02718".to_string(),
             index: 1,
-            ring: vec![
-              "0x1679349AeA848f928cE886fbAE10a85660CBFecE".to_string(),
-              "0x0679349AeA848f928cE886fbAE10a85660CBFecD".to_string(),
-              "0x7679349AeA848f928cE886fbAE10a85660CBFecF".to_string(),
-            ],
+            guild_id: "Our-guild#2314".to_string(),
         };
+        let ring = vec![
+            "0x1679349AeA848f928cE886fbAE10a85660CBFecE0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".to_string(),
+            "0x0679349AeA848f928cE886fbAE10a85660CBFecD0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".to_string(),
+            "0x7679349AeA848f928cE886fbAE10a85660CBFecF0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".to_string(),
+        ];
 
-        let parsed: ParsedProofInput<Secp256k1, Tom256k1> = input.try_into().unwrap();
+        let parsed_input: ParsedProofInput<Secp256k1> = input.try_into().unwrap();
+        let parsed_ring: ParsedRing<Tom256k1> = parse_ring(ring).unwrap();
+
         assert_eq!(
-            parsed.msg_hash,
+            parsed_input.msg_hash,
             Scalar::new(U256::from_be_hex(
                 "1ab4850e7f0a85a521e87b274e3130efdb45f6a47e74e6dcebf5591c6bc8f16e"
             ))
         );
+        assert_eq!(parsed_input.guild_id, "Our-guild#2314");
         assert_eq!(
-            parsed.ring[0],
+            parsed_ring[0],
             Scalar::new(U256::from_be_hex(
-                "0000000000000000000000001679349AeA848f928cE886fbAE10a85660CBFecE"
+                "1679349AeA848f928cE886fbAE10a85660CBFecE000000000000000000000000"
             ))
         );
         assert_eq!(
-            parsed.ring[1],
+            parsed_ring[1],
             Scalar::new(U256::from_be_hex(
-                "0000000000000000000000000679349AeA848f928cE886fbAE10a85660CBFecD"
+                "0679349AeA848f928cE886fbAE10a85660CBFecD000000000000000000000000"
             ))
         );
         assert_eq!(
-            parsed.ring[2],
+            parsed_ring[2],
             Scalar::new(U256::from_be_hex(
-                "0000000000000000000000007679349AeA848f928cE886fbAE10a85660CBFecF"
+                "7679349AeA848f928cE886fbAE10a85660CBFecF000000000000000000000000"
             ))
         );
     }

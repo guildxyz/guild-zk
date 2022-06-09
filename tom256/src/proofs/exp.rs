@@ -46,16 +46,16 @@ pub struct ExpSecrets<C: Curve> {
 
 #[derive(Clone)]
 pub struct ExpCommitments<C: Curve, CC: Cycle<C>> {
-    pub(crate) px: PedersenCommitment<CC>,
-    pub(crate) py: PedersenCommitment<CC>,
-    pub(crate) exp: PedersenCommitment<C>,
+    pub(super) px: PedersenCommitment<CC>,
+    pub(super) py: PedersenCommitment<CC>,
+    pub(super) exp: PedersenCommitment<C>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ExpCommitmentPoints<C: Curve, CC: Cycle<C>> {
-    px: Point<CC>,
-    py: Point<CC>,
-    exp: Point<C>,
+    pub(super) px: Point<CC>,
+    pub(super) py: Point<CC>,
+    pub(super) exp: Point<C>,
 }
 
 impl<C: Curve> ExpSecrets<C> {

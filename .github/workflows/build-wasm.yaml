@@ -1,0 +1,28 @@
+name: Build wasm binaries
+
+on:
+  push:
+    branches: [main, wasm-dev]
+
+jobs:
+  build-wasm:
+    name: wasm-pack build
+    runs-on: ubuntu-latest
+    env:
+      ACCESS_HEADER: ${{ secrets.GH_ACTIONS_PAT }}
+      TARGET_REPO: agoraxyz/agora-wasm-hub.git
+      TARGET_BRANCH: ${{ github.repository }}@${{ github.ref_name }}
+      WASM_DIR: tom256
+    steps:
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+          profile: minimal
+
+      - uses: actions/checkout@v2
+      - run: |
+          cargo install wasm-pack
+          git config --global user.name "PopcornPaws"
+          git config --global user.email "mark@gold.xyz"
+          bash build-wasm.sh
