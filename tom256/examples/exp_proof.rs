@@ -15,12 +15,14 @@ async fn main() {
     let exponent = Scalar::<Secp256k1>::random(&mut rng);
 
     let security_param = 60;
-    for i in 0..10 {
+    let loops = 10;
+    let mut total_elapsed = 0u128;
+    for i in 1..=loops {
         let result = base_gen.scalar_mul(&exponent);
         let secrets = ExpSecrets::new(exponent, result.into());
         let commitments = secrets.commit(&mut rng, &pedersen_cycle);
         let loop_start = Instant::now();
-        println!("RUNNING LOOP {}", i);
+        println!("RUNNING LOOP {}/{}", i, loops);
         let proof = ExpProof::construct(
             rng,
             &base_gen,
@@ -35,7 +37,7 @@ async fn main() {
 
         assert!(proof
             .verify(
-                &mut rng,
+                rng,
                 &base_gen,
                 &pedersen_cycle,
                 &commitments.into_commitments(),
@@ -43,6 +45,10 @@ async fn main() {
                 None,
             )
             .is_ok());
-        println!("ELAPSED {}", loop_start.elapsed().as_millis());
+        let elapsed = loop_start.elapsed().as_millis();
+        total_elapsed += elapsed;
+        println!("ELAPSED {} [ms]", elapsed);
     }
+
+    println!("AVG {} [ms]", total_elapsed / loops as u128);
 }

@@ -251,7 +251,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
 
     pub fn verify<R: CryptoRng + RngCore + Send + Sync + Copy>(
         &self,
-        mut rng: R,
+        rng: R,
         base_gen: &Point<C>,
         pedersen: &PedersenCycle<C, CC>,
         commitments: &ExpCommitmentPoints<C, CC>,
@@ -541,7 +541,7 @@ mod test {
 
         assert!(exp_proof
             .verify(
-                &mut rng,
+                rng,
                 &base_gen,
                 &pedersen,
                 &commitments.into_commitments(),
@@ -579,7 +579,7 @@ mod test {
 
         assert!(exp_proof
             .verify(
-                &mut rng,
+                rng,
                 &base_gen,
                 &pedersen,
                 &commitments.into_commitments(),
@@ -616,7 +616,7 @@ mod test {
 
         assert!(exp_proof
             .verify(
-                &mut rng,
+                rng,
                 &base_gen,
                 &pedersen,
                 &commitments.into_commitments(),
