@@ -5,6 +5,7 @@ use crate::U256;
 use bigint::Encoding;
 use sha3::{Digest, Keccak256};
 
+#[derive(Debug)]
 pub struct PointHasher {
     hasher: Keccak256,
 }

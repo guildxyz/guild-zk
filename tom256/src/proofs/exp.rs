@@ -103,6 +103,15 @@ impl<C: Curve, CC: Cycle<C>> ExpCommitmentPoints<C, CC> {
     }
 }
 
+struct AuxiliaryCommitments<C: Curve, CC: Cycle<C>> {
+    alpha: Scalar<C>,
+    r: Scalar<C>,
+    a: Point<C>,
+    t: AffinePoint<C>,
+    tx: PedersenCommitment<CC>,
+    ty: PedersenCommitment<CC>,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct ExpProof<C: Curve, CC: Cycle<C>> {
     proofs: Vec<SingleExpProof<C, CC>>,
@@ -112,7 +121,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
     const HASH_ID: &'static [u8] = b"exp-proof";
 
     pub async fn construct<R: CryptoRng + RngCore + Send + Sync + Copy>(
-        mut rng: R,
+        rng: R,
         base_gen: &Point<C>,
         pedersen: &PedersenCycle<C, CC>,
         secrets: &ExpSecrets<C>,
@@ -120,51 +129,22 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         security_param: usize,
         q_point: Option<Point<C>>,
     ) -> Result<Self, String> {
-        let mut alpha_vec = Vec::<Scalar<C>>::with_capacity(security_param);
-        let mut r_vec = Vec::<Scalar<C>>::with_capacity(security_param);
-        let mut t_vec = Vec::<Point<C>>::with_capacity(security_param);
-        let mut a_vec = Vec::<Point<C>>::with_capacity(security_param);
-        let mut tx_vec = Vec::<PedersenCommitment<CC>>::with_capacity(security_param);
-        let mut ty_vec = Vec::<PedersenCommitment<CC>>::with_capacity(security_param);
+        //let mut alpha_vec = Vec::<Scalar<C>>::with_capacity(security_param);
+        //let mut r_vec = Vec::<Scalar<C>>::with_capacity(security_param);
+        //let mut t_vec = Vec::<Point<C>>::with_capacity(security_param);
+        //let mut a_vec = Vec::<Point<C>>::with_capacity(security_param);
+        //let mut tx_vec = Vec::<PedersenCommitment<CC>>::with_capacity(security_param);
+        //let mut ty_vec = Vec::<PedersenCommitment<CC>>::with_capacity(security_param);
 
-        let mut point_hasher = PointHasher::new(Self::HASH_ID);
-        point_hasher.insert_point(commitments.px.commitment());
-        point_hasher.insert_point(commitments.py.commitment());
-
-        for i in 0..security_param {
-            // exponent
-            alpha_vec.push(Scalar::random(&mut rng));
-            // random r scalars
-            r_vec.push(Scalar::random(&mut rng));
-            // T = g^alpha
-            t_vec.push(base_gen * alpha_vec[i]);
-            // A = g^alpha + h^r (essentially a commitment in the base curve)
-            a_vec.push(&t_vec[i] + &(pedersen.base().generator() * r_vec[i]));
-
-            let coord_t = t_vec[i].to_affine();
-            if coord_t.is_identity() {
-                return Err("intermediate value is identity".to_owned());
-            }
-            // commitment to Tx
-            tx_vec.push(
-                pedersen
-                    .cycle()
-                    .commit(&mut rng, coord_t.x().to_cycle_scalar()),
-            );
-            // commitment to Ty
-            ty_vec.push(
-                pedersen
-                    .cycle()
-                    .commit(&mut rng, coord_t.y().to_cycle_scalar()),
-            );
-
-            // update hasher with current points
-            point_hasher.insert_point(&a_vec[i]);
-            point_hasher.insert_point(tx_vec[i].commitment());
-            point_hasher.insert_point(ty_vec[i].commitment());
-        }
-
-        let challenge = padded_bits(point_hasher.finalize(), security_param);
+        let point_hasher = Arc::new(Mutex::new(PointHasher::new(Self::HASH_ID)));
+        point_hasher
+            .lock()
+            .unwrap()
+            .insert_point(commitments.px.commitment());
+        point_hasher
+            .lock()
+            .unwrap()
+            .insert_point(commitments.py.commitment());
 
         let thread_pool = rayon::ThreadPoolBuilder::new()
             .build()
@@ -173,47 +153,104 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         let (tx, rx) = oneshot::channel();
 
         thread_pool.install(|| {
-            let all_exp_proofs = (alpha_vec, a_vec, r_vec, t_vec, tx_vec, ty_vec, challenge)
+            let aux_vec: Vec<AuxiliaryCommitments<C, CC>> = (0..security_param)
                 .into_par_iter()
-                .map(|(alpha, a, r, t, tx, ty, c_bit)| {
+                .map(|_| {
+                    let mut rng = rng;
+                    // exponent
+                    //alpha_vec.push(Scalar::random(&mut rng));
+                    let mut alpha = Scalar::ZERO;
+                    while alpha == Scalar::ZERO {
+                        // ensure alpha is non-zero
+                        alpha = Scalar::random(&mut rng);
+                    }
+                    // random r scalars
+                    //r_vec.push(Scalar::random(&mut rng));
+                    let r = Scalar::random(&mut rng);
+                    // T = g^alpha
+                    //t_vec.push(base_gen * alpha_vec[i]);
+                    let t: AffinePoint<C> = (base_gen * alpha).into();
+                    // A = g^alpha + h^r (essentially a commitment in the base curve)
+                    //a_vec.push(&t_vec[i] + &(pedersen.base().generator() * r_vec[i]));
+                    let a = &t + &(pedersen.base().generator() * r).to_affine();
+
+                    // commitment to Tx
+                    let tx = pedersen.cycle().commit(&mut rng, t.x().to_cycle_scalar());
+                    // commitment to Ty
+                    let ty = pedersen.cycle().commit(&mut rng, t.y().to_cycle_scalar());
+
+                    // update hasher with current points
+                    let mut locked_hasher = point_hasher.lock().unwrap();
+                    locked_hasher.insert_point(&a);
+                    locked_hasher.insert_point(tx.commitment());
+                    locked_hasher.insert_point(ty.commitment());
+
+                    AuxiliaryCommitments {
+                        alpha,
+                        r,
+                        a,
+                        t,
+                        tx,
+                        ty,
+                    }
+                })
+                .collect();
+            drop(tx.send(aux_vec))
+        });
+
+        let auxiliaries = rx.await.map_err(|e| e.to_string())?;
+        let challenge = padded_bits(
+            Arc::try_unwrap(point_hasher)
+                .unwrap()
+                .into_inner()
+                .unwrap()
+                .finalize(),
+            security_param,
+        );
+
+        let (tx, rx) = oneshot::channel();
+
+        thread_pool.install(|| {
+            let all_exp_proofs = (auxiliaries, challenge)
+                .into_par_iter()
+                .flat_map(|(aux, c_bit)| {
                     if c_bit {
-                        let tx_r = *tx.randomness();
-                        let ty_r = *ty.randomness();
-                        SingleExpProof {
-                            a,
-                            tx_p: tx.into_commitment(),
-                            ty_p: ty.into_commitment(),
+                        let tx_r = *aux.tx.randomness();
+                        let ty_r = *aux.ty.randomness();
+                        Ok(SingleExpProof {
+                            a: aux.a,
+                            tx_p: aux.tx.into_commitment(),
+                            ty_p: aux.ty.into_commitment(),
                             variant: ExpProofVariant::Odd {
-                                alpha,
-                                r,
+                                alpha: aux.alpha,
+                                r: aux.r,
                                 tx_r,
                                 ty_r,
                             },
-                        }
+                        })
                     } else {
                         let mut rng = rng;
-                        let z = alpha - secrets.exp;
+                        let z = aux.alpha - secrets.exp;
                         let mut t1 = base_gen * z;
                         if let Some(pt) = q_point.as_ref() {
                             t1 += pt;
                         }
 
-                        // TODO how to handle this in a multithreaded context
-                        //if t1.is_identity() {
-                        //    return Err("intermediate value is identity".to_owned());
-                        //}
+                        if t1.is_identity() {
+                            return Err("intermediate value is identity".to_owned());
+                        }
 
                         // Generate point add proof
                         let add_secret =
-                            PointAddSecrets::new(t1.into(), secrets.point.clone(), t.into());
+                            PointAddSecrets::new(t1.into(), secrets.point.clone(), aux.t.into());
                         // NOTE only commits t1 and uses existing commitments for the rest
                         let add_commitments = add_secret.commit_p_only(
                             &mut rng,
                             pedersen.cycle(),
                             commitments.px.clone(),
                             commitments.py.clone(),
-                            tx.clone(),
-                            ty.clone(),
+                            aux.tx.clone(),
+                            aux.ty.clone(),
                         );
                         let add_proof = PointAddProof::construct(
                             &mut rng,
@@ -222,18 +259,18 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                             &add_secret,
                         );
 
-                        SingleExpProof {
-                            a,
-                            tx_p: tx.into_commitment(),
-                            ty_p: ty.into_commitment(),
+                        Ok(SingleExpProof {
+                            a: aux.a,
+                            tx_p: aux.tx.into_commitment(),
+                            ty_p: aux.ty.into_commitment(),
                             variant: ExpProofVariant::Even {
                                 z,
-                                r: r - (*commitments.exp.randomness()),
+                                r: aux.r - (*commitments.exp.randomness()),
                                 t1_x: *add_commitments.px.randomness(),
                                 t1_y: *add_commitments.py.randomness(),
                                 add_proof,
                             },
-                        }
+                        })
                     }
                 })
                 .collect::<Vec<_>>();
@@ -447,33 +484,6 @@ fn padded_bits(number: U256, length: usize) -> Vec<bool> {
     ret
 }
 
-// Get random number from interval [min, max]
-fn get_rand_range<R: CryptoRng + RngCore>(min: usize, max: usize, rng: &mut R) -> usize {
-    rng.next_u64() as usize % (max - min + 1) + min
-}
-
-fn generate_indices<R: CryptoRng + RngCore>(
-    idx_num: usize,
-    limit: usize,
-    rng: &mut R,
-) -> Vec<usize> {
-    let mut ret = Vec::<usize>::with_capacity(limit);
-
-    for i in 0..limit {
-        ret.push(i);
-    }
-
-    let mut randoms = vec![];
-    for i in 0..limit - 2 {
-        let random_idx = get_rand_range(i, limit - 1, rng);
-        randoms.push(random_idx);
-        ret.swap(i, random_idx);
-    }
-
-    ret.truncate(idx_num);
-    ret
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -496,18 +506,6 @@ mod test {
         let true_64 = vec![true; 64];
         assert_eq!(padded_bits(test_u256, 64), true_64);
         assert_eq!(padded_bits(test_u256, 65), [true_64, vec![false]].concat());
-    }
-
-    #[test]
-    fn rand_range_valid() {
-        let max = 217;
-        let min = 214;
-        let mut rng = OsRng;
-        for _ in 0..1000 {
-            let rand = get_rand_range(min, max, &mut rng);
-            assert!(rand <= max);
-            assert!(rand >= min);
-        }
     }
 
     #[tokio::test]

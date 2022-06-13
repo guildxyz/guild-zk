@@ -44,12 +44,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let parsed_input: ParsedProofInput<Secp256k1> = proof_input.try_into()?;
     let parsed_ring = parse_ring(ring)?;
 
-    let zkattest_proof = ZkAttestProof::<Secp256k1, Tom256k1>::construct(
-        rng,
-        pedersen,
-        parsed_input,
-        &parsed_ring,
-    ).await?;
+    let zkattest_proof =
+        ZkAttestProof::<Secp256k1, Tom256k1>::construct(rng, pedersen, parsed_input, &parsed_ring)
+            .await?;
 
     let mut file = File::create("proof.json")?;
     let proof = serde_json::to_string(&zkattest_proof)?;
