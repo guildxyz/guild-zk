@@ -15,8 +15,6 @@ use serde::{Deserialize, Serialize};
 use std::ops::Neg;
 use std::sync::{Arc, Mutex};
 
-const NUM_THREADS: usize = 8;
-
 #[allow(clippy::large_enum_variant)]
 #[derive(Serialize, Deserialize)]
 pub enum ExpProofVariant<C: Curve, CC: Cycle<C>> {
@@ -169,7 +167,6 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         let challenge = padded_bits(point_hasher.finalize(), security_param);
 
         let thread_pool = rayon::ThreadPoolBuilder::new()
-            .num_threads(NUM_THREADS)
             .build()
             .map_err(|e| e.to_string())?;
 
@@ -299,7 +296,6 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         let challenge = padded_bits(point_hasher.finalize(), self.proofs.len());
 
         let thread_pool = rayon::ThreadPoolBuilder::new()
-            .num_threads(NUM_THREADS)
             .build()
             .map_err(|e| e.to_string())?;
 

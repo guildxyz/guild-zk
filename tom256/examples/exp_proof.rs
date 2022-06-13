@@ -16,13 +16,14 @@ async fn main() {
 
     let security_param = 60;
     let loops = 10;
-    let mut total_elapsed = 0u128;
+    let mut total_prove_elapsed = 0u128;
+    let mut total_verify_elapsed = 0u128;
     for i in 1..=loops {
         let result = base_gen.scalar_mul(&exponent);
         let secrets = ExpSecrets::new(exponent, result.into());
         let commitments = secrets.commit(&mut rng, &pedersen_cycle);
-        let loop_start = Instant::now();
         println!("RUNNING LOOP {}/{}", i, loops);
+        let mut start = Instant::now();
         let proof = ExpProof::construct(
             rng,
             &base_gen,
@@ -34,7 +35,8 @@ async fn main() {
         )
         .await
         .unwrap();
-
+        let prove_elapsed = start.elapsed().as_millis();
+        start = Instant::now();
         assert!(proof
             .verify(
                 rng,
@@ -45,10 +47,11 @@ async fn main() {
                 None,
             )
             .is_ok());
-        let elapsed = loop_start.elapsed().as_millis();
-        total_elapsed += elapsed;
-        println!("ELAPSED {} [ms]", elapsed);
+        let verify_elapsed = start.elapsed().as_millis();
+        total_prove_elapsed += prove_elapsed;
+        total_verify_elapsed += verify_elapsed;
     }
 
-    println!("AVG {} [ms]", total_elapsed / loops as u128);
+    println!("AVG PROVE  {} [ms]", total_prove_elapsed / loops as u128);
+    println!("AVG VERIFY {} [ms]", total_verify_elapsed / loops as u128);
 }

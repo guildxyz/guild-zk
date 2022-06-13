@@ -151,7 +151,6 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
     }
 }
 
-/*
 #[cfg(test)]
 mod test {
     use super::ZkAttestProof;
@@ -163,9 +162,9 @@ mod test {
     use rand::rngs::StdRng;
     use rand_core::SeedableRng;
 
-    #[test]
-    fn zkp_attest_valid() {
-        let mut rng = StdRng::from_seed([14; 32]);
+    #[tokio::test]
+    async fn zkp_attest_valid() {
+        let mut rng = rand_core::OsRng;
         let pedersen_cycle = PedersenCycle::<Secp256k1, Tom256k1>::new(&mut rng);
 
         let msg_hash =
@@ -197,13 +196,13 @@ mod test {
         let parsed_ring = parse_ring(ring).unwrap();
 
         let zkattest_proof = ZkAttestProof::<Secp256k1, Tom256k1>::construct(
-            &mut rng,
+            rng,
             pedersen_cycle,
             parsed_input,
             &parsed_ring,
         )
+        .await
         .unwrap();
-        assert!(zkattest_proof.verify(&mut rng, &parsed_ring).is_ok());
+        assert!(zkattest_proof.verify(rng, &parsed_ring).is_ok());
     }
 }
-*/
