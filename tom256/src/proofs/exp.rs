@@ -129,22 +129,9 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         security_param: usize,
         q_point: Option<Point<C>>,
     ) -> Result<Self, String> {
-        //let mut alpha_vec = Vec::<Scalar<C>>::with_capacity(security_param);
-        //let mut r_vec = Vec::<Scalar<C>>::with_capacity(security_param);
-        //let mut t_vec = Vec::<Point<C>>::with_capacity(security_param);
-        //let mut a_vec = Vec::<Point<C>>::with_capacity(security_param);
-        //let mut tx_vec = Vec::<PedersenCommitment<CC>>::with_capacity(security_param);
-        //let mut ty_vec = Vec::<PedersenCommitment<CC>>::with_capacity(security_param);
-
-        let point_hasher = Arc::new(Mutex::new(PointHasher::new(Self::HASH_ID)));
-        point_hasher
-            .lock()
-            .unwrap()
-            .insert_point(commitments.px.commitment());
-        point_hasher
-            .lock()
-            .unwrap()
-            .insert_point(commitments.py.commitment());
+        let mut point_hasher = PointHasher::new(Self::HASH_ID);
+        point_hasher.insert_point(commitments.px.commitment());
+        point_hasher.insert_point(commitments.py.commitment());
 
         let thread_pool = rayon::ThreadPoolBuilder::new()
             .build()
@@ -158,32 +145,22 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                 .map(|_| {
                     let mut rng = rng;
                     // exponent
-                    //alpha_vec.push(Scalar::random(&mut rng));
                     let mut alpha = Scalar::ZERO;
                     while alpha == Scalar::ZERO {
                         // ensure alpha is non-zero
                         alpha = Scalar::random(&mut rng);
                     }
                     // random r scalars
-                    //r_vec.push(Scalar::random(&mut rng));
                     let r = Scalar::random(&mut rng);
                     // T = g^alpha
-                    //t_vec.push(base_gen * alpha_vec[i]);
                     let t: AffinePoint<C> = (base_gen * alpha).into();
                     // A = g^alpha + h^r (essentially a commitment in the base curve)
-                    //a_vec.push(&t_vec[i] + &(pedersen.base().generator() * r_vec[i]));
                     let a = &t + &(pedersen.base().generator() * r).to_affine();
 
                     // commitment to Tx
                     let tx = pedersen.cycle().commit(&mut rng, t.x().to_cycle_scalar());
                     // commitment to Ty
                     let ty = pedersen.cycle().commit(&mut rng, t.y().to_cycle_scalar());
-
-                    // update hasher with current points
-                    let mut locked_hasher = point_hasher.lock().unwrap();
-                    locked_hasher.insert_point(&a);
-                    locked_hasher.insert_point(tx.commitment());
-                    locked_hasher.insert_point(ty.commitment());
 
                     AuxiliaryCommitments {
                         alpha,
@@ -199,14 +176,13 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         });
 
         let auxiliaries = rx.await.map_err(|e| e.to_string())?;
-        let challenge = padded_bits(
-            Arc::try_unwrap(point_hasher)
-                .unwrap()
-                .into_inner()
-                .unwrap()
-                .finalize(),
-            security_param,
-        );
+        for aux in &auxiliaries {
+            point_hasher.insert_point(&aux.a);
+            point_hasher.insert_point(aux.tx.commitment());
+            point_hasher.insert_point(aux.ty.commitment());
+        }
+
+        let challenge = padded_bits(point_hasher.finalize(), security_param);
 
         let (tx, rx) = oneshot::channel();
 
@@ -243,7 +219,6 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                         // Generate point add proof
                         let add_secret =
                             PointAddSecrets::new(t1.into(), secrets.point.clone(), aux.t.into());
-                        // NOTE only commits t1 and uses existing commitments for the rest
                         let add_commitments = add_secret.commit_p_only(
                             &mut rng,
                             pedersen.cycle(),
@@ -339,7 +314,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         thread_pool.install(|| {
             (&self.proofs, challenge)
                 .into_par_iter()
-                .for_each(|(proof, c_bit)| {
+                .try_for_each(|(proof, c_bit)| {
                     let mut rng = rng;
                     match &proof.variant {
                         ExpProofVariant::Odd {
@@ -348,10 +323,9 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                             tx_r,
                             ty_r,
                         } => {
-                            // TODO how to return here
-                            //if !c_bit {
-                            //    return Err("challenge hash mismatch".to_owned());
-                            //}
+                            if !c_bit {
+                                return Err("challenge hash mismatch".to_owned());
+                            }
 
                             let t = base_gen.scalar_mul(&alpha);
                             let mut relation_a = Relation::<C>::new();
@@ -363,10 +337,9 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                             relation_a.drain(&mut rng, &mut base_multimult.lock().unwrap());
 
                             let coord_t: AffinePoint<C> = t.into();
-                            // TODO how to return here
-                            //if coord_t.is_identity() {
-                            //    return Err("intermediate value is identity".to_owned());
-                            //}
+                            if coord_t.is_identity() {
+                                return Err("intermediate value is identity".to_owned());
+                            }
 
                             let sx = coord_t.x().to_cycle_scalar::<CC>();
                             let sy = coord_t.y().to_cycle_scalar::<CC>();
@@ -384,6 +357,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
 
                             relation_tx.drain(&mut rng, &mut tom_multimult.lock().unwrap());
                             relation_ty.drain(&mut rng, &mut tom_multimult.lock().unwrap());
+                            Ok(())
                         }
                         ExpProofVariant::Even {
                             z,
@@ -392,10 +366,9 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                             t1_x,
                             t1_y,
                         } => {
-                            // TODO how to return here
-                            //if c_bit {
-                            //    return Err("challenge hash mismatch".to_owned());
-                            //}
+                            if c_bit {
+                                return Err("challenge hash mismatch".to_owned());
+                            }
 
                             let mut t = base_gen.scalar_mul(&z);
 
@@ -412,10 +385,9 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                             }
 
                             let coord_t: AffinePoint<C> = t.clone().into();
-                            // TODO how to return here
-                            //if coord_t.is_identity() {
-                            //    return Err("intermediate value is identity".to_owned());
-                            //}
+                            if coord_t.is_identity() {
+                                return Err("intermediate value is identity".to_owned());
+                            }
 
                             let sx = coord_t.x().to_cycle_scalar::<CC>();
                             let sy = coord_t.y().to_cycle_scalar::<CC>();
@@ -438,10 +410,11 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                                 &point_add_commitments,
                                 &mut tom_multimult.lock().unwrap(),
                             );
+                            Ok(())
                         }
                     }
                 })
-        });
+        })?;
 
         let tom_res = Arc::try_unwrap(tom_multimult)
             .unwrap()
@@ -542,7 +515,7 @@ mod test {
                 security_param,
                 None
             )
-            .is_ok())
+            .is_ok());
     }
 
     #[tokio::test]
