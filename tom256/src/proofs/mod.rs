@@ -108,9 +108,9 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
         })
     }
 
-    pub fn verify<R: CryptoRng + RngCore>(
+    pub fn verify<R: CryptoRng + RngCore + Send + Sync + Copy>(
         &self,
-        rng: &mut R,
+        mut rng: R,
         ring: &ParsedRing<CC>,
     ) -> Result<(), String> {
         let r_point_affine = self.r_point.to_affine();
@@ -131,8 +131,12 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
         let z1 = r_inv * self.msg_hash;
         let q_point = &Point::<C>::GENERATOR * z1;
 
-        self.membership_proof
-            .verify(rng, self.pedersen.cycle(), &self.exp_commitments.px, ring)?;
+        self.membership_proof.verify(
+            &mut rng,
+            self.pedersen.cycle(),
+            &self.exp_commitments.px,
+            ring,
+        )?;
 
         self.signature_proof.verify(
             rng,

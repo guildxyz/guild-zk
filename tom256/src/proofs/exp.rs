@@ -13,6 +13,9 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use std::ops::Neg;
+use std::sync::{Arc, Mutex};
+
+const NUM_THREADS: usize = 8;
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Serialize, Deserialize)]
@@ -166,7 +169,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         let challenge = padded_bits(point_hasher.finalize(), security_param);
 
         let thread_pool = rayon::ThreadPoolBuilder::new()
-            .num_threads(10)
+            .num_threads(NUM_THREADS)
             .build()
             .map_err(|e| e.to_string())?;
 
@@ -175,8 +178,8 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         thread_pool.install(|| {
             let all_exp_proofs = (alpha_vec, a_vec, r_vec, t_vec, tx_vec, ty_vec, challenge)
                 .into_par_iter()
-                .map(|(alpha, a, r, t, tx, ty, c)| {
-                    if c {
+                .map(|(alpha, a, r, t, tx, ty, c_bit)| {
+                    if c_bit {
                         let tx_r = *tx.randomness();
                         let ty_r = *ty.randomness();
                         SingleExpProof {
@@ -246,9 +249,9 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         }
     }
 
-    pub fn verify<R: CryptoRng + RngCore>(
+    pub fn verify<R: CryptoRng + RngCore + Send + Sync + Copy>(
         &self,
-        rng: &mut R,
+        mut rng: R,
         base_gen: &Point<C>,
         pedersen: &PedersenCycle<C, CC>,
         commitments: &ExpCommitmentPoints<C, CC>,
@@ -259,15 +262,27 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
             return Err("security level not achieved".to_owned());
         }
 
-        let mut tom_multimult = MultiMult::<CC>::new();
-        let mut base_multimult = MultiMult::<C>::new();
+        let tom_multimult = Arc::new(Mutex::new(MultiMult::<CC>::new()));
+        let base_multimult = Arc::new(Mutex::new(MultiMult::<C>::new()));
 
-        tom_multimult.add_known(Point::<CC>::GENERATOR);
-        tom_multimult.add_known(pedersen.cycle().generator().clone());
+        tom_multimult
+            .lock()
+            .unwrap()
+            .add_known(Point::<CC>::GENERATOR);
+        tom_multimult
+            .lock()
+            .unwrap()
+            .add_known(pedersen.cycle().generator().clone());
 
-        base_multimult.add_known(base_gen.clone());
-        base_multimult.add_known(pedersen.base().generator().clone());
-        base_multimult.add_known(commitments.exp.clone());
+        base_multimult.lock().unwrap().add_known(base_gen.clone());
+        base_multimult
+            .lock()
+            .unwrap()
+            .add_known(pedersen.base().generator().clone());
+        base_multimult
+            .lock()
+            .unwrap()
+            .add_known(commitments.exp.clone());
 
         let mut point_hasher = PointHasher::new(Self::HASH_ID);
         point_hasher.insert_point(&commitments.px);
@@ -278,111 +293,133 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
             point_hasher.insert_point(&self.proofs[i].tx_p);
             point_hasher.insert_point(&self.proofs[i].ty_p);
         }
-        let challenge = point_hasher.finalize();
 
-        let indices = generate_indices(security_param, self.proofs.len(), rng);
-        let challenge_bits = padded_bits(challenge, self.proofs.len());
+        // TODO do we need indices (sec param == proof.len())
+        //let indices = generate_indices(security_param, self.proofs.len(), &mut rng);
+        let challenge = padded_bits(point_hasher.finalize(), self.proofs.len());
 
-        for i in indices.into_iter() {
-            match &self.proofs[i].variant {
-                ExpProofVariant::Odd {
-                    alpha,
-                    r,
-                    tx_r,
-                    ty_r,
-                } => {
-                    if !challenge_bits[i] {
-                        return Err("challenge hash mismatch".to_owned());
+        let thread_pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(NUM_THREADS)
+            .build()
+            .map_err(|e| e.to_string())?;
+
+        thread_pool.install(|| {
+            (&self.proofs, challenge)
+                .into_par_iter()
+                .for_each(|(proof, c_bit)| {
+                    let mut rng = rng;
+                    match &proof.variant {
+                        ExpProofVariant::Odd {
+                            alpha,
+                            r,
+                            tx_r,
+                            ty_r,
+                        } => {
+                            // TODO how to return here
+                            //if !c_bit {
+                            //    return Err("challenge hash mismatch".to_owned());
+                            //}
+
+                            let t = base_gen.scalar_mul(&alpha);
+                            let mut relation_a = Relation::<C>::new();
+
+                            relation_a.insert(t.clone(), Scalar::<C>::ONE);
+                            relation_a.insert(pedersen.base().generator().clone(), *r);
+                            relation_a.insert((&proof.a).neg(), Scalar::<C>::ONE);
+
+                            relation_a.drain(&mut rng, &mut base_multimult.lock().unwrap());
+
+                            let coord_t: AffinePoint<C> = t.into();
+                            // TODO how to return here
+                            //if coord_t.is_identity() {
+                            //    return Err("intermediate value is identity".to_owned());
+                            //}
+
+                            let sx = coord_t.x().to_cycle_scalar::<CC>();
+                            let sy = coord_t.y().to_cycle_scalar::<CC>();
+
+                            let mut relation_tx = Relation::new();
+                            let mut relation_ty = Relation::new();
+
+                            relation_tx.insert(Point::<CC>::GENERATOR, sx);
+                            relation_tx.insert(pedersen.cycle().generator().clone(), *tx_r);
+                            relation_tx.insert((&proof.tx_p).neg(), Scalar::<CC>::ONE);
+
+                            relation_ty.insert(Point::<CC>::GENERATOR, sy);
+                            relation_ty.insert(pedersen.cycle().generator().clone(), *ty_r);
+                            relation_ty.insert((&proof.ty_p).neg(), Scalar::<CC>::ONE);
+
+                            relation_tx.drain(&mut rng, &mut tom_multimult.lock().unwrap());
+                            relation_ty.drain(&mut rng, &mut tom_multimult.lock().unwrap());
+                        }
+                        ExpProofVariant::Even {
+                            z,
+                            r,
+                            add_proof,
+                            t1_x,
+                            t1_y,
+                        } => {
+                            // TODO how to return here
+                            //if c_bit {
+                            //    return Err("challenge hash mismatch".to_owned());
+                            //}
+
+                            let mut t = base_gen.scalar_mul(&z);
+
+                            let mut relation_a = Relation::<C>::new();
+                            relation_a.insert(t.clone(), Scalar::<C>::ONE);
+                            relation_a.insert(commitments.exp.clone(), Scalar::<C>::ONE);
+                            relation_a.insert((&proof.a).neg(), Scalar::<C>::ONE);
+                            relation_a.insert(pedersen.base().generator().clone(), *r);
+
+                            relation_a.drain(&mut rng, &mut base_multimult.lock().unwrap());
+
+                            if let Some(pt) = q_point.as_ref() {
+                                t += pt;
+                            }
+
+                            let coord_t: AffinePoint<C> = t.clone().into();
+                            // TODO how to return here
+                            //if coord_t.is_identity() {
+                            //    return Err("intermediate value is identity".to_owned());
+                            //}
+
+                            let sx = coord_t.x().to_cycle_scalar::<CC>();
+                            let sy = coord_t.y().to_cycle_scalar::<CC>();
+
+                            let t1_com_x = pedersen.cycle().commit_with_randomness(sx, *t1_x);
+                            let t1_com_y = pedersen.cycle().commit_with_randomness(sy, *t1_y);
+
+                            let point_add_commitments = PointAddCommitmentPoints::new(
+                                t1_com_x.into_commitment(),
+                                t1_com_y.into_commitment(),
+                                commitments.px.clone(),
+                                commitments.py.clone(),
+                                proof.tx_p.clone(),
+                                proof.ty_p.clone(),
+                            );
+
+                            add_proof.aggregate(
+                                &mut rng,
+                                pedersen.cycle(),
+                                &point_add_commitments,
+                                &mut tom_multimult.lock().unwrap(),
+                            );
+                        }
                     }
+                })
+        });
 
-                    let t = base_gen.scalar_mul(alpha);
-                    let mut relation_a = Relation::<C>::new();
-
-                    relation_a.insert(t.clone(), Scalar::<C>::ONE);
-                    relation_a.insert(pedersen.base().generator().clone(), *r);
-                    relation_a.insert((&self.proofs[i].a).neg(), Scalar::<C>::ONE);
-
-                    relation_a.drain(rng, &mut base_multimult);
-
-                    let coord_t: AffinePoint<C> = t.into();
-                    if coord_t.is_identity() {
-                        return Err("intermediate value is identity".to_owned());
-                    }
-
-                    let sx = coord_t.x().to_cycle_scalar::<CC>();
-                    let sy = coord_t.y().to_cycle_scalar::<CC>();
-
-                    let mut relation_tx = Relation::new();
-                    let mut relation_ty = Relation::new();
-
-                    relation_tx.insert(Point::<CC>::GENERATOR, sx);
-                    relation_tx.insert(pedersen.cycle().generator().clone(), *tx_r);
-                    relation_tx.insert((&self.proofs[i].tx_p).neg(), Scalar::<CC>::ONE);
-
-                    relation_ty.insert(Point::<CC>::GENERATOR, sy);
-                    relation_ty.insert(pedersen.cycle().generator().clone(), *ty_r);
-                    relation_ty.insert((&self.proofs[i].ty_p).neg(), Scalar::<CC>::ONE);
-
-                    relation_tx.drain(rng, &mut tom_multimult);
-                    relation_ty.drain(rng, &mut tom_multimult);
-                }
-                ExpProofVariant::Even {
-                    z,
-                    r,
-                    add_proof,
-                    t1_x,
-                    t1_y,
-                } => {
-                    if challenge_bits[i] {
-                        return Err("challenge hash mismatch".to_owned());
-                    }
-
-                    let mut t = base_gen.scalar_mul(z);
-
-                    let mut relation_a = Relation::<C>::new();
-                    relation_a.insert(t.clone(), Scalar::<C>::ONE);
-                    relation_a.insert(commitments.exp.clone(), Scalar::<C>::ONE);
-                    relation_a.insert((&self.proofs[i].a).neg(), Scalar::<C>::ONE);
-                    relation_a.insert(pedersen.base().generator().clone(), *r);
-
-                    relation_a.drain(rng, &mut base_multimult);
-
-                    if let Some(pt) = q_point.as_ref() {
-                        t += pt;
-                    }
-
-                    let coord_t: AffinePoint<C> = t.clone().into();
-                    if coord_t.is_identity() {
-                        return Err("intermediate value is identity".to_owned());
-                    }
-
-                    let sx = coord_t.x().to_cycle_scalar::<CC>();
-                    let sy = coord_t.y().to_cycle_scalar::<CC>();
-
-                    let t1_com_x = pedersen.cycle().commit_with_randomness(sx, *t1_x);
-                    let t1_com_y = pedersen.cycle().commit_with_randomness(sy, *t1_y);
-
-                    let point_add_commitments = PointAddCommitmentPoints::new(
-                        t1_com_x.into_commitment(),
-                        t1_com_y.into_commitment(),
-                        commitments.px.clone(),
-                        commitments.py.clone(),
-                        self.proofs[i].tx_p.clone(),
-                        self.proofs[i].ty_p.clone(),
-                    );
-
-                    add_proof.aggregate(
-                        rng,
-                        pedersen.cycle(),
-                        &point_add_commitments,
-                        &mut tom_multimult,
-                    );
-                }
-            }
-        }
-
-        let tom_res = tom_multimult.evaluate();
-        let base_res = base_multimult.evaluate();
+        let tom_res = Arc::try_unwrap(tom_multimult)
+            .unwrap()
+            .into_inner()
+            .unwrap()
+            .evaluate();
+        let base_res = Arc::try_unwrap(base_multimult)
+            .unwrap()
+            .into_inner()
+            .unwrap()
+            .evaluate();
 
         if !(tom_res.is_identity() && base_res.is_identity()) {
             return Err("proof is invalid".to_owned());
@@ -498,7 +535,8 @@ mod test {
             &commitments,
             security_param,
             None,
-        ).await
+        )
+        .await
         .unwrap();
 
         assert!(exp_proof
@@ -535,7 +573,8 @@ mod test {
             &commitments,
             security_param,
             Some(q_point.clone()),
-        ).await
+        )
+        .await
         .unwrap();
 
         assert!(exp_proof

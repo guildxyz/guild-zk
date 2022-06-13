@@ -36,14 +36,12 @@ pub async fn generate_proof(input: JsValue, ring: JsValue) -> Result<JsValue, Js
 // TODO: put this behind a wasm-test feature flag?
 #[wasm_bindgen(js_name = "verifyProof")]
 pub fn verify_proof(proof: JsValue, ring: JsValue) -> Result<JsValue, JsValue> {
-    let mut rng = rand_core::OsRng;
-
     let proof: ZkAttestProof<Secp256k1, Tom256k1> =
         proof.into_serde().map_err(|e| e.to_string())?;
 
     let ring: ParsedRing<Tom256k1> =
         parse_ring(ring.into_serde::<Ring>().map_err(|e| e.to_string())?)?;
 
-    proof.verify(&mut rng, &ring)?;
+    proof.verify(rand_core::OsRng, &ring)?;
     Ok(JsValue::from(true))
 }

@@ -14,7 +14,6 @@ async fn main() {
 
     let exponent = Scalar::<Secp256k1>::random(&mut rng);
 
-
     let security_param = 60;
     for i in 0..10 {
         let result = base_gen.scalar_mul(&exponent);
@@ -30,7 +29,8 @@ async fn main() {
             &commitments,
             security_param,
             None,
-        ).await
+        )
+        .await
         .unwrap();
 
         assert!(proof
