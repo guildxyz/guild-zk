@@ -129,10 +129,6 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         security_param: usize,
         q_point: Option<Point<C>>,
     ) -> Result<Self, String> {
-        let mut point_hasher = PointHasher::new(Self::HASH_ID);
-        point_hasher.insert_point(commitments.px.commitment());
-        point_hasher.insert_point(commitments.py.commitment());
-
         let thread_pool = rayon::ThreadPoolBuilder::new()
             .build()
             .map_err(|e| e.to_string())?;
@@ -176,6 +172,12 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         });
 
         let auxiliaries = rx.await.map_err(|e| e.to_string())?;
+        // NOTE this has to happen here, not in the thread pool because the
+        // point hasher can only be passed through an Arc-Mutex pair which
+        // inserts points randomly, i.e. the challenge bits will not match
+        let mut point_hasher = PointHasher::new(Self::HASH_ID);
+        point_hasher.insert_point(commitments.px.commitment());
+        point_hasher.insert_point(commitments.py.commitment());
         for aux in &auxiliaries {
             point_hasher.insert_point(&aux.a);
             point_hasher.insert_point(aux.tx.commitment());
@@ -271,27 +273,18 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
             return Err("security level not achieved".to_owned());
         }
 
-        let tom_multimult = Arc::new(Mutex::new(MultiMult::<CC>::new()));
-        let base_multimult = Arc::new(Mutex::new(MultiMult::<C>::new()));
+        let mut tom_multimult = MultiMult::<CC>::new();
+        let mut base_multimult = MultiMult::<C>::new();
 
-        tom_multimult
-            .lock()
-            .unwrap()
-            .add_known(Point::<CC>::GENERATOR);
-        tom_multimult
-            .lock()
-            .unwrap()
-            .add_known(pedersen.cycle().generator().clone());
+        tom_multimult.add_known(Point::<CC>::GENERATOR);
+        tom_multimult.add_known(pedersen.cycle().generator().clone());
 
-        base_multimult.lock().unwrap().add_known(base_gen.clone());
-        base_multimult
-            .lock()
-            .unwrap()
-            .add_known(pedersen.base().generator().clone());
-        base_multimult
-            .lock()
-            .unwrap()
-            .add_known(commitments.exp.clone());
+        base_multimult.add_known(base_gen.clone());
+        base_multimult.add_known(pedersen.base().generator().clone());
+        base_multimult.add_known(commitments.exp.clone());
+
+        let tom_multimult = Arc::new(Mutex::new(tom_multimult));
+        let base_multimult = Arc::new(Mutex::new(base_multimult));
 
         let mut point_hasher = PointHasher::new(Self::HASH_ID);
         point_hasher.insert_point(&commitments.px);
