@@ -17,6 +17,8 @@ struct Opt {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
+    Ok(())
+    /*
     let opt = Opt::from_args();
     let ring_file = File::open(opt.ring)?;
     let ring_reader = BufReader::new(ring_file);
@@ -55,4 +57,5 @@ fn main() -> Result<(), Box<dyn Error>> {
     write!(file, "{}", proof).map_err(|e| e.to_string())?;
     println!("Proof generated successfully");
     Ok(())
+    */
 }

@@ -147,6 +147,7 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
     }
 }
 
+/*
 #[cfg(test)]
 mod test {
     use super::ZkAttestProof;
@@ -201,3 +202,4 @@ mod test {
         assert!(zkattest_proof.verify(&mut rng, &parsed_ring).is_ok());
     }
 }
+*/

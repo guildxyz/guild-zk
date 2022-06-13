@@ -18,6 +18,8 @@ struct Opt {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
+    Ok(())
+    /*
     let mut rng = OsRng;
     let opt = Opt::from_args();
 
@@ -35,4 +37,5 @@ fn main() -> Result<(), Box<dyn Error>> {
     proof.verify(&mut rng, &parsed_ring)?;
     println!("Proof OK");
     Ok(())
+    */
 }

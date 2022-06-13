@@ -166,7 +166,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         let challenge = padded_bits(point_hasher.finalize(), security_param);
 
         let thread_pool = rayon::ThreadPoolBuilder::new()
-            .num_threads(8)
+            .num_threads(10)
             .build()
             .map_err(|e| e.to_string())?;
 
@@ -446,8 +446,7 @@ mod test {
     use super::*;
 
     use crate::curve::{Secp256k1, Tom256k1};
-    use rand::rngs::StdRng;
-    use rand_core::SeedableRng;
+    use rand_core::OsRng;
 
     #[test]
     fn padded_bits_valid() {
@@ -470,7 +469,7 @@ mod test {
     fn rand_range_valid() {
         let max = 217;
         let min = 214;
-        let mut rng = StdRng::from_seed([1; 32]);
+        let mut rng = OsRng;
         for _ in 0..1000 {
             let rand = get_rand_range(min, max, &mut rng);
             assert!(rand <= max);
@@ -478,9 +477,9 @@ mod test {
         }
     }
 
-    #[test]
-    fn exp_proof_valid_without_q() {
-        let mut rng = StdRng::from_seed([2; 32]);
+    #[tokio::test]
+    async fn exp_proof_valid_without_q() {
+        let mut rng = OsRng;
         let base_gen = Point::<Secp256k1>::GENERATOR;
         let pedersen = PedersenCycle::<Secp256k1, Tom256k1>::new(&mut rng);
 
@@ -492,14 +491,14 @@ mod test {
 
         let security_param = 10;
         let exp_proof = ExpProof::construct(
-            &mut rng,
+            rng,
             &base_gen,
             &pedersen,
             &secrets,
             &commitments,
             security_param,
             None,
-        )
+        ).await
         .unwrap();
 
         assert!(exp_proof
@@ -514,9 +513,9 @@ mod test {
             .is_ok())
     }
 
-    #[test]
-    fn exp_proof_valid_with_q() {
-        let mut rng = StdRng::from_seed([2; 32]);
+    #[tokio::test]
+    async fn exp_proof_valid_with_q() {
+        let mut rng = OsRng;
         let base_gen = Point::<Secp256k1>::GENERATOR;
         let pedersen = PedersenCycle::<Secp256k1, Tom256k1>::new(&mut rng);
 
@@ -529,14 +528,14 @@ mod test {
 
         let security_param = 10;
         let exp_proof = ExpProof::construct(
-            &mut rng,
+            rng,
             &base_gen,
             &pedersen,
             &secrets,
             &commitments,
             security_param,
             Some(q_point.clone()),
-        )
+        ).await
         .unwrap();
 
         assert!(exp_proof
@@ -551,9 +550,9 @@ mod test {
             .is_ok())
     }
 
-    #[test]
-    fn exp_proof_invalid() {
-        let mut rng = StdRng::from_seed([22; 32]);
+    #[tokio::test]
+    async fn exp_proof_invalid() {
+        let mut rng = OsRng;
         let base_gen = Point::<Secp256k1>::GENERATOR;
         let pedersen = PedersenCycle::<Secp256k1, Tom256k1>::new(&mut rng);
 
@@ -565,7 +564,7 @@ mod test {
 
         let security_param = 10;
         let exp_proof = ExpProof::construct(
-            &mut rng,
+            rng,
             &base_gen,
             &pedersen,
             &secrets,
@@ -573,6 +572,7 @@ mod test {
             security_param,
             None,
         )
+        .await
         .unwrap();
 
         assert!(exp_proof
