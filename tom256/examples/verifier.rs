@@ -1,4 +1,3 @@
-use rand_core::OsRng;
 use structopt::StructOpt;
 use tom256::curve::{Secp256k1, Tom256k1};
 use tom256::parse::*;
@@ -18,9 +17,6 @@ struct Opt {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    Ok(())
-    /*
-    let mut rng = OsRng;
     let opt = Opt::from_args();
 
     let ring_file = File::open(opt.ring)?;
@@ -34,8 +30,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let proof: ZkAttestProof<Secp256k1, Tom256k1> = serde_json::from_reader(proof_reader)?;
 
-    proof.verify(&mut rng, &parsed_ring)?;
+    proof.verify(rand_core::OsRng, &parsed_ring)?;
     println!("Proof OK");
     Ok(())
-    */
 }

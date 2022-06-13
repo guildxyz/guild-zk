@@ -16,9 +16,8 @@ struct Opt {
     ring: PathBuf,
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
-    Ok(())
-    /*
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     let opt = Opt::from_args();
     let ring_file = File::open(opt.ring)?;
     let ring_reader = BufReader::new(ring_file);
@@ -46,16 +45,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     let parsed_ring = parse_ring(ring)?;
 
     let zkattest_proof = ZkAttestProof::<Secp256k1, Tom256k1>::construct(
-        &mut rng,
+        rng,
         pedersen,
         parsed_input,
         &parsed_ring,
-    )?;
+    ).await?;
 
     let mut file = File::create("proof.json")?;
     let proof = serde_json::to_string(&zkattest_proof)?;
     write!(file, "{}", proof).map_err(|e| e.to_string())?;
     println!("Proof generated successfully");
     Ok(())
-    */
 }
