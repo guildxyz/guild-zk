@@ -159,9 +159,6 @@ mod test {
     use crate::parse::{parse_ring, ParsedProofInput, ProofInput};
     use crate::pedersen::PedersenCycle;
 
-    use rand::rngs::StdRng;
-    use rand_core::SeedableRng;
-
     #[tokio::test]
     async fn zkp_attest_valid() {
         let mut rng = rand_core::OsRng;

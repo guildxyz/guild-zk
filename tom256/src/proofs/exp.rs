@@ -218,7 +218,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
 
                         // Generate point add proof
                         let add_secret =
-                            PointAddSecrets::new(t1.into(), secrets.point.clone(), aux.t.into());
+                            PointAddSecrets::new(t1.into(), secrets.point.clone(), aux.t);
                         let add_commitments = add_secret.commit_p_only(
                             &mut rng,
                             pedersen.cycle(),
@@ -327,7 +327,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                                 return Err("challenge hash mismatch".to_owned());
                             }
 
-                            let t = base_gen.scalar_mul(&alpha);
+                            let t = base_gen.scalar_mul(alpha);
                             let mut relation_a = Relation::<C>::new();
 
                             relation_a.insert(t.clone(), Scalar::<C>::ONE);
@@ -370,7 +370,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                                 return Err("challenge hash mismatch".to_owned());
                             }
 
-                            let mut t = base_gen.scalar_mul(&z);
+                            let mut t = base_gen.scalar_mul(z);
 
                             let mut relation_a = Relation::<C>::new();
                             relation_a.insert(t.clone(), Scalar::<C>::ONE);
