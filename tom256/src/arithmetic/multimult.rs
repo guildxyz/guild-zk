@@ -60,13 +60,6 @@ impl<C: Curve> MultiMult<C> {
         }
     }
 
-    // TODO remove this if not needed
-    /*
-    pub fn insert_pair(&mut self, pair: Pair<C>) {
-        self.pairs.push(pair);
-    }
-    */
-
     pub fn evaluate(self) -> Point<C> {
         if self.pairs.is_empty() {
             return Point::<C>::IDENTITY;

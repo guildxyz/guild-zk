@@ -8,7 +8,7 @@ pub trait Cycle<C: Curve>: Curve {
     }
 }
 
-pub trait Curve: Clone + Copy + std::fmt::Debug + PartialEq + Eq {
+pub trait Curve: Clone + Copy + std::fmt::Debug + PartialEq + Eq + Send + Sync {
     const PRIME_MODULUS: U256;
     const ORDER: U256;
     const GENERATOR_X: U256;

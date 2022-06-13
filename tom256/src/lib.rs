@@ -14,7 +14,7 @@ use proofs::ZkAttestProof;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(js_name = "generateProof")]
-pub fn generate_proof(input: JsValue, ring: JsValue) -> Result<JsValue, JsValue> {
+pub async fn generate_proof(input: JsValue, ring: JsValue) -> Result<JsValue, JsValue> {
     let mut rng = rand_core::OsRng;
     let pedersen = PedersenCycle::<Secp256k1, Tom256k1>::new(&mut rng);
 
@@ -26,7 +26,7 @@ pub fn generate_proof(input: JsValue, ring: JsValue) -> Result<JsValue, JsValue>
     let ring: ParsedRing<Tom256k1> =
         parse_ring(ring.into_serde::<Ring>().map_err(|e| e.to_string())?)?;
 
-    let zk_attest_proof = ZkAttestProof::construct(&mut rng, pedersen, input, &ring)?;
+    let zk_attest_proof = ZkAttestProof::construct(rng, pedersen, input, &ring).await?;
 
     JsValue::from_serde(&zk_attest_proof).map_err(|e| JsValue::from(e.to_string()))
 }

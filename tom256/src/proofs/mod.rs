@@ -44,8 +44,8 @@ pub struct ZkAttestProof<C: Curve, CC: Cycle<C>> {
 }
 
 impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
-    pub fn construct<R: CryptoRng + RngCore>(
-        rng: &mut R,
+    pub async fn construct<R: CryptoRng + RngCore + Send + Sync + Copy>(
+        mut rng: R,
         pedersen: PedersenCycle<C, CC>,
         input: ParsedProofInput<C>,
         ring: &ParsedRing<CC>,
@@ -59,17 +59,19 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
         let z1 = r_inv * input.msg_hash;
         let q_point = &Point::<C>::GENERATOR * z1;
 
-        let commitment_to_s1 = pedersen.base().commit_with_generator(rng, s1, &r_point);
+        let commitment_to_s1 = pedersen
+            .base()
+            .commit_with_generator(&mut rng, s1, &r_point);
         let commitment_to_pk_x = pedersen
             .cycle()
-            .commit(rng, input.pubkey.x().to_cycle_scalar());
+            .commit(&mut rng, input.pubkey.x().to_cycle_scalar());
         let commitment_to_pk_y = pedersen
             .cycle()
-            .commit(rng, input.pubkey.y().to_cycle_scalar());
+            .commit(&mut rng, input.pubkey.y().to_cycle_scalar());
 
         // generate membership proof on pubkey x coordinate
         let membership_proof = MembershipProof::construct(
-            rng,
+            &mut rng,
             pedersen.cycle(),
             &commitment_to_pk_x,
             input.index,
@@ -92,7 +94,8 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
             &exp_commitments,
             SEC_PARAM,
             Some(q_point),
-        )?;
+        )
+        .await?;
 
         Ok(Self {
             pedersen,

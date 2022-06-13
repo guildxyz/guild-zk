@@ -6,8 +6,10 @@ use crate::hasher::PointHasher;
 use crate::pedersen::*;
 use crate::proofs::point_add::{PointAddCommitmentPoints, PointAddProof, PointAddSecrets};
 
-use bigint::{Encoding, Integer, U256};
+use bigint::{Encoding, U256};
+use futures_channel::oneshot;
 use rand_core::{CryptoRng, RngCore};
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use std::ops::Neg;
@@ -108,8 +110,8 @@ pub struct ExpProof<C: Curve, CC: Cycle<C>> {
 impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
     const HASH_ID: &'static [u8] = b"exp-proof";
 
-    pub fn construct<R: CryptoRng + RngCore>(
-        rng: &mut R,
+    pub async fn construct<R: CryptoRng + RngCore + Send + Sync + Copy>(
+        mut rng: R,
         base_gen: &Point<C>,
         pedersen: &PedersenCycle<C, CC>,
         secrets: &ExpSecrets<C>,
@@ -130,9 +132,9 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
 
         for i in 0..security_param {
             // exponent
-            alpha_vec.push(Scalar::random(rng));
+            alpha_vec.push(Scalar::random(&mut rng));
             // random r scalars
-            r_vec.push(Scalar::random(rng));
+            r_vec.push(Scalar::random(&mut rng));
             // T = g^alpha
             t_vec.push(base_gen * alpha_vec[i]);
             // A = g^alpha + h^r (essentially a commitment in the base curve)
@@ -143,9 +145,17 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
                 return Err("intermediate value is identity".to_owned());
             }
             // commitment to Tx
-            tx_vec.push(pedersen.cycle().commit(rng, coord_t.x().to_cycle_scalar()));
+            tx_vec.push(
+                pedersen
+                    .cycle()
+                    .commit(&mut rng, coord_t.x().to_cycle_scalar()),
+            );
             // commitment to Ty
-            ty_vec.push(pedersen.cycle().commit(rng, coord_t.y().to_cycle_scalar()));
+            ty_vec.push(
+                pedersen
+                    .cycle()
+                    .commit(&mut rng, coord_t.y().to_cycle_scalar()),
+            );
 
             // update hasher with current points
             point_hasher.insert_point(&a_vec[i]);
@@ -153,76 +163,87 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
             point_hasher.insert_point(ty_vec[i].commitment());
         }
 
-        let mut challenge = point_hasher.finalize();
-        let mut all_exp_proofs = Vec::<SingleExpProof<C, CC>>::with_capacity(security_param);
+        let challenge = padded_bits(point_hasher.finalize(), security_param);
 
-        for (alpha, (a, (r, (t, (tx, ty))))) in alpha_vec.into_iter().zip(
-            a_vec.into_iter().zip(
-                r_vec.into_iter().zip(
-                    t_vec
-                        .into_iter()
-                        .zip(tx_vec.into_iter().zip(ty_vec.into_iter())),
-                ),
-            ),
-        ) {
-            if challenge.is_odd().into() {
-                let tx_r = *tx.randomness();
-                let ty_r = *ty.randomness();
-                all_exp_proofs.push(SingleExpProof {
-                    a,
-                    tx_p: tx.into_commitment(),
-                    ty_p: ty.into_commitment(),
-                    variant: ExpProofVariant::Odd {
-                        alpha,
-                        r,
-                        tx_r,
-                        ty_r,
-                    },
-                });
-            } else {
-                let z = alpha - secrets.exp;
-                let mut t1 = base_gen * z;
-                if let Some(pt) = q_point.as_ref() {
-                    t1 += pt;
-                }
+        let thread_pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(8)
+            .build()
+            .map_err(|e| e.to_string())?;
 
-                if t1.is_identity() {
-                    return Err("intermediate value is identity".to_owned());
-                }
+        let (tx, rx) = oneshot::channel();
 
-                // Generate point add proof
-                let add_secret = PointAddSecrets::new(t1.into(), secrets.point.clone(), t.into());
-                // NOTE only commits t1 and uses existing commitments for the rest
-                let add_commitments = add_secret.commit_p_only(
-                    rng,
-                    pedersen.cycle(),
-                    commitments.px.clone(),
-                    commitments.py.clone(),
-                    tx.clone(),
-                    ty.clone(),
-                );
-                let add_proof =
-                    PointAddProof::construct(rng, pedersen.cycle(), &add_commitments, &add_secret);
+        thread_pool.install(|| {
+            let all_exp_proofs = (alpha_vec, a_vec, r_vec, t_vec, tx_vec, ty_vec, challenge)
+                .into_par_iter()
+                .map(|(alpha, a, r, t, tx, ty, c)| {
+                    if c {
+                        let tx_r = *tx.randomness();
+                        let ty_r = *ty.randomness();
+                        SingleExpProof {
+                            a,
+                            tx_p: tx.into_commitment(),
+                            ty_p: ty.into_commitment(),
+                            variant: ExpProofVariant::Odd {
+                                alpha,
+                                r,
+                                tx_r,
+                                ty_r,
+                            },
+                        }
+                    } else {
+                        let mut rng = rng;
+                        let z = alpha - secrets.exp;
+                        let mut t1 = base_gen * z;
+                        if let Some(pt) = q_point.as_ref() {
+                            t1 += pt;
+                        }
 
-                all_exp_proofs.push(SingleExpProof {
-                    a,
-                    tx_p: tx.into_commitment(),
-                    ty_p: ty.into_commitment(),
-                    variant: ExpProofVariant::Even {
-                        z,
-                        r: r - (*commitments.exp.randomness()),
-                        t1_x: *add_commitments.px.randomness(),
-                        t1_y: *add_commitments.py.randomness(),
-                        add_proof,
-                    },
-                });
-            }
+                        // TODO how to handle this in a multithreaded context
+                        //if t1.is_identity() {
+                        //    return Err("intermediate value is identity".to_owned());
+                        //}
 
-            challenge >>= 1;
+                        // Generate point add proof
+                        let add_secret =
+                            PointAddSecrets::new(t1.into(), secrets.point.clone(), t.into());
+                        // NOTE only commits t1 and uses existing commitments for the rest
+                        let add_commitments = add_secret.commit_p_only(
+                            &mut rng,
+                            pedersen.cycle(),
+                            commitments.px.clone(),
+                            commitments.py.clone(),
+                            tx.clone(),
+                            ty.clone(),
+                        );
+                        let add_proof = PointAddProof::construct(
+                            &mut rng,
+                            pedersen.cycle(),
+                            &add_commitments,
+                            &add_secret,
+                        );
+
+                        SingleExpProof {
+                            a,
+                            tx_p: tx.into_commitment(),
+                            ty_p: ty.into_commitment(),
+                            variant: ExpProofVariant::Even {
+                                z,
+                                r: r - (*commitments.exp.randomness()),
+                                t1_x: *add_commitments.px.randomness(),
+                                t1_y: *add_commitments.py.randomness(),
+                                add_proof,
+                            },
+                        }
+                    }
+                })
+                .collect::<Vec<_>>();
+            drop(tx.send(all_exp_proofs))
+        });
+
+        match rx.await {
+            Ok(proofs) => Ok(Self { proofs }),
+            Err(e) => Err(e.to_string()),
         }
-        Ok(Self {
-            proofs: all_exp_proofs,
-        })
     }
 
     pub fn verify<R: CryptoRng + RngCore>(
