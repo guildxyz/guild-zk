@@ -4,12 +4,12 @@ use crate::curve::Curve;
 use crate::hasher::PointHasher;
 use crate::pedersen::*;
 
+use borsh::{BorshDeserialize, BorshSerialize};
 use rand_core::{CryptoRng, RngCore};
-use serde::{Deserialize, Serialize};
 
 use std::ops::Neg;
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize)]
 pub struct EqualityProof<C: Curve> {
     commitment_to_random_1: Point<C>,
     commitment_to_random_2: Point<C>,

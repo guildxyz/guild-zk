@@ -7,7 +7,7 @@ use tom256::proofs::ZkAttestProof;
 
 use std::error::Error;
 use std::fs::File;
-use std::io::{BufReader, Write};
+use std::io::BufReader;
 use std::path::PathBuf;
 
 #[derive(StructOpt)]
@@ -49,8 +49,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     )?;
 
     let mut file = File::create("proof.json")?;
-    let proof = serde_json::to_string(&zkattest_proof)?;
-    write!(file, "{}", proof).map_err(|e| e.to_string())?;
+    borsh::BorshSerialize::serialize(&zkattest_proof, &mut file).unwrap();
+
     println!("Proof generated successfully");
     Ok(())
 }

@@ -2,9 +2,10 @@ mod impl_macro;
 
 use super::{FieldElement, Modular};
 use crate::curve::Curve;
-use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+use borsh::{BorshDeserialize, BorshSerialize};
+
+#[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
 pub struct Point<C: Curve> {
     x: FieldElement<C>,
     y: FieldElement<C>,

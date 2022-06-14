@@ -15,8 +15,8 @@ use crate::hasher::PointHasher;
 use crate::parse::{ParsedProofInput, ParsedRing};
 use crate::pedersen::PedersenCycle;
 
+use borsh::{BorshDeserialize, BorshSerialize};
 use rand_core::{CryptoRng, RngCore};
-use serde::{Deserialize, Serialize};
 
 // NOTE 80 is conservative but slow, 40 is faster but quite low security
 #[cfg(not(test))]
@@ -33,7 +33,7 @@ const JOIN_GUILD_MSG: &str = "#zkp/join.guild.xyz/";
 /// Note, that the ring on which the membership proof is generated is not
 /// explicitly part of this proof because the backend does additional checks on
 /// its integrity before passing it to the veriication function.
-#[derive(Deserialize, Serialize)]
+#[derive(BorshDeserialize, BorshSerialize)]
 pub struct ZkAttestProof<C: Curve, CC: Cycle<C>> {
     pub pedersen: PedersenCycle<C, CC>,
     pub msg_hash: Scalar<C>,

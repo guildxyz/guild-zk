@@ -6,10 +6,10 @@ use crate::hasher::PointHasher;
 use crate::pedersen::*;
 use crate::U256;
 
+use borsh::{BorshDeserialize, BorshSerialize};
 use rand_core::{CryptoRng, RngCore};
-use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, BorshDeserialize, BorshSerialize)]
 pub struct MembershipProof<C: Curve> {
     cl: Vec<Point<C>>,
     ca: Vec<Point<C>>,
