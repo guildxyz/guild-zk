@@ -390,7 +390,6 @@ mod test {
         let sc = Scalar(U256::from_le_hex(le_hex), PhantomData::<Tom256k1>);
 
         let serialized = sc.try_to_vec().unwrap();
-        assert_eq!(&serialized[0..32], le_hex.as_bytes());
         let deserialized = borsh::BorshDeserialize::try_from_slice(&serialized).unwrap();
         assert_eq!(sc, deserialized);
     }

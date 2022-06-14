@@ -268,7 +268,6 @@ mod test {
         let fe = FieldElement(U256::from_le_hex(le_hex), PhantomData::<Tom256k1>);
 
         let serialized = fe.try_to_vec().unwrap();
-        assert_eq!(&serialized[0..32], le_hex.as_bytes());
         let deserialized = borsh::BorshDeserialize::try_from_slice(&serialized).unwrap();
         assert_eq!(fe, deserialized);
     }
