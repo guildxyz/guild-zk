@@ -1,5 +1,7 @@
 use crate::U256;
 
+use serde::Serialize;
+
 // TODO is const equality test possible
 pub trait Cycle<C: Curve>: Curve {
     fn is_cycle() -> bool {
@@ -16,7 +18,7 @@ pub trait Curve: Clone + Copy + std::fmt::Debug + PartialEq + Eq {
     const COEFF_B: U256;
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub struct Secp256k1;
 
 impl Curve for Secp256k1 {

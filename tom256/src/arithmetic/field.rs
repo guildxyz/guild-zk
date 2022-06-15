@@ -5,6 +5,7 @@ use crate::U256;
 
 use bigint::Encoding;
 use borsh::{BorshDeserialize, BorshSerialize};
+use serde::{Serialize, Serializer};
 
 use std::marker::PhantomData;
 
@@ -32,6 +33,15 @@ impl<C: Curve> Modular for FieldElement<C> {
 
     fn inner(&self) -> &U256 {
         &self.0
+    }
+}
+
+impl<C: Curve> Serialize for FieldElement<C> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serdect::array::serialize_hex_lower_or_bin(&self.0.to_le_bytes(), serializer)
     }
 }
 

@@ -14,8 +14,17 @@ use pedersen::PedersenCycle;
 use proofs::ZkAttestProof;
 use wasm_bindgen::prelude::*;
 
+use crate::arithmetic::Point;
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ProofOutput {
+    guild_id: String,
+    r_point: Point<Secp256k1>,
+    proof_binary: Vec<u8>,
+}
+
 #[wasm_bindgen(js_name = "generateProof")]
-pub fn generate_proof(input: JsValue, ring: JsValue) -> Result<Vec<u8>, JsValue> {
+pub fn generate_proof(input: JsValue, ring: JsValue) -> Result<JsValue, JsValue> {
     let mut rng = rand_core::OsRng;
     let pedersen = PedersenCycle::<Secp256k1, Tom256k1>::new(&mut rng);
 
@@ -29,9 +38,17 @@ pub fn generate_proof(input: JsValue, ring: JsValue) -> Result<Vec<u8>, JsValue>
 
     let zk_attest_proof = ZkAttestProof::construct(&mut rng, pedersen, input, &ring)?;
 
-    zk_attest_proof
+    let proof_binary = zk_attest_proof
         .try_to_vec()
-        .map_err(|e| JsValue::from(e.to_string()))
+        .map_err(|e| JsValue::from(e.to_string()))?;
+
+    let proof_output = ProofOutput {
+        guild_id: zk_attest_proof.guild_id,
+        r_point: zk_attest_proof.r_point,
+        proof_binary,
+    };
+
+    JsValue::from_serde(&proof_output).map_err(|e| JsValue::from(e.to_string()))
 }
 
 // This function is only for wasm test purposes as the

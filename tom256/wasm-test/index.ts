@@ -2,7 +2,7 @@
 	const { generateProof, verifyProof } = await import("../pkg");
 
 	try {
-		const start = performance.now();
+		//const start = performance.now();
 		const input = {
 			msgHash: "0x9788117298a1450f6002d25f0c21d83bc6001681a2e5e31c748c0f55504b11e9",
 			signature: "0xd2943d5fa0ba2733bcbbd58853c6c1be65388d9198dcb5228e117f49409612a46394afb97a7610d16e7bea0062e71afc2a3039324c80df8ef38d3668164fad2c1c",
@@ -20,10 +20,12 @@
 		];
 
 		const proof = generateProof(input, ring);
-		const result = verifyProof(proof, ring);
-		const elapsed = performance.now() - start;
+		console.log(proof);
+
+		const result = verifyProof(proof.proofBinary, ring);
+		//const elapsed = performance.now() - start;
 		console.log(result)
-		console.log(elapsed / 1000)
+		//console.log(elapsed / 1000)
 	} catch (error) {
 		console.log(error)
 	}

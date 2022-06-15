@@ -4,8 +4,9 @@ use super::{FieldElement, Modular};
 use crate::curve::Curve;
 
 use borsh::{BorshDeserialize, BorshSerialize};
+use serde::Serialize;
 
-#[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, Clone, BorshSerialize, BorshDeserialize, Serialize)]
 pub struct Point<C: Curve> {
     x: FieldElement<C>,
     y: FieldElement<C>,
