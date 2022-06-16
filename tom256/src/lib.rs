@@ -5,6 +5,7 @@ mod hasher;
 pub mod parse;
 pub mod pedersen;
 pub mod proofs;
+mod rng;
 
 pub use bigint::U256;
 use curve::{Secp256k1, Tom256k1};

@@ -4,7 +4,7 @@ use crate::curve::Curve;
 use crate::hasher::PointHasher;
 use crate::pedersen::*;
 
-use rand_core::{CryptoRng, RngCore};
+use crate::rng::CryptoCoreRng;
 use serde::{Deserialize, Serialize};
 
 use std::ops::Neg;
@@ -21,7 +21,7 @@ pub struct EqualityProof<C: Curve> {
 impl<C: Curve> EqualityProof<C> {
     const HASH_ID: &'static [u8] = b"equality-proof";
 
-    pub fn construct<R: CryptoRng + RngCore>(
+    pub fn construct<R: CryptoCoreRng>(
         rng: &mut R,
         pedersen_generator: &PedersenGenerator<C>,
         commitment_1: &PedersenCommitment<C>,
@@ -56,7 +56,7 @@ impl<C: Curve> EqualityProof<C> {
         }
     }
 
-    pub fn aggregate<R: CryptoRng + RngCore>(
+    pub fn aggregate<R: CryptoCoreRng>(
         &self,
         rng: &mut R,
         pedersen_generator: &PedersenGenerator<C>,
@@ -90,7 +90,7 @@ impl<C: Curve> EqualityProof<C> {
     }
 
     #[cfg(test)]
-    pub fn verify<R: CryptoRng + RngCore>(
+    pub fn verify<R: CryptoCoreRng>(
         &self,
         rng: &mut R,
         pedersen_generator: &PedersenGenerator<C>,
