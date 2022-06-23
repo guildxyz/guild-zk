@@ -1,5 +1,4 @@
-use rand::rngs::{OsRng, StdRng};
-use rand_core::{CryptoRng, RngCore, SeedableRng};
+use rand_core::{CryptoRng, OsRng, RngCore};
 
 pub trait RngDefault {
     fn default() -> Self;
@@ -13,11 +12,18 @@ impl RngDefault for OsRng {
     }
 }
 
+impl CryptoCoreRng for OsRng {}
+
+#[cfg(test)]
+use rand::rngs::StdRng;
+#[cfg(test)]
+use rand_core::SeedableRng;
+
+#[cfg(test)]
 impl RngDefault for StdRng {
     fn default() -> Self {
         StdRng::from_entropy()
     }
 }
-
-impl CryptoCoreRng for OsRng {}
+#[cfg(test)]
 impl CryptoCoreRng for StdRng {}

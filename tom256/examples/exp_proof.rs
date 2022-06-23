@@ -3,11 +3,10 @@ use tom256::curve::{Secp256k1, Tom256k1};
 use tom256::pedersen::PedersenCycle;
 use tom256::proofs::{ExpProof, ExpSecrets};
 
-use rand::rngs::StdRng;
-use rand_core::SeedableRng;
+use rand_core::OsRng;
 
 fn main() {
-    let mut rng = StdRng::from_seed([14; 32]);
+    let mut rng = OsRng;
     let base_gen = Point::<Secp256k1>::GENERATOR;
     let pedersen_cycle = PedersenCycle::<Secp256k1, Tom256k1>::new(&mut rng);
 
