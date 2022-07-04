@@ -7,7 +7,7 @@ WASM_DIRS=("agora-zkp-ecdsa" "agora-zkp-triptych")
 
 for WASM_DIR in ${WASM_DIRS[@]}
 do
-	BRANCH_NAME=${WASM_DIR}${TARGET_BRANCH}
+	BRANCH_NAME=${WASM_DIR}@${TARGET_BRANCH}
 	echo ${BRANCH_NAME}
 
 	wasm-pack build ${WASM_DIR} --target bundler --out-dir ${OUT_DIR}

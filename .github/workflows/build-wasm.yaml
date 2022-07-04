@@ -11,7 +11,7 @@ jobs:
     env:
       ACCESS_HEADER: ${{ secrets.GH_ACTIONS_PAT }}
       TARGET_REPO: agoraxyz/agora-wasm-hub.git
-      TARGET_BRANCH: @${{ github.ref_name }}
+      TARGET_BRANCH: ${{ github.ref_name }}
     steps:
       - uses: actions-rs/toolchain@v1
         with:
