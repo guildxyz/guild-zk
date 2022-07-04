@@ -1,9 +1,9 @@
-use rand_core::OsRng;
-use structopt::StructOpt;
 use agora_zkp_ecdsa::curve::{Secp256k1, Tom256k1};
 use agora_zkp_ecdsa::parse::*;
 use agora_zkp_ecdsa::pedersen::PedersenCycle;
 use agora_zkp_ecdsa::proofs::ZkAttestProof;
+use rand_core::OsRng;
+use structopt::StructOpt;
 
 use std::error::Error;
 use std::fs::File;

@@ -1,6 +1,6 @@
-use criterion::{criterion_group, criterion_main, Criterion};
 use agora_zkp_ecdsa::arithmetic::{Modular, Scalar};
 use agora_zkp_ecdsa::curve::Tom256k1;
+use criterion::{criterion_group, criterion_main, Criterion};
 
 use rand::rngs::OsRng;
 use rand::Rng;
