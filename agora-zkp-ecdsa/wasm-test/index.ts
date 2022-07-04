@@ -25,6 +25,6 @@
 		console.log(result)
 		console.log(elapsed / 1000)
 	} catch (error) {
-		console.error(error)
+		throw Error(error)
 	}
 }) ()

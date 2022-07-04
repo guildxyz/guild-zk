@@ -60,7 +60,7 @@ pub fn mul_mod_u256(lhs: &U256, rhs: &U256, modulus: &U256) -> U256 {
     let rem_limbs = rem.to_u32_digits();
     let mut res = [0u32; 8];
     res[0..rem_limbs.len()].copy_from_slice(&rem_limbs);
-    U256::from_uint_array(res)
+    U256::from_words(res)
 }
 
 #[cfg(target_pointer_width = "64")]
