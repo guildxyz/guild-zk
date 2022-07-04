@@ -9,7 +9,7 @@ jobs:
     name: wasm-pack build
     runs-on: ubuntu-latest
     env:
-      PAT: ${{ secrets.GH_ACTIONS_PAT }}
+      ACCESS_HEADER: ${{ secrets.GH_ACTIONS_PAT }}
       TARGET_REPO: agoraxyz/agora-wasm-hub.git
       TARGET_BRANCH: ${{ github.repository }}@${{ github.ref_name }}
       WASM_DIR: tom256
