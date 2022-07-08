@@ -4,8 +4,8 @@ use crate::arithmetic::{Modular, Point, Scalar};
 use crate::curve::Curve;
 use crate::hasher::PointHasher;
 use crate::pedersen::*;
-use crate::U256;
 use crate::rng::CryptoCoreRng;
+use crate::U256;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
