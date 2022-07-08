@@ -1,10 +1,10 @@
 use crate::arithmetic::{Point, Scalar};
 use crate::curve::{Curve, Cycle};
-
 use crate::rng::CryptoCoreRng;
-use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+use borsh::{BorshDeserialize, BorshSerialize};
+
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize)]
 pub struct PedersenCycle<C: Curve, CC: Cycle<C>> {
     base: PedersenGenerator<C>,
     cycle: PedersenGenerator<CC>,
@@ -27,7 +27,7 @@ impl<C: Curve, CC: Cycle<C>> PedersenCycle<C, CC> {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize)]
 pub struct PedersenGenerator<C: Curve>(Point<C>);
 
 impl<C: Curve> PedersenGenerator<C> {
@@ -86,7 +86,7 @@ impl<C: Curve> PedersenGenerator<C> {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize)]
 pub struct PedersenCommitment<C: Curve> {
     commitment: Point<C>,
     randomness: Scalar<C>,

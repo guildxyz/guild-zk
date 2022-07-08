@@ -4,12 +4,12 @@ use crate::arithmetic::{Modular, Point, Scalar};
 use crate::curve::Curve;
 use crate::hasher::PointHasher;
 use crate::pedersen::*;
+use crate::rng::CryptoCoreRng;
 use crate::U256;
 
-use crate::rng::CryptoCoreRng;
-use serde::{Deserialize, Serialize};
+use borsh::{BorshDeserialize, BorshSerialize};
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, BorshDeserialize, BorshSerialize)]
 pub struct MembershipProof<C: Curve> {
     cl: Vec<Point<C>>,
     ca: Vec<Point<C>>,

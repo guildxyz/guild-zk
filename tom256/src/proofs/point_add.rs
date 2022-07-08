@@ -3,12 +3,12 @@ use crate::arithmetic::AffinePoint;
 use crate::arithmetic::{Modular, Point, Scalar};
 use crate::curve::{Curve, Cycle};
 use crate::pedersen::*;
+use crate::rng::CryptoCoreRng;
 
 use super::equality::EqualityProof;
 use super::multiplication::MultiplicationProof;
 
-use crate::rng::CryptoCoreRng;
-use serde::{Deserialize, Serialize};
+use borsh::{BorshDeserialize, BorshSerialize};
 use std::marker::PhantomData;
 
 #[derive(Clone)]
@@ -92,7 +92,7 @@ impl<C: Curve> PointAddCommitments<C> {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone)]
 pub struct PointAddCommitmentPoints<C: Curve> {
     px: Point<C>,
     py: Point<C>,
@@ -122,7 +122,7 @@ impl<C: Curve> PointAddCommitmentPoints<C> {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, BorshDeserialize, BorshSerialize)]
 pub struct MultCommitProof<C: Curve> {
     commitment: Point<C>,
     proof: MultiplicationProof<C>,
@@ -134,7 +134,7 @@ impl<C: Curve> MultCommitProof<C> {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, BorshDeserialize, BorshSerialize)]
 pub struct PointAddProof<CC: Cycle<C>, C: Curve> {
     mult_proof_8: MultCommitProof<CC>,
     mult_proof_10: MultCommitProof<CC>,

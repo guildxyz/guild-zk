@@ -3,13 +3,13 @@ use crate::arithmetic::{Modular, Point, Scalar};
 use crate::curve::Curve;
 use crate::hasher::PointHasher;
 use crate::pedersen::*;
-
 use crate::rng::CryptoCoreRng;
-use serde::{Deserialize, Serialize};
+
+use borsh::{BorshDeserialize, BorshSerialize};
 
 use std::ops::Neg;
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize)]
 pub struct MultiplicationProof<C: Curve> {
     c4: Point<C>,
     commitment_to_random_1: Point<C>,

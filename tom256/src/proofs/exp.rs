@@ -5,15 +5,15 @@ use crate::curve::{Curve, Cycle};
 use crate::hasher::PointHasher;
 use crate::pedersen::*;
 use crate::proofs::point_add::{PointAddCommitmentPoints, PointAddProof, PointAddSecrets};
-
 use crate::rng::CryptoCoreRng;
+
 use bigint::{Encoding, Integer, U256};
-use serde::{Deserialize, Serialize};
+use borsh::{BorshDeserialize, BorshSerialize};
 
 use std::ops::Neg;
 
 #[allow(clippy::large_enum_variant)]
-#[derive(Serialize, Deserialize)]
+#[derive(BorshDeserialize, BorshSerialize)]
 pub enum ExpProofVariant<C: Curve, CC: Cycle<C>> {
     Odd {
         alpha: Scalar<C>,
@@ -30,7 +30,7 @@ pub enum ExpProofVariant<C: Curve, CC: Cycle<C>> {
     },
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(BorshDeserialize, BorshSerialize)]
 pub struct SingleExpProof<C: Curve, CC: Cycle<C>> {
     a: Point<C>,
     tx_p: Point<CC>,
@@ -51,7 +51,7 @@ pub struct ExpCommitments<C: Curve, CC: Cycle<C>> {
     pub(super) exp: PedersenCommitment<C>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, BorshDeserialize, BorshSerialize)]
 pub struct ExpCommitmentPoints<C: Curve, CC: Cycle<C>> {
     pub(super) px: Point<CC>,
     pub(super) py: Point<CC>,
@@ -100,7 +100,7 @@ impl<C: Curve, CC: Cycle<C>> ExpCommitmentPoints<C, CC> {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(BorshDeserialize, BorshSerialize)]
 pub struct ExpProof<C: Curve, CC: Cycle<C>> {
     proofs: Vec<SingleExpProof<C, CC>>,
 }
