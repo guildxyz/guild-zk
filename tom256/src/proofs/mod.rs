@@ -15,7 +15,7 @@ use crate::hasher::PointHasher;
 use crate::parse::{ParsedProofInput, ParsedRing};
 use crate::pedersen::PedersenCycle;
 
-use rand_core::{CryptoRng, RngCore};
+use crate::rng::CryptoCoreRng;
 use serde::{Deserialize, Serialize};
 
 // NOTE 80 is conservative but slow, 40 is faster but quite low security
@@ -45,7 +45,7 @@ pub struct ZkAttestProof<C: Curve, CC: Cycle<C>> {
 }
 
 impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
-    pub fn construct<R: CryptoRng + RngCore>(
+    pub fn construct<R: CryptoCoreRng>(
         rng: &mut R,
         pedersen: PedersenCycle<C, CC>,
         input: ParsedProofInput<C>,
@@ -106,7 +106,7 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
         })
     }
 
-    pub fn verify<R: CryptoRng + RngCore>(
+    pub fn verify<R: CryptoCoreRng>(
         &self,
         rng: &mut R,
         ring: &ParsedRing<CC>,
