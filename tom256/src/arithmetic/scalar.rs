@@ -1,7 +1,7 @@
 use super::modular::{mod_u256, random_mod_u256, Modular};
 use crate::curve::Curve;
+use crate::rng::CryptoCoreRng;
 use crate::U256;
-use rand_core::{CryptoRng, RngCore};
 
 use bigint::Encoding;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -53,7 +53,7 @@ impl<C: Curve> Scalar<C> {
             .collect()
     }
 
-    pub fn random<R: CryptoRng + RngCore>(rng: &mut R) -> Self {
+    pub fn random<R: CryptoCoreRng>(rng: &mut R) -> Self {
         random_mod_u256::<Self, R>(rng)
     }
 }

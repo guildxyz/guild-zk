@@ -5,9 +5,9 @@ use crate::curve::Curve;
 use crate::hasher::PointHasher;
 use crate::pedersen::*;
 use crate::U256;
+use crate::rng::CryptoCoreRng;
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use rand_core::{CryptoRng, RngCore};
 
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize)]
 pub struct MembershipProof<C: Curve> {
@@ -24,7 +24,7 @@ pub struct MembershipProof<C: Curve> {
 impl<C: Curve> MembershipProof<C> {
     const HASH_ID: &'static [u8] = b"membership-proof";
 
-    pub fn construct<R: CryptoRng + RngCore>(
+    pub fn construct<R: CryptoCoreRng>(
         rng: &mut R,
         pedersen_generator: &PedersenGenerator<C>,
         commitment_to_key: &PedersenCommitment<C>,
@@ -159,7 +159,7 @@ impl<C: Curve> MembershipProof<C> {
         })
     }
 
-    pub fn verify<R: CryptoRng + RngCore>(
+    pub fn verify<R: CryptoCoreRng>(
         &self,
         rng: &mut R,
         pedersen_generator: &PedersenGenerator<C>,

@@ -5,10 +5,10 @@ use crate::curve::{Curve, Cycle};
 use crate::hasher::PointHasher;
 use crate::pedersen::*;
 use crate::proofs::point_add::{PointAddCommitmentPoints, PointAddProof, PointAddSecrets};
+use crate::rng::CryptoCoreRng;
 
 use bigint::{Encoding, Integer, U256};
 use borsh::{BorshDeserialize, BorshSerialize};
-use rand_core::{CryptoRng, RngCore};
 
 use std::ops::Neg;
 
@@ -69,7 +69,7 @@ impl<C: Curve> ExpSecrets<C> {
         pedersen: &PedersenCycle<C, CC>,
     ) -> ExpCommitments<C, CC>
     where
-        R: CryptoRng + RngCore,
+        R: CryptoCoreRng,
         CC: Cycle<C>,
     {
         ExpCommitments {
@@ -108,7 +108,7 @@ pub struct ExpProof<C: Curve, CC: Cycle<C>> {
 impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
     const HASH_ID: &'static [u8] = b"exp-proof";
 
-    pub fn construct<R: CryptoRng + RngCore>(
+    pub fn construct<R: CryptoCoreRng>(
         rng: &mut R,
         base_gen: &Point<C>,
         pedersen: &PedersenCycle<C, CC>,
@@ -225,7 +225,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         })
     }
 
-    pub fn verify<R: CryptoRng + RngCore>(
+    pub fn verify<R: CryptoCoreRng>(
         &self,
         rng: &mut R,
         base_gen: &Point<C>,
@@ -394,15 +394,11 @@ fn padded_bits(number: U256, length: usize) -> Vec<bool> {
 }
 
 // Get random number from interval [min, max]
-fn get_rand_range<R: CryptoRng + RngCore>(min: usize, max: usize, rng: &mut R) -> usize {
+fn get_rand_range<R: CryptoCoreRng>(min: usize, max: usize, rng: &mut R) -> usize {
     rng.next_u64() as usize % (max - min + 1) + min
 }
 
-fn generate_indices<R: CryptoRng + RngCore>(
-    idx_num: usize,
-    limit: usize,
-    rng: &mut R,
-) -> Vec<usize> {
+fn generate_indices<R: CryptoCoreRng>(idx_num: usize, limit: usize, rng: &mut R) -> Vec<usize> {
     let mut ret = Vec::<usize>::with_capacity(limit);
 
     for i in 0..limit {

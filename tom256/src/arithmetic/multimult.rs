@@ -5,7 +5,7 @@ use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::collections::binary_heap::BinaryHeap;
 use std::fmt;
 
-use rand_core::{CryptoRng, RngCore};
+use crate::rng::CryptoCoreRng;
 
 #[derive(Debug, Clone)]
 pub struct Pair<C: Curve> {
@@ -131,7 +131,7 @@ impl<C: Curve> Relation<C> {
         self.pairs.push(Pair { point, scalar })
     }
 
-    pub fn drain<R: RngCore + CryptoRng>(self, rng: &mut R, multimult: &mut MultiMult<C>) {
+    pub fn drain<R: CryptoCoreRng>(self, rng: &mut R, multimult: &mut MultiMult<C>) {
         let randomizer = Scalar::<C>::random(rng);
         for pair in self.pairs {
             multimult.insert(pair.point, pair.scalar * randomizer);
