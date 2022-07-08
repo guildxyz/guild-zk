@@ -1,0 +1,26 @@
+[package]
+name = "agora-zkp-backend"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+path = "src/main.rs"
+name = "agora-zkp-backend"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dotenv = "0.15.0"
+actix-web = "4"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+serde = { version = "1", features = ["derive"]}
+serde_json = "1"
+config = "0.13"
+uuid = { version = "0.8.1", features = ["v4"] }
+chrono = "0.4.15"
+reqwest = { version = "0.11", features = ["json"] }
+http = "0.2"
+web3 = "0.17.0"

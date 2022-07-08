@@ -3,6 +3,7 @@ members = [
 #	"ecdsa-zkp",
 #	"merkle-tree-example",
 	"tom256",
+	"agora-zkp-backend",
 ]
 
 [profile.dev]
