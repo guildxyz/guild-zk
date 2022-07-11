@@ -15,3 +15,4 @@ rand_core = { version = "0.6.3", default-features = false, features = ["getrando
 serde = { version = "1", features = ["derive"] }
 sha3 = "0.10"
 wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
+zeroize = "1.5.6"

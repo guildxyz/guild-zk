@@ -7,6 +7,7 @@ use k256::{AffinePoint, ProjectivePoint, Scalar, U256};
 use rand_core::OsRng;
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
+use zeroize::Zeroize;
 
 // NOTE this is a public "private key" that determines the U point which is used
 // for tag generation
@@ -66,7 +67,7 @@ impl Signature {
         index: usize,
         ring: &Ring,
         message_hash: &[u8],
-        privkey: Scalar,
+        mut privkey: Scalar, // mutable for zeroize at the end
         parameters: &Parameters,
     ) -> Result<Self, String> {
         // include the msg hash in the challenge
@@ -187,6 +188,7 @@ impl Signature {
 
         // note x_pow here should be xi^m due to stuff in fold
         let z_scalar = privkey * xi_pow - z_sum;
+        privkey.zeroize();
 
         Ok(Self {
             a_commitment: a_com,
