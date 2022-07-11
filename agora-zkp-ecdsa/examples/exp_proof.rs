@@ -3,11 +3,10 @@ use agora_zkp_ecdsa::curve::{Secp256k1, Tom256k1};
 use agora_zkp_ecdsa::pedersen::PedersenCycle;
 use agora_zkp_ecdsa::proofs::{ExpProof, ExpSecrets};
 
-use rand::rngs::StdRng;
-use rand_core::SeedableRng;
+use rand_core::OsRng;
 
 fn main() {
-    let mut rng = StdRng::from_seed([14; 32]);
+    let mut rng = OsRng;
     let base_gen = Point::<Secp256k1>::GENERATOR;
     let pedersen_cycle = PedersenCycle::<Secp256k1, Tom256k1>::new(&mut rng);
 

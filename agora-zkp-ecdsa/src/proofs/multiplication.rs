@@ -3,13 +3,13 @@ use crate::arithmetic::{Modular, Point, Scalar};
 use crate::curve::Curve;
 use crate::hasher::PointHasher;
 use crate::pedersen::*;
+use crate::rng::CryptoCoreRng;
 
-use rand_core::{CryptoRng, RngCore};
-use serde::{Deserialize, Serialize};
+use borsh::{BorshDeserialize, BorshSerialize};
 
 use std::ops::Neg;
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize)]
 pub struct MultiplicationProof<C: Curve> {
     c4: Point<C>,
     commitment_to_random_1: Point<C>,
@@ -30,7 +30,7 @@ impl<C: Curve> MultiplicationProof<C> {
     const HASH_ID: &'static [u8] = b"multiplication-proof";
 
     #[allow(clippy::too_many_arguments)]
-    pub fn construct<R: CryptoRng + RngCore>(
+    pub fn construct<R: CryptoCoreRng>(
         rng: &mut R,
         pedersen_generator: &PedersenGenerator<C>,
         commitment_to_x: &PedersenCommitment<C>,
@@ -101,7 +101,7 @@ impl<C: Curve> MultiplicationProof<C> {
         }
     }
 
-    pub fn aggregate<R: CryptoRng + RngCore>(
+    pub fn aggregate<R: CryptoCoreRng>(
         &self,
         rng: &mut R,
         pedersen_generator: &PedersenGenerator<C>,
@@ -163,7 +163,7 @@ impl<C: Curve> MultiplicationProof<C> {
     }
 
     #[cfg(test)]
-    pub fn verify<R: CryptoRng + RngCore>(
+    pub fn verify<R: CryptoCoreRng>(
         &self,
         rng: &mut R,
         pedersen_generator: &PedersenGenerator<C>,

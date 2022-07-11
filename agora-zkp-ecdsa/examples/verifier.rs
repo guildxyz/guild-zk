@@ -24,13 +24,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     let ring_file = File::open(opt.ring)?;
     let ring_reader = BufReader::new(ring_file);
 
-    let proof_file = File::open(opt.proof)?;
-    let proof_reader = BufReader::new(proof_file);
-
     let ring: Ring = serde_json::from_reader(ring_reader)?;
     let parsed_ring = parse_ring(ring)?;
 
-    let proof: ZkAttestProof<Secp256k1, Tom256k1> = serde_json::from_reader(proof_reader)?;
+    let proof_binary = std::fs::read(opt.proof).unwrap();
+    let proof: ZkAttestProof<Secp256k1, Tom256k1> =
+        borsh::BorshDeserialize::try_from_slice(proof_binary.as_slice()).unwrap();
 
     proof.verify(&mut rng, &parsed_ring)?;
     println!("Proof OK");

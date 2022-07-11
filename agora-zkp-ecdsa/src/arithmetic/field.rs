@@ -4,7 +4,9 @@ use crate::curve::{Curve, Cycle};
 use crate::U256;
 
 use bigint::Encoding;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use borsh::{BorshDeserialize, BorshSerialize};
+use serde::{Serialize, Serializer};
+
 use std::marker::PhantomData;
 
 use std::fmt;
@@ -34,23 +36,39 @@ impl<C: Curve> Modular for FieldElement<C> {
     }
 }
 
-impl<'de, C: Curve> Deserialize<'de> for FieldElement<C> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let mut buffer = [0; 32];
-        serdect::array::deserialize_hex_or_bin(&mut buffer, deserializer)?;
-        Ok(Self::new(U256::from_le_bytes(buffer)))
-    }
-}
-
 impl<C: Curve> Serialize for FieldElement<C> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
         serdect::array::serialize_hex_lower_or_bin(&self.0.to_le_bytes(), serializer)
+    }
+}
+
+impl<C> BorshSerialize for FieldElement<C> {
+    #[inline]
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        borsh::BorshSerialize::serialize(&self.0.to_le_bytes(), writer)?;
+        Ok(())
+    }
+}
+
+impl<C> BorshDeserialize for FieldElement<C> {
+    #[inline]
+    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        if buf.len() < 32 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Unexpected length of input",
+            ));
+        }
+
+        let bytes: [u8; 32] = buf[..32].try_into().unwrap();
+        let inner = U256::from_le_bytes(bytes);
+
+        *buf = &buf[32..];
+
+        Ok(Self(inner, PhantomData::<C>))
     }
 }
 
@@ -259,9 +277,8 @@ mod test {
         let le_hex = "ce7c73f82cc708b9080499663f89fda1fa7bb76d78b72b4042554f33e418b94f";
         let fe = FieldElement(U256::from_le_hex(le_hex), PhantomData::<Tom256k1>);
 
-        let serialized = serde_json::to_string(&fe).unwrap();
-        assert_eq!(&serialized.as_bytes()[1..65], le_hex.as_bytes()); // serde puts the string between quotes
-        let deserialized = serde_json::from_str(&serialized).unwrap();
+        let serialized = fe.try_to_vec().unwrap();
+        let deserialized = borsh::BorshDeserialize::try_from_slice(&serialized).unwrap();
         assert_eq!(fe, deserialized);
     }
 }

@@ -2,12 +2,12 @@ use crate::arithmetic::{AffinePoint, FieldElement, Modular, Scalar};
 use crate::curve::Curve;
 use crate::U256;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 pub type Ring = Vec<String>;
 pub type ParsedRing<C> = Vec<Scalar<C>>;
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProofInput {
     pub msg_hash: String,

@@ -1,17 +1,17 @@
 use crate::arithmetic::{Point, Scalar};
 use crate::curve::{Curve, Cycle};
+use crate::rng::CryptoCoreRng;
 
-use rand_core::{CryptoRng, RngCore};
-use serde::{Deserialize, Serialize};
+use borsh::{BorshDeserialize, BorshSerialize};
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize)]
 pub struct PedersenCycle<C: Curve, CC: Cycle<C>> {
     base: PedersenGenerator<C>,
     cycle: PedersenGenerator<CC>,
 }
 
 impl<C: Curve, CC: Cycle<C>> PedersenCycle<C, CC> {
-    pub fn new<R: CryptoRng + RngCore>(rng: &mut R) -> Self {
+    pub fn new<R: CryptoCoreRng>(rng: &mut R) -> Self {
         Self {
             base: PedersenGenerator::new(rng),
             cycle: PedersenGenerator::new(rng),
@@ -27,11 +27,11 @@ impl<C: Curve, CC: Cycle<C>> PedersenCycle<C, CC> {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize)]
 pub struct PedersenGenerator<C: Curve>(Point<C>);
 
 impl<C: Curve> PedersenGenerator<C> {
-    pub fn new<R: CryptoRng + RngCore>(rng: &mut R) -> Self {
+    pub fn new<R: CryptoCoreRng>(rng: &mut R) -> Self {
         let random_scalar = Scalar::random(rng);
         Self(&Point::<C>::GENERATOR * random_scalar)
     }
@@ -40,7 +40,7 @@ impl<C: Curve> PedersenGenerator<C> {
         &self.0
     }
 
-    pub fn commit<R: CryptoRng + RngCore>(
+    pub fn commit<R: CryptoCoreRng>(
         &self,
         rng: &mut R,
         secret: Scalar<C>,
@@ -55,7 +55,7 @@ impl<C: Curve> PedersenGenerator<C> {
             randomness,
         }
     }
-    pub fn commit_with_generator<R: CryptoRng + RngCore>(
+    pub fn commit_with_generator<R: CryptoCoreRng>(
         &self,
         rng: &mut R,
         secret: Scalar<C>,
@@ -86,7 +86,7 @@ impl<C: Curve> PedersenGenerator<C> {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize)]
 pub struct PedersenCommitment<C: Curve> {
     commitment: Point<C>,
     randomness: Scalar<C>,
