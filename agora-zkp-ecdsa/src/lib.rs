@@ -7,6 +7,7 @@ pub mod pedersen;
 pub mod proofs;
 mod rng;
 
+use arithmetic::Point;
 pub use bigint::U256;
 use borsh::BorshSerialize;
 use curve::{Secp256k1, Tom256k1};
@@ -15,7 +16,6 @@ use pedersen::PedersenCycle;
 use proofs::ZkAttestProof;
 use wasm_bindgen::prelude::*;
 
-use crate::arithmetic::Point;
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ProofOutput {

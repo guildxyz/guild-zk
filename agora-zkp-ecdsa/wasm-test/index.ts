@@ -21,7 +21,7 @@
         ];
 
         const proof = generateProof(input, ring);
-        const result = verifyProof(proof, ring);
+        const result = verifyProof(proof.proofBinary, ring);
         const elapsed = performance.now() - start;
         console.log(result)
         console.log(elapsed / 1000)

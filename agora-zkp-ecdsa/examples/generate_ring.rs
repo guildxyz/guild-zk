@@ -1,7 +1,7 @@
-use rand_core::OsRng;
-use structopt::StructOpt;
 use agora_zkp_ecdsa::arithmetic::{Point, Scalar};
 use agora_zkp_ecdsa::curve::Secp256k1;
+use rand_core::OsRng;
+use structopt::StructOpt;
 
 use std::error::Error;
 use std::fs::File;
