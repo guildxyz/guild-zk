@@ -20,7 +20,7 @@
             "bbb80afe39c280d2f43f05c070988dae7fbae9cdfd5fb6461acd7657e765e172",
         ];
 
-        const proof = generateProof(input, ring);
+        const proof = await generateProof(input, ring);
         const result = verifyProof(proof.proofBinary, ring);
         const elapsed = performance.now() - start;
         console.log(result)
