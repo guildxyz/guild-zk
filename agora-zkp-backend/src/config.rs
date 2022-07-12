@@ -23,10 +23,20 @@ pub fn get_config() -> Settings {
 
 #[derive(serde::Deserialize, Debug)]
 pub struct TestSettings {
+    #[serde(default = "get_default")]
     pub url_balancy: String,
+    #[serde(default = "get_default")]
     pub apikey_balancy: String,
+    #[serde(default = "get_default")]
     pub url_pubkey: String,
+    #[serde(default = "get_default")]
     pub apikey_pubkey: String,
+    #[serde(default = "get_default")]
+    pub url_rpc: String,
+}
+
+fn get_default() -> String{
+    String::from("")
 }
 
 pub fn get_test_config() -> TestSettings {
