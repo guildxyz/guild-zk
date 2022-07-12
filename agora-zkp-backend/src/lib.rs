@@ -1,3 +1,4 @@
+pub mod balancy;
 pub mod config;
 pub mod eth;
 pub mod moralis;
