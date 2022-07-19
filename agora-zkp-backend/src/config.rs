@@ -5,6 +5,10 @@ use dotenv::dotenv;
 pub struct Settings {
     pub app_port: u16,
     pub apikey: String,
+    pub url_balancy: String,
+    pub apikey_balancy: String,
+    pub url_pubkey: String,
+    pub apikey_pubkey: String,
 }
 
 pub fn get_config() -> Settings {

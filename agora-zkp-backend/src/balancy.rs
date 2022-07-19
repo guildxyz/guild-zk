@@ -1,4 +1,4 @@
-#[derive(serde::Serialize, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ReqXyzHolders {
     pub logic: String,
@@ -7,7 +7,7 @@ pub struct ReqXyzHolders {
     pub offset: i32,
 }
 
-#[derive(serde::Serialize, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct XyzHoldersRequirement {
     pub token_address: String,
