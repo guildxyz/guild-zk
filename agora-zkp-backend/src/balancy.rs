@@ -32,40 +32,67 @@ pub struct RespPubkey {
     pub pubkeys: Vec<String>,
 }
 
-pub async fn get_xyz_holders_addresses(
-    base_url: String,
-    apikey: String,
-    req_xyz_holders: ReqXyzHolders,
-) -> Result<Vec<String>, reqwest::Error> {
-    let url = format!("{}/xyzHolders", base_url);
-    let client = reqwest::Client::new();
-    let resp = client
-        .post(url)
-        .header("X-API-Key", apikey)
-        .header("Content-Type", "application/json")
-        .json(&req_xyz_holders)
-        .send()
-        .await?;
-    let resp_body: RespXyzHolders = resp.json().await?;
-    Ok(resp_body.addresses)
+pub struct BalancyClient {
+    http_client: reqwest::Client,
+    url_balancy: String,
+    apikey_balancy: String,
+    url_pubkey: String,
+    apikey_pubkey: String,
 }
 
-pub async fn get_pubkeys(
-    base_url: &str,
-    apikey: &str,
-    addresses: Vec<String>,
-) -> Result<Vec<String>, reqwest::Error> {
-    let url = format!("{}/pubkey", base_url);
-    let client = reqwest::Client::new();
-    let req_body = ReqPubkey { addresses };
-    let resp = client
-        .post(url)
-        .header("X-API-Key", apikey)
-        .header("Content-Type", "application/json")
-        .json(&req_body)
-        .send()
-        .await?;
+impl BalancyClient {
+    pub fn new(
+        url_balancy: String,
+        apikey_balancy: String,
+        url_pubkey: String,
+        apikey_pubkey: String,
+        timeout_sec: u64,
+    ) -> Self {
+        let http_client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(timeout_sec))
+            .build()
+            .expect("Failed to build http_client");
+        BalancyClient {
+            url_balancy,
+            apikey_balancy,
+            url_pubkey,
+            apikey_pubkey,
+            http_client,
+        }
+    }
 
-    let resp_body: RespPubkey = resp.json().await?;
-    Ok(resp_body.pubkeys)
+    pub async fn get_xyz_holders_addresses(
+        &self,
+        req_xyz_holders: ReqXyzHolders,
+    ) -> Result<Vec<String>, reqwest::Error> {
+        let url = format!("{}/xyzHolders", self.url_balancy);
+        let resp = self
+            .http_client
+            .post(url)
+            .header("X-API-Key", &self.apikey_balancy)
+            .header("Content-Type", "application/json")
+            .json(&req_xyz_holders)
+            .send()
+            .await?
+            .error_for_status()?;
+        let resp_body: RespXyzHolders = resp.json().await?;
+        Ok(resp_body.addresses)
+    }
+
+    pub async fn get_pubkeys(&self, addresses: Vec<String>) -> Result<Vec<String>, reqwest::Error> {
+        let url = format!("{}/pubkey", self.url_pubkey);
+        let req_body = ReqPubkey { addresses };
+        let resp = self
+            .http_client
+            .post(url)
+            .header("X-API-Key", &self.apikey_pubkey)
+            .header("Content-Type", "application/json")
+            .json(&req_body)
+            .send()
+            .await?
+            .error_for_status()?;
+
+        let resp_body: RespPubkey = resp.json().await?;
+        Ok(resp_body.pubkeys)
+    }
 }

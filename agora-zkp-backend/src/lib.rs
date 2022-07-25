@@ -15,12 +15,20 @@ use std::net::TcpListener;
 
 pub fn run(listener: TcpListener, conf: config::Settings) -> Result<Server, std::io::Error> {
     let conf = web::Data::new(conf);
+    let balancy_client = web::Data::new(balancy::BalancyClient::new(
+        conf.url_balancy.clone(),
+        conf.apikey_balancy.clone(),
+        conf.url_pubkey.clone(),
+        conf.apikey_pubkey.clone(),
+        180,
+    ));
     let server = HttpServer::new(move || {
         App::new()
             .route("/health_check", web::get().to(health_check))
             .route("/tx", web::get().to(get_txs))
             .route("/sign", web::post().to(get_xyz_holders_pubkeys))
             .app_data(conf.clone())
+            .app_data(balancy_client.clone())
     })
     .listen(listener)?
     .run();
@@ -50,11 +58,11 @@ async fn get_txs(
 }
 
 async fn get_xyz_holders_pubkeys(
-    conf: web::Data<config::Settings>,
+    balancy_client: web::Data<balancy::BalancyClient>,
     req_body: web::Json<balancy::ReqXyzHolders>,
 ) -> impl Responder {
     let req = req_body.into_inner();
-    let resp = get_xyz_holders_pubkeys_inner(conf, req).await;
+    let resp = get_xyz_holders_pubkeys_inner(balancy_client, req).await;
     match resp {
         Ok(pubkeys) => HttpResponse::Ok().json(pubkeys),
         Err(err) => HttpResponse::InternalServerError().body(format!("{:?}", err)),
@@ -62,20 +70,10 @@ async fn get_xyz_holders_pubkeys(
 }
 
 async fn get_xyz_holders_pubkeys_inner(
-    conf: web::Data<config::Settings>,
+    balancy_client: web::Data<balancy::BalancyClient>,
     req: balancy::ReqXyzHolders,
 ) -> Result<Vec<String>, Error> {
-    let addresses = balancy::get_xyz_holders_addresses(
-        conf.url_balancy.clone(),
-        conf.apikey_balancy.clone(),
-        req,
-    )
-    .await?;
-    let pubkeys = balancy::get_pubkeys(
-        conf.url_pubkey.as_str(),
-        conf.apikey_pubkey.as_str(),
-        addresses,
-    )
-    .await?;
+    let addresses = balancy_client.get_xyz_holders_addresses(req).await?;
+    let pubkeys = balancy_client.get_pubkeys(addresses).await?;
     Ok(pubkeys)
 }
