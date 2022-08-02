@@ -32,11 +32,11 @@ impl Signer {
         let timestamp = chrono::offset::Utc::now().timestamp();
 
         let hash = hash_message(&nonce.to_string(), timestamp.to_string(), &pubkeys);
-        let signature = sign_message_hash(&self.privkey, hash);
+        let signature = sign_message_hash(&self.privkey, &hash);
 
         let resp = SignedResponse {
             pubkeys,
-            hash: String::from(""),
+            hash: encode_hex(&hash),
             nonce: nonce.to_string(),
             timestamp,
             signature: encode_hex(&signature),
@@ -63,8 +63,8 @@ fn hash_message(nonce: &String, timestamp: String, pubkeys: &Vec<String>) -> Vec
     res.to_vec()
 }
 
-fn sign_message_hash(private_key: &SecretKey, hash: Vec<u8>) -> Vec<u8> {
-    let message = Message::parse_slice(&hash).expect("failed to parse hash");
+fn sign_message_hash(private_key: &SecretKey, hash: &Vec<u8>) -> Vec<u8> {
+    let message = Message::parse_slice(hash).expect("failed to parse hash");
     let (signature, recovery_id) = libsecp256k1::sign(&message, private_key);
     let signature = signature.serialize();
     let mut signature = signature.to_vec();
@@ -140,7 +140,7 @@ mod tests {
         let privkey = decode_hex(privkey.as_str());
         let privkey = SecretKey::parse_slice(&privkey).expect("failed to parse private key");
         let pubkey = PublicKey::from_secret_key(&privkey);
-        let signature = sign_message_hash(&privkey, hash.clone());
+        let signature = sign_message_hash(&privkey, &hash);
         let want = String::from("9684ca7f7b9c91250ffdd8a28d00c295606193747c88333032ce9b928bb2bc5a4b36935c6c5ab01fcf9f7db9ca8938c0bc71d5dd88e556f4165af29d5fbb8d3700");
         assert_eq!(encode_hex(&signature), want);
 
