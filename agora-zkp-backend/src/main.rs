@@ -1,5 +1,5 @@
 use agora_zkp_backend::config::get_config;
-use agora_zkp_backend::run;
+use agora_zkp_backend::api::run;
 use std::net::TcpListener;
 
 #[tokio::main]
