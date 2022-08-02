@@ -9,6 +9,7 @@ pub struct Settings {
     pub apikey_balancy: String,
     pub url_pubkey: String,
     pub apikey_pubkey: String,
+    pub private_key: String,
 }
 
 pub fn get_config() -> Settings {

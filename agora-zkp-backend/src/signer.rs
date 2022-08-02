@@ -5,7 +5,7 @@ use std::fmt::Write;
 use std::num::ParseIntError;
 use uuid::Uuid;
 
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize)]
 pub struct SignedResponse {
     pub pubkeys: Vec<String>,
     pub hash: String,
