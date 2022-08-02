@@ -2,6 +2,18 @@ use agora_zkp_backend::balancy::*;
 use agora_zkp_backend::config::get_test_config;
 use std::io::{self, Write};
 
+fn get_test_balancy() -> BalancyClient {
+    let config = get_test_config();
+    let balancy_client = BalancyClient::new(
+        config.url_balancy,
+        config.apikey_balancy,
+        config.url_pubkey,
+        config.apikey_pubkey,
+        180,
+    );
+    balancy_client
+}
+
 #[tokio::test]
 async fn test_get_pubkeys() {
     let config = get_test_config();
@@ -13,6 +25,7 @@ async fn test_get_pubkeys() {
         .ok();
         return;
     }
+    let balancy_client = get_test_balancy();
 
     let addresses = vec![
         String::from("0x646dB8ffC21e7ddc2B6327448dd9Fa560Df41087"),
@@ -23,13 +36,10 @@ async fn test_get_pubkeys() {
             String::from("043298e36b5d63ae4341f9487c14c4dd89a9240d43e8b3f59cab476551bca27e7f417fed52dee4bb54f7e7ec76d167bd148ff8c47e809269d9c1e488cdba7051a0"),
         ];
 
-    let mut got = get_pubkeys(
-        config.url_pubkey.as_str(),
-        config.apikey_balancy.as_str(),
-        addresses,
-    )
-    .await
-    .expect("balancy /pubkey request failed");
+    let mut got = balancy_client
+        .get_pubkeys(addresses)
+        .await
+        .expect("balancy /pubkey request failed");
     want.sort();
     got.sort();
     assert_eq!(got, want);
@@ -46,6 +56,7 @@ async fn test_get_xyz_holders() {
         .ok();
         return;
     }
+    let balancy_client = get_test_balancy();
 
     let req_body = ReqXyzHolders {
         logic: String::from("AND"),
@@ -56,7 +67,7 @@ async fn test_get_xyz_holders() {
             amount: String::from("100000000000000000000000"),
         }],
     };
-    let mut got = get_xyz_holders_addresses(config.url_balancy, config.apikey_balancy, req_body)
+    let mut got = balancy_client.get_xyz_holders_addresses(req_body)
         .await
         .expect("balancy /xyzHolders request failed");
     let mut want = vec![
