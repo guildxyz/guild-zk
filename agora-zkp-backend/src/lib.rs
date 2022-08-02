@@ -1,7 +1,5 @@
 pub mod balancy;
 pub mod config;
-pub mod eth;
-pub mod moralis;
 pub mod signer;
 
 use actix_web::dev::Server;
@@ -25,7 +23,6 @@ pub fn run(listener: TcpListener, conf: config::Settings) -> Result<Server, std:
     let server = HttpServer::new(move || {
         App::new()
             .route("/health_check", web::get().to(health_check))
-            .route("/tx", web::get().to(get_txs))
             .route("/sign", web::post().to(get_xyz_holders_pubkeys))
             .app_data(conf.clone())
             .app_data(balancy_client.clone())
@@ -37,24 +34,6 @@ pub fn run(listener: TcpListener, conf: config::Settings) -> Result<Server, std:
 
 async fn health_check() -> impl Responder {
     HttpResponse::Ok()
-}
-
-#[derive(serde::Deserialize)]
-struct GetTxsQuery {
-    tx: String,
-}
-
-async fn get_txs(
-    conf: web::Data<config::Settings>,
-    query: web::Query<GetTxsQuery>,
-) -> impl Responder {
-    println!("api key: {}, tx: {}", conf.apikey, query.tx);
-    let res =
-        moralis::get_txhash_by_sender_addr(conf.apikey.to_string(), query.tx.to_string()).await;
-    match res {
-        Ok(txhash) => HttpResponse::Ok().body(txhash),
-        Err(_error) => HttpResponse::NotFound().body(format!("{:?}", _error)),
-    }
 }
 
 async fn get_xyz_holders_pubkeys(
