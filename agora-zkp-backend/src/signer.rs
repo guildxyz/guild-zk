@@ -14,26 +14,40 @@ pub struct SignedResponse {
     pub signature: String,
 }
 
-pub fn sign_pubkeys(private_key: String, pubkeys: Vec<String>) -> SignedResponse {
-    let nonce = Uuid::new_v4();
-    let timestamp = chrono::offset::Utc::now().timestamp();
-
-    let hash = hash_message(&nonce.to_string(), timestamp.to_string(), &pubkeys);
-    let signature = sign_message_hash(private_key, hash);
-
-    let resp = SignedResponse {
-        pubkeys,
-        hash: String::from(""),
-        nonce: nonce.to_string(),
-        timestamp,
-        signature: encode_hex(&signature),
-    };
-    resp
+pub struct Signer {
+    privkey: SecretKey,
+    pubkey: PublicKey,
 }
 
-pub fn verify(private_key: String, resp: &SignedResponse) -> bool {
-    let hash = hash_message(&resp.nonce, resp.timestamp.to_string(), &resp.pubkeys);
-    verify_message_hash(private_key, hash, decode_hex(&resp.signature))
+impl Signer {
+    pub fn new(private_key: String) -> Signer {
+        let privkey = decode_hex(private_key.as_str());
+        let privkey = SecretKey::parse_slice(&privkey).expect("failed to parse private key");
+        let pubkey = PublicKey::from_secret_key(&privkey);
+        Signer { privkey, pubkey }
+    }
+
+    pub fn sign_pubkeys(&self, pubkeys: Vec<String>) -> SignedResponse {
+        let nonce = Uuid::new_v4();
+        let timestamp = chrono::offset::Utc::now().timestamp();
+
+        let hash = hash_message(&nonce.to_string(), timestamp.to_string(), &pubkeys);
+        let signature = sign_message_hash(&self.privkey, hash);
+
+        let resp = SignedResponse {
+            pubkeys,
+            hash: String::from(""),
+            nonce: nonce.to_string(),
+            timestamp,
+            signature: encode_hex(&signature),
+        };
+        resp
+    }
+
+    pub fn verify(&self, resp: &SignedResponse) -> bool {
+        let hash = hash_message(&resp.nonce, resp.timestamp.to_string(), &resp.pubkeys);
+        verify_message_hash(&self.pubkey, hash, decode_hex(&resp.signature))
+    }
 }
 
 type Blake2b256 = Blake2b<U32>;
@@ -49,21 +63,16 @@ fn hash_message(nonce: &String, timestamp: String, pubkeys: &Vec<String>) -> Vec
     res.to_vec()
 }
 
-fn sign_message_hash(private_key: String, hash: Vec<u8>) -> Vec<u8> {
-    let privkey = decode_hex(private_key.as_str());
-    let privkey = SecretKey::parse_slice(&privkey).expect("failed to parse private key");
+fn sign_message_hash(private_key: &SecretKey, hash: Vec<u8>) -> Vec<u8> {
     let message = Message::parse_slice(&hash).expect("failed to parse hash");
-    let (signature, recovery_id) = libsecp256k1::sign(&message, &privkey);
+    let (signature, recovery_id) = libsecp256k1::sign(&message, private_key);
     let signature = signature.serialize();
     let mut signature = signature.to_vec();
     signature.push(recovery_id.serialize());
     signature
 }
 
-fn verify_message_hash(private_key: String, hash: Vec<u8>, signature: Vec<u8>) -> bool {
-    let privkey = decode_hex(private_key.as_str());
-    let privkey = SecretKey::parse_slice(&privkey).expect("failed to parse private key");
-    let pubkey = PublicKey::from_secret_key(&privkey);
+fn verify_message_hash(pubkey: &PublicKey, hash: Vec<u8>, signature: Vec<u8>) -> bool {
     let message = Message::parse_slice(&hash).expect("failed to parse hash");
     if signature.len() != 65 {
         return false;
@@ -103,16 +112,18 @@ mod tests {
     fn test_sign_pubkeys() {
         let privkey =
             String::from("1111111111111111111111111111111111111111111111111111111111111111");
+
+        let signer = Signer::new(privkey);
         let pubkeys = vec![String::from("1"), String::from("2"), String::from("3")];
 
-        let mut resp = sign_pubkeys(privkey.clone(), pubkeys);
+        let mut resp = signer.sign_pubkeys(pubkeys);
         println!("{:?}", resp);
-        let ok = verify(privkey.clone(), &resp);
+        let ok = signer.verify(&resp);
         assert!(ok);
 
         // change timestamp to invalidate signature
         resp.timestamp = 1;
-        let ok = verify(privkey.clone(), &resp);
+        let ok = signer.verify(&resp);
         assert!(!ok);
     }
 
@@ -126,11 +137,14 @@ mod tests {
 
         let privkey =
             String::from("1111111111111111111111111111111111111111111111111111111111111111");
-        let signature = sign_message_hash(privkey.clone(), hash.clone());
+        let privkey = decode_hex(privkey.as_str());
+        let privkey = SecretKey::parse_slice(&privkey).expect("failed to parse private key");
+        let pubkey = PublicKey::from_secret_key(&privkey);
+        let signature = sign_message_hash(&privkey, hash.clone());
         let want = String::from("9684ca7f7b9c91250ffdd8a28d00c295606193747c88333032ce9b928bb2bc5a4b36935c6c5ab01fcf9f7db9ca8938c0bc71d5dd88e556f4165af29d5fbb8d3700");
         assert_eq!(encode_hex(&signature), want);
 
-        let ok = verify_message_hash(privkey, hash, signature);
+        let ok = verify_message_hash(&pubkey, hash, signature);
         assert!(ok);
     }
 }
