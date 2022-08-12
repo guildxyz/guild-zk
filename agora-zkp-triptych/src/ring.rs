@@ -40,7 +40,7 @@ pub fn pad_ring_to_2n(ring: &mut Ring) -> Result<usize, String> {
     if ring.is_empty() {
         Err("empty ring".to_string())
     } else {
-        let log_2_ring_len = ring.len().log2();
+        let log_2_ring_len = ring.len().ilog2();
         let pow_2_ring_len = 2usize.pow(log_2_ring_len);
         // pow_2_ring_len is always less than or equal to keys.len()
         // because log2 always rounds down

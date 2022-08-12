@@ -7,17 +7,17 @@ pub fn pad_ring_to_2n<C: Curve>(ring: &mut Vec<Scalar<C>>) -> Result<usize, Stri
     if ring.is_empty() {
         Err("empty ring".to_string())
     } else {
-        let log_2_ring_len = ring.len().log2();
+        let log_2_ring_len = ring.len().ilog2();
         let pow_2_ring_len = 2usize.pow(log_2_ring_len);
         // pow_2_ring_len is always less than or equal to keys.len()
         // because log2 always rounds down
-        if ring.len() != pow_2_ring_len {
+        if ring.len() == pow_2_ring_len {
+            Ok(log_2_ring_len as usize)
+        } else {
             for _ in 0..pow_2_ring_len * 2 - ring.len() {
-                ring.push(ring[0])
+                ring.push(ring[0]);
             }
             Ok((log_2_ring_len + 1) as usize)
-        } else {
-            Ok(log_2_ring_len as usize)
         }
     }
 }
