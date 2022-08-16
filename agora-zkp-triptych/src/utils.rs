@@ -68,13 +68,13 @@ mod test {
         assert_eq!(coeffs[1], Scalar::ONE); // c_1
         assert_eq!(coeffs[2], Scalar::ZERO); // c_2
 
-        // first order polynomial (y = 22 * x + 7)
+        // first order polynomial (y = 32 * x - 13)
         let x = vec![Scalar::from(2u32), Scalar::from(3u32)];
         let y = vec![Scalar::from(51u32), Scalar::from(83u32)];
         let coeffs = interpolate(&x, &y).unwrap();
         // values taken from zkp js interpolate
         assert_eq!(coeffs[0], Scalar::from(13u32).neg());
-        assert_eq!(coeffs[1], Scalar::from(0x20u32));
+        assert_eq!(coeffs[1], Scalar::from(32u32));
 
         // fourth order polynomial
         // y = x^4 + 0 * x^3 + 3 * x^2 + 2 * x + 14
