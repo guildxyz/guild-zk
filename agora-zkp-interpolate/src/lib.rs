@@ -2,6 +2,14 @@
 #![deny(clippy::all)]
 #![deny(clippy::dbg_macro)]
 
+#[cfg(test)]
+mod macros;
+
+#[cfg(feature = "bls-scalar")]
+mod bls_scalar;
+#[cfg(feature = "k256-scalar")]
+mod k256_scalar;
+
 use subtle::CtOption;
 use thiserror::Error;
 
@@ -60,8 +68,8 @@ where
             phi *= x[i];
             phi += T::from_u64(j as u64) * s[j];
         }
-        // NOTE unwrap is always fine?
-        let ff = <T as Interpolate>::inverse(&phi).unwrap();
+        let maybe_ff: Option<T> = <T as Interpolate>::inverse(&phi).into();
+        let ff = maybe_ff.ok_or_else(|| InterpolationError::TriedToInvertZero)?;
         let mut b = T::one();
         for j in (0..n).rev() {
             let aux = b * ff * y[i];
