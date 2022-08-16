@@ -69,7 +69,7 @@ where
             phi += T::from_u64(j as u64) * s[j];
         }
         let maybe_ff: Option<T> = <T as Interpolate>::inverse(&phi).into();
-        let ff = maybe_ff.ok_or_else(|| InterpolationError::TriedToInvertZero)?;
+        let ff = maybe_ff.ok_or(InterpolationError::TriedToInvertZero)?;
         let mut b = T::one();
         for j in (0..n).rev() {
             let aux = b * ff * y[i];

@@ -3,6 +3,8 @@ use crate::curve::Curve;
 use crate::rng::CryptoCoreRng;
 use crate::U256;
 
+use agora_zkp_interpolate::Interpolate;
+use bigint::subtle::{Choice, CtOption};
 use bigint::Encoding;
 use borsh::{BorshDeserialize, BorshSerialize};
 
@@ -55,6 +57,24 @@ impl<C: Curve> Scalar<C> {
 
     pub fn random<R: CryptoCoreRng>(rng: &mut R) -> Self {
         random_mod_u256::<Self, R>(rng)
+    }
+}
+
+impl<C: Curve> Interpolate for Scalar<C> {
+    fn zero() -> Self {
+        Self::ZERO
+    }
+
+    fn one() -> Self {
+        Self::ONE
+    }
+
+    fn from_u64(num: u64) -> Self {
+        Self::new(U256::from(num))
+    }
+
+    fn inverse(&self) -> CtOption<Self> {
+        CtOption::new(<Self as Modular>::inverse(self), Choice::from(1))
     }
 }
 
@@ -364,24 +384,24 @@ mod test {
     fn inverse() {
         let mut a = ScalarSmall::new(U256::from_u8(10));
         assert!(a != ScalarSmall::ZERO);
-        assert_eq!(a * a.inverse(), ScalarSmall::ONE);
+        assert_eq!(a * Modular::inverse(&a), ScalarSmall::ONE);
         a = ScalarSmall::new(U256::from_u8(59));
-        assert_eq!(a * a.inverse(), ScalarSmall::ONE);
+        assert_eq!(a * Modular::inverse(&a), ScalarSmall::ONE);
 
         let mut b = ScalarLarge::new(U256::from_be_hex(
             "c1f940f620808011b3455e91dc9813afffb3b123d4537cf2f63a51eb1208ec50",
         ));
         assert!(b != ScalarLarge::ZERO);
-        assert_eq!(b * b.inverse(), ScalarLarge::ONE);
+        assert_eq!(b * Modular::inverse(&b), ScalarLarge::ONE);
 
         b = ScalarLarge::new(U256::from_be_hex(
             "354880368b136b492e8cbce77a7b5ffc3dbef5087bc30537b87ca9d57648c840",
         ));
-        assert_eq!(b * b.inverse(), ScalarLarge::ONE);
+        assert_eq!(b * Modular::inverse(&b), ScalarLarge::ONE);
         b = ScalarLarge::new(Tom256k1::ORDER);
-        assert_eq!(b * b.inverse(), ScalarLarge::ONE);
+        assert_eq!(b * Modular::inverse(&b), ScalarLarge::ONE);
         b = ScalarLarge::new(Secp256k1::GENERATOR_X);
-        assert_eq!(b * b.inverse(), ScalarLarge::ONE);
+        assert_eq!(b * Modular::inverse(&b), ScalarLarge::ONE);
     }
 
     #[test]
