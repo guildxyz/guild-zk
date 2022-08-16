@@ -65,6 +65,7 @@ pub fn interpolate<C: Curve>(x: &[Scalar<C>], y: &[Scalar<C>]) -> Result<Vec<Sca
 mod test {
     use super::*;
     use crate::curve::Tom256k1;
+    use std::ops::Neg;
 
     type TomScalar = Scalar<Tom256k1>;
 
@@ -152,7 +153,7 @@ mod test {
         assert_eq!(coeffs[1], TomScalar::ONE); // c_1
         assert_eq!(coeffs[2], TomScalar::ZERO); // c_2
 
-        // first order polynomial (y = 22 * x + 7)
+        // first order polynomial (y = 32 * x - 13)
         let x = vec![
             TomScalar::new(U256::from_u8(2)),
             TomScalar::new(U256::from_u8(3)),
@@ -162,12 +163,8 @@ mod test {
             TomScalar::new(U256::from_u8(83)),
         ];
         let coeffs = interpolate(&x, &y).unwrap();
-        // values taken from zkp js interpolate
-        assert_eq!(
-            coeffs[0].inner(),
-            &U256::from_be_hex("fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc22")
-        );
-        assert_eq!(coeffs[1].inner(), &U256::from_u8(0x20));
+        assert_eq!(coeffs[0], Scalar::new(U256::from_u8(13)).neg());
+        assert_eq!(coeffs[1], Scalar::new(U256::from_u8(32)));
 
         // fourth order polynomial
         // y = x^4 + 0 * x^3 + 3 * x^2 + 2 * x + 14
