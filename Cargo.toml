@@ -1,6 +1,7 @@
 [workspace]
 members = [
 	"agora-zkp-ecdsa",
+	"agora-zkp-interpolate",
 	"agora-zkp-triptych",
 ]
 

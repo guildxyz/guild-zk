@@ -1,0 +1,8 @@
+[package]
+name = "agora-zkp-interpolate"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+subtle = "2.4.1"
+thiserror = "1.0"
