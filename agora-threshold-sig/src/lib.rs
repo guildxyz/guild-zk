@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 #[deny(clippy::all)]
 #[deny(clippy::dbg_macro)]
-mod pvsh;
+mod share;
 
 use bls::hash_to_curve::{ExpandMsgXmd, HashToCurve, HashToField};
 use bls::{G1Affine, G1Projective, G2Affine, G2Projective, Scalar};
