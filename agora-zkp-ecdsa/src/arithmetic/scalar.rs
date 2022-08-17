@@ -3,7 +3,7 @@ use crate::curve::Curve;
 use crate::rng::CryptoCoreRng;
 use crate::U256;
 
-use agora_zkp_interpolate::Interpolate;
+use agora_interpolate::Interpolate;
 use bigint::subtle::{Choice, CtOption};
 use bigint::Encoding;
 use borsh::{BorshDeserialize, BorshSerialize};

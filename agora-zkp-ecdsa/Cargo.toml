@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-agora-zkp-interpolate = { path = "../agora-zkp-interpolate" }
+agora-interpolate = { path = "../agora-interpolate" }
 bigint = { package = "crypto-bigint", version = "0.4.8", default-features = false }
 borsh = "0.9"
 num-bigint = { package = "num-bigint", version = "0.4.3", default-features = false }

@@ -1,5 +1,5 @@
 use crate::ring::*;
-use agora_zkp_interpolate::interpolate;
+use agora_interpolate::interpolate;
 use k256::elliptic_curve::group::GroupEncoding;
 use k256::elliptic_curve::ops::Reduce;
 use k256::elliptic_curve::{Field, PrimeField};

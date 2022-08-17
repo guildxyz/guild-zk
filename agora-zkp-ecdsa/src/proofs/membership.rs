@@ -7,7 +7,7 @@ use crate::pedersen::*;
 use crate::rng::CryptoCoreRng;
 use crate::U256;
 
-use agora_zkp_interpolate::interpolate;
+use agora_interpolate::interpolate;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize)]
