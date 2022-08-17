@@ -36,7 +36,7 @@ jobs:
         run: cargo clippy --color=always --all-targets --all-features --examples --tests
 
       - name: test-rust
-        run: cargo t --color=always
+        run: cargo t --color=always --all-features
 
   wasm-test:
     runs-on: ubuntu-latest

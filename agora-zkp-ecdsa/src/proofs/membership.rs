@@ -1,4 +1,4 @@
-use super::utils::*;
+use super::utils::pad_ring_to_2n;
 use crate::arithmetic::multimult::*;
 use crate::arithmetic::{Modular, Point, Scalar};
 use crate::curve::Curve;
@@ -7,6 +7,7 @@ use crate::pedersen::*;
 use crate::rng::CryptoCoreRng;
 use crate::U256;
 
+use agora_interpolate::interpolate;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize)]
@@ -116,7 +117,7 @@ impl<C: Curve> MembershipProof<C> {
             poly_vals.push(poly_val);
         }
 
-        let coeffs = interpolate(&omegas, &poly_vals)?;
+        let coeffs = interpolate(&omegas, &poly_vals).map_err(|e| e.to_string())?;
         for i in 0..n {
             cd.push(
                 pedersen_generator

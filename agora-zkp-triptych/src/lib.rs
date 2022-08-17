@@ -7,7 +7,6 @@
 mod keypair;
 pub mod ring;
 pub mod signature;
-mod utils;
 
 use generic_array::GenericArray;
 use k256::elliptic_curve::PrimeField;
