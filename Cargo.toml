@@ -1,6 +1,7 @@
 [workspace]
 members = [
 	"agora-interpolate",
+	"agora-threshold-sig",
 	"agora-zkp-ecdsa",
 	"agora-zkp-triptych",
 ]
