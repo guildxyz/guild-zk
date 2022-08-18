@@ -21,4 +21,4 @@ impl Interpolate for Scalar {
 }
 
 #[cfg(test)]
-crate::macros::test_interpolate!(bls::Scalar);
+crate::macros::test_polynomial!(bls::Scalar);
