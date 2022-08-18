@@ -118,10 +118,10 @@ impl<C: Curve> MembershipProof<C> {
         }
 
         let poly = Polynomial::interpolate(&omegas, &poly_vals).map_err(|e| e.to_string())?;
-        for i in 0..n {
+        for (coeff, &rho) in poly.into_coeffs().into_iter().zip(&rho_vec) {
             cd.push(
                 pedersen_generator
-                    .commit_with_randomness(poly.coeffs()[i], rho_vec[i])
+                    .commit_with_randomness(coeff, rho)
                     .into_commitment(),
             );
         }

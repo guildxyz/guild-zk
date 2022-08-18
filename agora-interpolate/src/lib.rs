@@ -15,7 +15,7 @@ pub use polynomial::Polynomial;
 use subtle::CtOption;
 use thiserror::Error;
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum InterpolationError {
     #[error("unequal slice lengths: {0} and {1}")]
     InvalidInputLengths(usize, usize),

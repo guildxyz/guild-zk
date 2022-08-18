@@ -1,7 +1,7 @@
 use crate::{Interpolate, InterpolationError};
 use std::ops::{AddAssign, Mul, MulAssign, Neg, SubAssign};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Polynomial<T> {
     coeffs: Vec<T>,
 }
