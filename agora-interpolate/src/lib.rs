@@ -1,5 +1,3 @@
-#![feature(generic_const_exprs)]
-#![allow(incomplete_features)]
 #![deny(clippy::all)]
 #![deny(clippy::dbg_macro)]
 
@@ -21,8 +19,6 @@ use thiserror::Error;
 pub enum InterpolationError {
     #[error("unequal slice lengths: {0} and {1}")]
     InvalidInputLengths(usize, usize),
-    #[error("not enough samples: {0}, expected > {1}")]
-    NotEnoughSamples(usize, usize),
     #[error("attempted to invert a zero scalar")]
     TriedToInvertZero,
 }

@@ -7,7 +7,7 @@ use crate::pedersen::*;
 use crate::rng::CryptoCoreRng;
 use crate::U256;
 
-use agora_interpolate::interpolate;
+use agora_interpolate::Polynomial;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize)]
@@ -117,11 +117,11 @@ impl<C: Curve> MembershipProof<C> {
             poly_vals.push(poly_val);
         }
 
-        let coeffs = interpolate(&omegas, &poly_vals).map_err(|e| e.to_string())?;
+        let poly = Polynomial::interpolate(&omegas, &poly_vals).map_err(|e| e.to_string())?;
         for i in 0..n {
             cd.push(
                 pedersen_generator
-                    .commit_with_randomness(coeffs[i], rho_vec[i])
+                    .commit_with_randomness(poly.coeffs()[i], rho_vec[i])
                     .into_commitment(),
             );
         }

@@ -1,43 +1,37 @@
 use crate::{Interpolate, InterpolationError};
 use std::ops::{AddAssign, Mul, MulAssign, Neg, SubAssign};
 
-/// An `N`th order polynomial with `N + 1` coefficients.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Polynomial<const N: usize, T>
-where
-    [(); N + 1]:,
-{
-    coeffs: [T; N + 1],
+pub struct Polynomial<T> {
+    coeffs: Vec<T>,
 }
 
-impl<const N: usize, T> Polynomial<N, T>
-where
-    [(); N + 1]:,
-{
-    pub fn new(coeffs: [T; N + 1]) -> Self {
+impl<T> Polynomial<T> {
+    pub fn new(coeffs: Vec<T>) -> Self {
         Self { coeffs }
     }
 
-    pub fn coeffs(&self) -> &[T; N + 1] {
+    pub fn coeffs(&self) -> &[T] {
         &self.coeffs
+    }
+
+    pub fn into_coeffs(self) -> Vec<T> {
+        self.coeffs
     }
 }
 
-impl<const N: usize, T> Polynomial<N, T>
+impl<T> Polynomial<T>
 where
     T: Interpolate + Copy + Mul<Output = T> + Neg<Output = T> + AddAssign + SubAssign + MulAssign,
-    [(); N + 1]:,
 {
     pub fn interpolate(x: &[T], y: &[T]) -> Result<Self, InterpolationError> {
         if x.len() != y.len() {
             return Err(InterpolationError::InvalidInputLengths(x.len(), y.len()));
-        } else if x.len() < N + 1 {
-            return Err(InterpolationError::NotEnoughSamples(x.len(), N + 1));
         }
 
         let n = x.len();
         let mut s = vec![T::zero(); n];
-        let mut coeffs_vec = vec![T::zero(); n];
+        let mut coeffs = vec![T::zero(); n];
 
         s.push(T::one());
         s[n - 1] = -x[0];
@@ -61,17 +55,12 @@ where
             let mut b = T::one();
             for j in (0..n).rev() {
                 let aux = b * ff * y[i];
-                coeffs_vec[j] += aux;
+                coeffs[j] += aux;
                 b *= x[i];
                 b += s[j];
             }
         }
 
-        // NOTE if x.len() > N then coeffs_vec[N + 1..]
-        // will contain all zeros because we have
-        // more samples than coefficients in the polynomial
-        let mut coeffs = [T::zero(); N + 1];
-        coeffs.copy_from_slice(&coeffs_vec[0..N + 1]);
         Ok(Self { coeffs })
     }
 

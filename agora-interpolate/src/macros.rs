@@ -6,10 +6,6 @@ macro_rules! test_polynomial {
             use std::ops::Neg;
 
             type TestScalar = $t;
-            type Poly0 = Polynomial<0, TestScalar>;
-            type Poly1 = Polynomial<1, TestScalar>;
-            type Poly2 = Polynomial<2, TestScalar>;
-            type Poly4 = Polynomial<4, TestScalar>;
 
             #[test]
             fn interpolate_and_evaluate() {
@@ -17,21 +13,14 @@ macro_rules! test_polynomial {
                 let x = vec![<TestScalar as Interpolate>::from_u64(3_u64); 3];
                 let y = vec![<TestScalar as Interpolate>::from_u64(5_u64); 4];
                 assert_eq!(
-                    Poly2::interpolate(&x, &y),
+                    Polynomial::interpolate(&x, &y),
                     Err(InterpolationError::InvalidInputLengths(3, 4))
-                );
-
-                let x = vec![<TestScalar as Interpolate>::from_u64(3_u64); 4];
-                let y = vec![<TestScalar as Interpolate>::from_u64(5_u64); 4];
-                assert_eq!(
-                    Poly4::interpolate(&x, &y),
-                    Err(InterpolationError::NotEnoughSamples(4, 5))
                 );
 
                 // constant polynomial (y = 53)
                 let x = vec![<TestScalar as Interpolate>::from_u64(3_u64); 1];
                 let y = vec![<TestScalar as Interpolate>::from_u64(53_u64); 1];
-                let poly = Poly0::interpolate(&x, &y).unwrap();
+                let poly = Polynomial::interpolate(&x, &y).unwrap();
                 assert_eq!(
                     poly.coeffs()[0],
                     <TestScalar as Interpolate>::from_u64(53_u64)
@@ -53,7 +42,7 @@ macro_rules! test_polynomial {
                 ];
 
                 let y = x.clone();
-                let poly = Poly1::interpolate(&x, &y).unwrap();
+                let poly = Polynomial::interpolate(&x, &y).unwrap();
                 assert_eq!(poly.coeffs()[0], <TestScalar as Interpolate>::zero()); // c_0
                 assert_eq!(poly.coeffs()[1], <TestScalar as Interpolate>::one()); // c_1
 
@@ -66,7 +55,7 @@ macro_rules! test_polynomial {
                     <TestScalar as Interpolate>::from_u64(51_u64),
                     <TestScalar as Interpolate>::from_u64(83_u64),
                 ];
-                let poly = Poly1::interpolate(&x, &y).unwrap();
+                let poly = Polynomial::interpolate(&x, &y).unwrap();
                 assert_eq!(
                     poly.coeffs()[0],
                     <TestScalar as Interpolate>::from_u64(13_u64).neg()
@@ -101,7 +90,7 @@ macro_rules! test_polynomial {
                     <TestScalar as Interpolate>::from_u64(724_u64),
                     <TestScalar as Interpolate>::from_u64(1430_u64),
                 ];
-                let poly = Poly4::interpolate(&x, &y).unwrap();
+                let poly = Polynomial::interpolate(&x, &y).unwrap();
                 assert_eq!(
                     poly.coeffs()[0],
                     <TestScalar as Interpolate>::from_u64(14_u64)
