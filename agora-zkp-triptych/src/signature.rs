@@ -1,5 +1,5 @@
 use crate::ring::*;
-use agora_interpolate::interpolate;
+use agora_interpolate::Polynomial;
 use k256::elliptic_curve::group::GroupEncoding;
 use k256::elliptic_curve::ops::Reduce;
 use k256::elliptic_curve::{Field, PrimeField};
@@ -349,8 +349,8 @@ fn get_coeffs(
             }
         }
 
-        let coeffs = interpolate(omegas, &evals).map_err(|e| e.to_string())?;
-        coeff_vecs.push(coeffs);
+        let poly = Polynomial::interpolate(omegas, &evals).map_err(|e| e.to_string())?;
+        coeff_vecs.push(poly.into_coeffs());
     }
     Ok(coeff_vecs)
 }
