@@ -1,23 +1,49 @@
-macro_rules! test_interpolate {
+macro_rules! test_polynomial {
     ($t: ty) => {
         #[cfg(test)]
         mod test {
-            use crate::{interpolate, Interpolate};
+            use crate::{Interpolate, InterpolationError, Polynomial};
             use std::ops::Neg;
 
             type TestScalar = $t;
+            type Poly0 = Polynomial<0, TestScalar>;
+            type Poly1 = Polynomial<1, TestScalar>;
+            type Poly2 = Polynomial<2, TestScalar>;
+            type Poly4 = Polynomial<4, TestScalar>;
 
             #[test]
-            fn interpolate_polynomial() {
+            fn interpolate_and_evaluate() {
+                // input slices of unequal length
                 let x = vec![<TestScalar as Interpolate>::from_u64(3_u64); 3];
                 let y = vec![<TestScalar as Interpolate>::from_u64(5_u64); 4];
-                assert!(interpolate(&x, &y).is_err());
+                assert_eq!(
+                    Poly2::interpolate(&x, &y),
+                    Err(InterpolationError::InvalidInputLengths(3, 4))
+                );
+
+                let x = vec![<TestScalar as Interpolate>::from_u64(3_u64); 4];
+                let y = vec![<TestScalar as Interpolate>::from_u64(5_u64); 4];
+                assert_eq!(
+                    Poly4::interpolate(&x, &y),
+                    Err(InterpolationError::NotEnoughSamples(4, 5))
+                );
 
                 // constant polynomial (y = 53)
                 let x = vec![<TestScalar as Interpolate>::from_u64(3_u64); 1];
                 let y = vec![<TestScalar as Interpolate>::from_u64(53_u64); 1];
-                let coeffs = interpolate(&x, &y).unwrap();
-                assert_eq!(coeffs[0], <TestScalar as Interpolate>::from_u64(53_u64));
+                let poly = Poly0::interpolate(&x, &y).unwrap();
+                assert_eq!(
+                    poly.coeffs()[0],
+                    <TestScalar as Interpolate>::from_u64(53_u64)
+                );
+                assert_eq!(
+                    poly.evaluate(<TestScalar as Interpolate>::from_u64(123456_u64),),
+                    <TestScalar as Interpolate>::from_u64(53_u64),
+                );
+                assert_eq!(
+                    poly.evaluate(<TestScalar as Interpolate>::from_u64(78910_u64),),
+                    <TestScalar as Interpolate>::from_u64(53_u64),
+                );
 
                 // simple first order polynomial (y = x)
                 let x = vec![
@@ -27,10 +53,9 @@ macro_rules! test_interpolate {
                 ];
 
                 let y = x.clone();
-                let coeffs = interpolate(&x, &y).unwrap();
-                assert_eq!(coeffs[0], <TestScalar as Interpolate>::zero()); // c_0
-                assert_eq!(coeffs[1], <TestScalar as Interpolate>::one()); // c_1
-                assert_eq!(coeffs[2], <TestScalar as Interpolate>::zero()); // c_2
+                let poly = Poly1::interpolate(&x, &y).unwrap();
+                assert_eq!(poly.coeffs()[0], <TestScalar as Interpolate>::zero()); // c_0
+                assert_eq!(poly.coeffs()[1], <TestScalar as Interpolate>::one()); // c_1
 
                 // first order polynomial (y = 32 * x - 13)
                 let x = vec![
@@ -41,12 +66,22 @@ macro_rules! test_interpolate {
                     <TestScalar as Interpolate>::from_u64(51_u64),
                     <TestScalar as Interpolate>::from_u64(83_u64),
                 ];
-                let coeffs = interpolate(&x, &y).unwrap();
+                let poly = Poly1::interpolate(&x, &y).unwrap();
                 assert_eq!(
-                    coeffs[0],
+                    poly.coeffs()[0],
                     <TestScalar as Interpolate>::from_u64(13_u64).neg()
                 );
-                assert_eq!(coeffs[1], <TestScalar as Interpolate>::from_u64(32_u64));
+                assert_eq!(
+                    poly.coeffs()[1],
+                    <TestScalar as Interpolate>::from_u64(32_u64)
+                );
+
+                assert_eq!(poly.evaluate(x[0]), y[0]);
+                assert_eq!(poly.evaluate(x[1]), y[1]);
+                assert_eq!(
+                    poly.evaluate(<TestScalar as Interpolate>::from_u64(100_u64)),
+                    <TestScalar as Interpolate>::from_u64(3187_u64)
+                );
 
                 // fourth order polynomial
                 // y = x^4 + 0 * x^3 + 3 * x^2 + 2 * x + 14
@@ -66,16 +101,36 @@ macro_rules! test_interpolate {
                     <TestScalar as Interpolate>::from_u64(724_u64),
                     <TestScalar as Interpolate>::from_u64(1430_u64),
                 ];
-                let coeffs = interpolate(&x, &y).unwrap();
-                assert_eq!(coeffs[0], <TestScalar as Interpolate>::from_u64(14_u64)); // c0 (x^0)
-                assert_eq!(coeffs[1], <TestScalar as Interpolate>::from_u64(2_u64)); // c1 (x^1)
-                assert_eq!(coeffs[2], <TestScalar as Interpolate>::from_u64(3_u64)); // c2 (x^2)
-                assert_eq!(coeffs[3], <TestScalar as Interpolate>::from_u64(0_u64)); // c3 (x^3)
-                assert_eq!(coeffs[4], <TestScalar as Interpolate>::from_u64(1_u64)); // c4 (x^4)
-                assert_eq!(coeffs[5], <TestScalar as Interpolate>::from_u64(0_u64)); // c5 (x^5)
+                let poly = Poly4::interpolate(&x, &y).unwrap();
+                assert_eq!(
+                    poly.coeffs()[0],
+                    <TestScalar as Interpolate>::from_u64(14_u64)
+                ); // c0 (x^0)
+                assert_eq!(
+                    poly.coeffs()[1],
+                    <TestScalar as Interpolate>::from_u64(2_u64)
+                ); // c1 (x^1)
+                assert_eq!(
+                    poly.coeffs()[2],
+                    <TestScalar as Interpolate>::from_u64(3_u64)
+                ); // c2 (x^2)
+                assert_eq!(
+                    poly.coeffs()[3],
+                    <TestScalar as Interpolate>::from_u64(0_u64)
+                ); // c3 (x^3)
+                assert_eq!(
+                    poly.coeffs()[4],
+                    <TestScalar as Interpolate>::from_u64(1_u64)
+                ); // c4 (x^4)
+
+                assert_eq!(poly.evaluate(x[0]), y[0]);
+                assert_eq!(poly.evaluate(x[1]), y[1]);
+                assert_eq!(poly.evaluate(x[2]), y[2]);
+                assert_eq!(poly.evaluate(x[3]), y[3]);
+                assert_eq!(poly.evaluate(x[4]), y[4]);
             }
         }
     };
 }
 
-pub(crate) use test_interpolate;
+pub(crate) use test_polynomial;
