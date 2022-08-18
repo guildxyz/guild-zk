@@ -1,10 +1,9 @@
-use crate::participant::Participant;
 use crate::hash::*;
+use crate::participant::Participant;
 use bls::{pairing, G1Affine, G2Affine, Scalar};
 use ff::Field;
-use rand_core::RngCore;
+use rand_core::{CryptoRng, RngCore};
 use zeroize::Zeroize;
-
 
 #[derive(Clone, Copy, Debug)]
 pub struct EncryptedShare {
@@ -15,7 +14,11 @@ pub struct EncryptedShare {
 
 impl EncryptedShare {
     #[allow(unused_assignments)]
-    pub fn new<R: RngCore>(rng: &mut R, participant: &Participant, secret_share: &Scalar) -> Self {
+    pub fn new<R: RngCore + CryptoRng>(
+        rng: &mut R,
+        participant: &Participant,
+        secret_share: &Scalar,
+    ) -> Self {
         let mut r = Scalar::random(rng);
         let mut Q = hash_to_g1(&participant.to_bytes());
 
@@ -89,8 +92,6 @@ impl EncryptedShare {
 #[cfg(test)]
 mod test {
     use super::*;
-    use rand_core::SeedableRng;
-    use rand_xorshift::XorShiftRng;
 
     struct Share {
         public: G2Affine,
@@ -98,7 +99,7 @@ mod test {
     }
 
     impl Share {
-        fn random<R: RngCore>(rng: &mut R) -> Self {
+        fn random<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
             let secret = Scalar::random(rng);
             Self {
                 public: G2Affine::from(G2Affine::generator() * secret),
@@ -107,12 +108,9 @@ mod test {
         }
     }
 
-    const SEED: [u8; 16] = [0; 16];
-
     #[test]
     fn verify_and_decrypt() {
-        let mut rng = XorShiftRng::from_seed(SEED);
-
+        let mut rng = rand_core::OsRng;
         let g2 = G2Affine::generator();
         let secret_key = Scalar::random(&mut rng);
         let participant = Participant {

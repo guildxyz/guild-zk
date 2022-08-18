@@ -4,13 +4,10 @@ version = "0.0.1-alpha"
 edition = "2021"
 
 [dependencies]
-agora-interpolate = { path = "../agora-interpolate", features = ["bls-scalar"] }
+agora-interpolate = { path = "../agora-interpolate", features = ["bls-curve"] }
 bls = { package = "bls12_381", version = "0.7.0", features = ["experimental", "zeroize"] }
 ff = "0.12"
 generic-array = "0.14"
 rand_core = "0.6.0"
 sha3 = "0.9"
 zeroize = "1.5.7"
-
-[dev-dependencies]
-rand_xorshift = "0.3.0"

@@ -1,5 +1,5 @@
 use crate::{FP_BYTES, G2_BYTES};
-use bls::{Scalar, G2Affine};
+use bls::{G2Affine, Scalar};
 use ff::Field;
 
 #[derive(Clone, Debug)]

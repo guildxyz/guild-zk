@@ -8,6 +8,3 @@ mod share;
 
 const FP_BYTES: usize = 32;
 const G2_BYTES: usize = 96; // compressed
-
-pub type PublicKey = G2Affine;
-pub type SecretKey = Scalar;
