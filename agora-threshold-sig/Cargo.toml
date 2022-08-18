@@ -4,6 +4,7 @@ version = "0.0.1-alpha"
 edition = "2021"
 
 [dependencies]
+agora-interpolate = { path = "../agora-interpolate", features = ["bls-scalar"] }
 bls = { package = "bls12_381", version = "0.7.0", features = ["experimental", "zeroize"] }
 ff = "0.12"
 generic-array = "0.14"
