@@ -2,17 +2,19 @@ use crate::encrypt::EncryptedShare;
 use crate::participant::Participant;
 
 use agora_interpolate::Polynomial;
-use bls::{G2Affine, Scalar};
+use bls::{G2Affine, G2Projective, Scalar};
 use rand_core::{CryptoRng, RngCore};
 
 #[derive(Clone, Debug)]
 pub struct Shares {
-    coeff_pubkeys: Vec<G2Affine>,
-    encrypted_shares: Vec<EncryptedShare>,
+    coeff_pubkeys: Polynomial<G2Projective>,
+    encrypted_shares: Option<Vec<EncryptedShare>>,
 }
 
+pub type PubkeyShares = Vec<G2Projective>;
+
 impl Shares {
-    pub fn generate<R: RngCore + CryptoRng>(
+    pub fn generate_encrypted<R: RngCore + CryptoRng>(
         rng: &mut R,
         poly: &Polynomial<Scalar>,
         participants: &[Participant],
@@ -30,12 +32,19 @@ impl Shares {
         let coeff_pubkeys = poly
             .coeffs()
             .iter()
-            .map(|coeff| G2Affine::from(G2Affine::generator() * coeff))
+            .map(|coeff| G2Affine::generator() * coeff)
             .collect();
 
         Self {
-            coeff_pubkeys,
-            encrypted_shares,
+            coeff_pubkeys: Polynomial::new(coeff_pubkeys),
+            encrypted_shares: Some(encrypted_shares),
         }
+    }
+
+    pub fn pubkey_shares(&self, participants: &[Participant]) -> PubkeyShares {
+        participants
+            .iter()
+            .map(|participant| self.coeff_pubkeys.evaluate(participant.id))
+            .collect::<Vec<G2Projective>>()
     }
 }
