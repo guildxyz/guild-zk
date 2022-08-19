@@ -21,4 +21,15 @@ impl Interpolate for Scalar {
 }
 
 #[cfg(test)]
-crate::macros::test_polynomial!(bls::Scalar);
+impl crate::GroupElement for bls::G2Projective {
+    fn generator() -> Self {
+        Self::generator()
+    }
+
+    fn identity() -> Self {
+        Self::identity()
+    }
+}
+
+#[cfg(test)]
+crate::macros::test_polynomial!(bls::Scalar, bls::G2Projective);

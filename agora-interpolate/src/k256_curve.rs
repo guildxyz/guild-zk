@@ -21,4 +21,15 @@ impl Interpolate for Scalar {
 }
 
 #[cfg(test)]
-crate::macros::test_polynomial!(k256::Scalar);
+impl crate::GroupElement for k256::ProjectivePoint {
+    fn generator() -> Self {
+        Self::GENERATOR
+    }
+
+    fn identity() -> Self {
+        Self::IDENTITY
+    }
+}
+
+#[cfg(test)]
+crate::macros::test_polynomial!(k256::Scalar, k256::ProjectivePoint);

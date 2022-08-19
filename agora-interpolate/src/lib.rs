@@ -1,4 +1,4 @@
-#![deny(warnings)]
+//#![deny(warnings)]
 #![deny(clippy::all)]
 #![deny(clippy::dbg_macro)]
 
@@ -35,6 +35,17 @@ pub trait Interpolate {
     where
         Self: Sized;
     fn inverse(&self) -> CtOption<Self>
+    where
+        Self: Sized;
+}
+
+#[cfg(test)]
+pub trait GroupElement {
+    fn generator() -> Self
+    where
+        Self: Sized;
+
+    fn identity() -> Self
     where
         Self: Sized;
 }
