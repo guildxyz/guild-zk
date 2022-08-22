@@ -192,6 +192,32 @@ macro_rules! test_polynomial {
                         * <TestScalar as Interpolate>::from_u64(177_u64)
                 );
             }
+
+            #[test]
+            fn arithmetic_check_evaluate() {
+                let gen = <TestPoint as GroupElement>::generator();
+                let secret_key = <TestScalar as Interpolate>::from_u64(123456789_u64);
+
+                // p(x) = 111 + 222x
+                let secret_coeffs = vec![
+                    <TestScalar as Interpolate>::from_u64(111_u64),
+                    <TestScalar as Interpolate>::from_u64(222_u64),
+                ];
+
+                // pg(x) = g^(111) + (g^(222))^x = g^(111 + 222x)
+                let public_coeffs = secret_coeffs
+                    .iter()
+                    .map(|coeff| &gen * coeff)
+                    .collect::<Vec<TestPoint>>();
+
+                let secret_poly = Polynomial::new(secret_coeffs);
+                let public_poly = Polynomial::new(public_coeffs);
+
+                let secret_eval = secret_poly.evaluate(secret_key);
+                let public_eval = public_poly.evaluate(secret_key);
+
+                assert_eq!(gen * secret_eval, public_eval);
+            }
         }
     };
 }

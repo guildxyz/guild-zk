@@ -82,6 +82,8 @@ impl EncryptedShare {
         let mut eh = hash_to_fp(e.to_string().as_bytes());
 
         let result = self.c - eh;
+        // NOTE Gt doesn't have Zeroize implemented, so just assign
+        // identity to this. Is this the right way though -> unused assignment?
         e = Default::default();
         eh.zeroize();
         Q.zeroize();

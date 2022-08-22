@@ -1,5 +1,5 @@
 use crate::participant::Participant;
-use crate::shares::{PubkeyShares, Shares};
+use crate::shares::{Evaluations, Shares};
 use agora_interpolate::Polynomial;
 use bls::{G2Affine, Scalar};
 use ff::Field;
@@ -30,22 +30,20 @@ fn dkg_23() {
     // public
     let shares = polys
         .iter()
-        .map(|poly| Shares::generate_encrypted(&mut rng, poly, &participants))
+        .map(|poly| Shares::new(&mut rng, poly, &participants))
         .collect::<Vec<Shares>>();
 
     // public
-    let pubkey_shares = shares
+    let evaluations = shares
         .iter()
-        .map(|share| share.pubkey_shares(&participants))
-        .collect::<Vec<PubkeyShares>>();
+        .map(|share| share.evaluations(&participants))
+        .collect::<Vec<Evaluations>>();
 
     // verify pubkey_shares shares
-    for participant in &participants {
-        for (pk_share, share) in pubkey_shares.iter().zip(&shares) {
-            for (pk, enc) in pk_share.iter().zip(&share.encrypted_shares) {
-                println!("HELLO");
-                assert!(enc.verify(participant, &G2Affine::from(pk)))
-            }
+    for (evals, share) in evaluations.iter().zip(&shares) {
+        for ((participant, ev), enc) in participants.iter().zip(evals).zip(&share.encrypted_shares)
+        {
+            assert!(enc.verify(participant, &G2Affine::from(ev)))
         }
     }
 }
