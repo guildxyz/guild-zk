@@ -4,7 +4,9 @@
 mod encrypt;
 mod hash;
 mod participant;
-mod share;
+mod shares;
+#[cfg(test)]
+mod tests;
 
 const FP_BYTES: usize = 32;
 const G2_BYTES: usize = 96; // compressed

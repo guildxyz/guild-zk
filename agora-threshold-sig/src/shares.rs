@@ -7,8 +7,8 @@ use rand_core::{CryptoRng, RngCore};
 
 #[derive(Clone, Debug)]
 pub struct Shares {
-    coeff_pubkeys: Polynomial<G2Projective>,
-    encrypted_shares: Option<Vec<EncryptedShare>>,
+    pub coeff_pubkeys: Polynomial<G2Projective>,
+    pub encrypted_shares: Vec<EncryptedShare>,
 }
 
 pub type PubkeyShares = Vec<G2Projective>;
@@ -29,15 +29,16 @@ impl Shares {
                 EncryptedShare::new(rng, participant, &secret_share)
             })
             .collect();
-        let coeff_pubkeys = poly
-            .coeffs()
-            .iter()
-            .map(|coeff| G2Affine::generator() * coeff)
-            .collect();
+        let coeff_pubkeys = Polynomial::new(
+            poly.coeffs()
+                .iter()
+                .map(|coeff| G2Affine::generator() * coeff)
+                .collect(),
+        );
 
         Self {
-            coeff_pubkeys: Polynomial::new(coeff_pubkeys),
-            encrypted_shares: Some(encrypted_shares),
+            coeff_pubkeys,
+            encrypted_shares,
         }
     }
 
