@@ -1,6 +1,7 @@
 use super::app;
 use super::balancy;
 use super::config;
+use super::signer;
 
 use actix_web::dev::Server;
 use actix_web::web;
@@ -16,6 +17,7 @@ pub fn run(listener: TcpListener, conf: config::Settings) -> Result<Server, std:
         App::new()
             .route("/health_check", web::get().to(health_check))
             .route("/sign", web::post().to(get_xyz_holders_pubkeys))
+            .route("/verify", web::post().to(verify_signed_xyz_holders))
             .app_data(application.clone())
     })
     .listen(listener)?
@@ -35,6 +37,18 @@ async fn get_xyz_holders_pubkeys(
     let resp = app.get_signed_xyz_holders_pubkeys(req).await;
     match resp {
         Ok(pubkeys) => HttpResponse::Ok().json(pubkeys),
+        Err(err) => HttpResponse::InternalServerError().body(format!("{:?}", err)),
+    }
+}
+
+async fn verify_signed_xyz_holders(
+    app: web::Data<app::Application>,
+    req_body: web::Json<signer::SignedResponse>,
+) -> impl Responder {
+    let req = req_body.into_inner();
+    let resp = app.verify_signed_xyz_holders(&req).await;
+    match resp {
+        Ok(verified) => HttpResponse::Ok().json(verified),
         Err(err) => HttpResponse::InternalServerError().body(format!("{:?}", err)),
     }
 }
