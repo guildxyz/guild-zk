@@ -11,3 +11,6 @@ generic-array = "0.14"
 rand_core = { version = "0.6.3", default-features = false, features = ["getrandom"] }
 sha3 = "0.9"
 zeroize = "1.5.7"
+
+[package.metadata.docs.rs]
+rustdoc-args = [ "--html-in-header", "./docs/header.html" ]
