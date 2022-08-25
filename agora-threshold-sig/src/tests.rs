@@ -1,97 +1,121 @@
-use crate::participant::Participant;
+use crate::encrypt::EncryptedShare;
+use crate::hash::hash_to_fp;
 use agora_interpolate::Polynomial;
-use bls::{G2Affine, Scalar};
+use bls::{G2Affine, G2Projective, Scalar};
 use ff::Field;
 use rand_core::{CryptoRng, RngCore};
 
 use std::collections::BTreeMap;
 
-// assume sorted?
+#[derive(Clone, Debug)]
 pub struct Share {
-    vk_vec: Vec<G2Affine>,
-    esh_vec: Vec<EncryptedShare>,
+    vk: G2Affine,
+    esh: EncryptedShare,
 }
 
-/*
-/// This is the public version $A(x)$ of the privately generated
-/// polynomial $a(x)$ with degree $t-1$, where $t$ is the threshold.
-///
-/// The private polynomial is generated over a finite field $\mathbb{F}_p$
-///
-/// $$a(x) = a_0 + a_1x +\ldots + a_{t - 1}x^{t - 1}$$
-///
-/// with $x, a_i\in\mathbb{F_p}\ \forall i$. The public polynomial is defined as
-///
-/// $$A(x) = A_0 + A_1x +\ldots + A_{t - 1}x^{t - 1}$$
-///
-/// with $x\in\mathbb{F_p}$ and $A_i = g_2^{a_i}\in\mathbb{G_2}\ \forall i$.
-*/
+pub type IdBytes = [u8; 32];
+
 pub struct Node {
+    nodes: usize,
+    threshold: usize,
+    id_bytes: IdBytes,
+    public_key: G2Affine,
     private_key: Scalar,
     private_poly: Polynomial<Scalar>,
-    participant: Participant,
-    shares: BTreeMap<Scalar, Share>,
+    shares: BTreeMap<IdBytes, Vec<Share>>,
+    participants: BTreeMap<IdBytes, G2Affine>,
 }
 
 impl Node {
     // Copy is required due to Scalar::random(r: impl RngCore) which will
     // reborrow &mut R as &mut *rng, meaning that rng is dereferenced and
     // thus moved if it's not Copy
-    pub fn new<R: RngCore + CryptoRng + Copy>(rng: R, n: usize, t: usize) -> Self {
+    pub fn new<R: RngCore + CryptoRng + Copy>(rng: R, nodes: usize, threshold: usize) -> Self {
         assert!(
-            n >= t,
+            nodes >= threshold,
             "threshold is greater than the total number of participants"
         );
         let private_key = Scalar::random(rng);
-        let participant = Participant {
-            id: Scalar::random(rng),
-            pubkey: G2Affine::from(G2Affine::generator() * private_key),
-        };
-        let private_poly = Polynomial::new(
-            (0..t)
-                .into_iter()
-                .map(|_| Scalar::random(rng))
-                .collect::<Vec<Scalar>>(),
-        );
+        let public_key = G2Affine::from(G2Affine::generator() * private_key);
+        let id_bytes = hash_to_fp(&public_key.to_compressed()).to_bytes();
 
-        let mut shares = BTreeMap::with_capacity(n);
-        // TODO insert own shares
-        shares.insert();
+        let mut private_coeffs = Vec::<Scalar>::with_capacity(threshold);
+        let mut public_coeffs = Vec::<G2Projective>::with_capacity(threshold);
+        for _ in 0..threshold {
+            let private_coeff = Scalar::random(rng);
+            private_coeffs.push(private_coeff);
+            public_coeffs.push(G2Affine::generator() * private_coeff);
+        }
+
+        // TODO not necessarily needed
+        let private_poly = Polynomial::new(private_coeffs);
+        let mut participants = BTreeMap::new();
+        participants.insert(id_bytes, public_key);
 
         Self {
+            nodes,
+            threshold,
+            id_bytes,
+            public_key,
             private_key,
             private_poly,
-            participant,
-            peer_public_shares,
+            shares: BTreeMap::new(),
+            participants,
         }
     }
 
-    pub fn generate_shares<R: RngCore + CryptoRng>(
-        &mut self,
-        rng: &mut R,
-        participants: &[Participant],
-    ) {
-        let shares = Shares::new(rng, &self.private_poly, participants);
-        Some(shares);
-    }
-
-    pub fn collect_share(&mut self, participant: Participant, shares: Shares) {
-        let id_bytes = participant.id.to_bytes();
-        if self.peer_public_shares.get(&id_bytes).is_none() {
-            self.peer_public_shares.insert(
-                id_bytes,
-                Peer {
-                    participant,
-                    shares,
-                },
-            );
+    pub fn collect_participant(&mut self, id_bytes: IdBytes, pubkey: G2Affine) {
+        if self.participants.get(&id_bytes).is_none() {
+            self.participants.insert(id_bytes, pubkey);
         }
     }
 
-    // TODO verify shares
+    pub fn generate_share<R: RngCore + CryptoRng>(&mut self, rng: &mut R) -> Result<(), String> {
+        if self.participants.len() < self.private_poly.coeffs().len() {
+            return Err("not enough participants collected".to_string());
+        }
 
-    /// Attempts to recover our own share signing key.
-    pub fn recover_keys(&self) -> (Scalar, G2Affine) {}
+        let shares = self
+            .participants
+            .iter()
+            .map(|(id, pubkey)| {
+                let secret_share = self.private_poly.evaluate(Scalar::from_bytes(id).unwrap());
+                let public_share = G2Affine::from(G2Affine::generator() * secret_share);
+                let esh = EncryptedShare::new(rng, id, pubkey, &secret_share);
+                Share {
+                    vk: public_share,
+                    esh,
+                }
+            })
+            .collect::<Vec<Share>>();
+        self.shares.insert(self.id_bytes, shares);
+        Ok(())
+    }
+
+    pub fn publish_share(&self) -> Option<Vec<Share>> {
+        self.shares.get(&self.id_bytes).cloned()
+    }
+
+    pub fn collect_share(&mut self, id_bytes: IdBytes, shares: Vec<Share>) {
+        if self.shares.get(&id_bytes).is_none() {
+            self.shares.insert(id_bytes, shares);
+        }
+    }
+
+    pub fn verify_shares(&self) -> bool {
+        for shares in self.shares.values() {
+            for (id, share) in self.shares.keys().zip(shares) {
+                if !share.esh.verify(id, &share.vk) {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+
+    // TODO recover keys
+    // TODO reshare keys
+    // TODO sign message
 }
 // methods?
 //shsk: Scalar, // share signing key
@@ -100,41 +124,40 @@ impl Node {
 #[test]
 fn dkg_23() {
     let mut rng = rand_core::OsRng;
-    let secret_keys = (0..3)
-        .into_iter()
-        .map(|_| Scalar::random(&mut rng))
-        .collect::<Vec<Scalar>>();
+    let nodes = 3_usize;
+    let threshold = 2_usize;
+    // spin up nodes
+    let mut node_0 = Node::new(rng, nodes, threshold);
+    let mut node_1 = Node::new(rng, nodes, threshold);
+    let mut node_2 = Node::new(rng, nodes, threshold);
+    // collect participants
+    node_0.collect_participant(node_1.id_bytes, node_1.public_key);
+    node_0.collect_participant(node_2.id_bytes, node_2.public_key);
+    node_1.collect_participant(node_0.id_bytes, node_0.public_key);
+    node_1.collect_participant(node_2.id_bytes, node_2.public_key);
+    node_2.collect_participant(node_0.id_bytes, node_0.public_key);
+    node_2.collect_participant(node_1.id_bytes, node_1.public_key);
+    // generate partial shares
+    node_0.generate_share(&mut rng).unwrap();
+    node_1.generate_share(&mut rng).unwrap();
+    node_2.generate_share(&mut rng).unwrap();
+    // publish and collect shares
+    node_0.collect_share(node_1.id_bytes, node_1.publish_share().unwrap());
+    node_0.collect_share(node_2.id_bytes, node_2.publish_share().unwrap());
+    node_1.collect_share(node_0.id_bytes, node_0.publish_share().unwrap());
+    node_1.collect_share(node_2.id_bytes, node_2.publish_share().unwrap());
+    node_2.collect_share(node_0.id_bytes, node_0.publish_share().unwrap());
+    node_2.collect_share(node_1.id_bytes, node_1.publish_share().unwrap());
+    assert_eq!(node_0.participants.len(), nodes);
+    assert_eq!(node_1.participants.len(), nodes);
+    assert_eq!(node_2.participants.len(), nodes);
+    assert_eq!(node_0.shares.len(), nodes);
+    assert_eq!(node_1.shares.len(), nodes);
+    assert_eq!(node_2.shares.len(), nodes);
+    // verify collected shares
+    assert!(node_0.verify_shares());
+    assert!(node_1.verify_shares());
+    assert!(node_2.verify_shares());
 
-    let participants = secret_keys
-        .iter()
-        .enumerate()
-        .map(|(i, private_key)| Participant {
-            id: Scalar::from(i as u64),
-            pubkey: G2Affine::from(G2Affine::generator() * private_key),
-        })
-        .collect::<Vec<Participant>>();
-
-    let private_polys = participants
-        .iter()
-        .map(|_| Polynomial::new(vec![Scalar::random(&mut rng), Scalar::random(&mut rng)]))
-        .collect::<Vec<Polynomial<Scalar>>>();
-
-    // public
-    let shares = private_polys
-        .iter()
-        .map(|poly| Shares::new(&mut rng, poly, &participants))
-        .collect::<Vec<Shares>>();
-
-    // public
-    let verification_keys = shares
-        .iter()
-        .map(|share| share.verification_keys(&participants))
-        .collect::<Vec<ShareVerificationKeys>>();
-
-    // verify shares
-    for (shvk_vec, share) in verification_keys.iter().zip(&shares) {
-        for ((participant, shvk), esh) in participants.iter().zip(shvk_vec).zip(&share.esh_vec) {
-            assert!(esh.verify(participant, &G2Affine::from(shvk)))
-        }
-    }
+    assert!(true);
 }

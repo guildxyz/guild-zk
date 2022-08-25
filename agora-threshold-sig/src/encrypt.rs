@@ -115,24 +115,22 @@ mod test {
         let mut rng = rand_core::OsRng;
         let g2 = G2Affine::generator();
         let secret_key = Scalar::random(&mut rng);
-        let participant = Participant {
-            id: Scalar::random(&mut rng),
-            pubkey: G2Affine::from(g2 * secret_key),
-        };
+        let id_bytes = Scalar::random(&mut rng).to_bytes();
+        let pubkey = G2Affine::from(g2 * secret_key);
 
         let share = Share::random(&mut rng);
 
-        let encrypted_share = EncryptedShare::new(&mut rng, &participant, &share.secret);
-        assert!(encrypted_share.verify(&participant, &share.public));
-        let decrypted_share = encrypted_share.decrypt(&participant, &secret_key);
+        let encrypted_share = EncryptedShare::new(&mut rng, &id_bytes, &pubkey, &share.secret);
+        assert!(encrypted_share.verify(&id_bytes, &share.public));
+        let decrypted_share = encrypted_share.decrypt(&id_bytes, &secret_key);
 
         assert_eq!(share.secret, decrypted_share);
 
-        let invalid_share = encrypted_share.decrypt(&participant, &Scalar::random(&mut rng));
+        let invalid_share = encrypted_share.decrypt(&id_bytes, &Scalar::random(&mut rng));
         assert_ne!(share.secret, invalid_share);
 
         let invalid_secret_share = Scalar::random(&mut rng);
         let invalid_public_share = G2Affine::from(g2 * invalid_secret_share);
-        assert!(!encrypted_share.verify(&participant, &invalid_public_share))
+        assert!(!encrypted_share.verify(&id_bytes, &invalid_public_share))
     }
 }

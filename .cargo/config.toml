@@ -1,6 +1,0 @@
-[alias]
-mydoc = ["doc", "--no-deps", "--open", "--document-private-items"]
-[build]
-# note, that this will throw an error when only `cargo doc` is run
-# todo, how to fix this?
-rustdocflags = [ "--html-in-header", "./docs/header.html"]
