@@ -1,5 +1,4 @@
 use crate::hash::*;
-use crate::participant::Participant;
 use bls::{pairing, G1Affine, G2Affine, Scalar};
 use ff::Field;
 use rand_core::{CryptoRng, RngCore};
@@ -16,13 +15,14 @@ impl EncryptedShare {
     #[allow(unused_assignments)]
     pub fn new<R: RngCore + CryptoRng>(
         rng: &mut R,
-        participant: &Participant,
+        id: &[u8],
+        pubkey: &G2Affine,
         secret_share: &Scalar,
     ) -> Self {
         let mut r = Scalar::random(rng);
-        let mut Q = hash_to_g1(&participant.to_bytes());
+        let mut Q = hash_to_g1(id); // instead of hashing the whole participant?
 
-        let mut e = pairing(&Q, &G2Affine::from(participant.pubkey * r));
+        let mut e = pairing(&Q, &G2Affine::from(pubkey * r));
         let mut eh = hash_to_fp(e.to_string().as_bytes());
 
         let c = secret_share + eh;
@@ -51,8 +51,8 @@ impl EncryptedShare {
         Self { c, U, V }
     }
 
-    pub fn verify(&self, participant: &Participant, public_share: &G2Affine) -> bool {
-        let Q = hash_to_g1(&participant.to_bytes());
+    pub fn verify(&self, id: &[u8], public_share: &G2Affine) -> bool {
+        let Q = hash_to_g1(id);
         let H = hash_to_g1(
             format!(
                 "{:?}.{:?}.{:?}",
@@ -76,8 +76,8 @@ impl EncryptedShare {
     }
 
     #[allow(unused_assignments)]
-    pub fn decrypt(&self, participant: &Participant, secret_key: &Scalar) -> Scalar {
-        let mut Q = hash_to_g1(&participant.to_bytes());
+    pub fn decrypt(&self, id: &[u8], secret_key: &Scalar) -> Scalar {
+        let mut Q = hash_to_g1(id);
         let mut e = pairing(&G1Affine::from(Q * secret_key), &self.U);
         let mut eh = hash_to_fp(e.to_string().as_bytes());
 
