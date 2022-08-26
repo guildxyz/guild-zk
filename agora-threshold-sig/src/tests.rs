@@ -22,6 +22,11 @@ pub struct Node {
     public_key: G2Affine,
     private_key: Scalar,
     private_poly: Polynomial<Scalar>,
+    shsk: Option<Scalar>,
+    // own verification key
+    shvk: Option<G2Affine>,
+    // global verification key
+    gshvk: Option<G2Affine>,
     shares: BTreeMap<IdBytes, Vec<Share>>,
     participants: BTreeMap<IdBytes, G2Affine>,
 }
@@ -59,6 +64,9 @@ impl Node {
             public_key,
             private_key,
             private_poly,
+            shsk: None,
+            shvk: None,
+            gshvk: None,
             shares: BTreeMap::new(),
             participants,
         }
@@ -71,7 +79,7 @@ impl Node {
     }
 
     pub fn generate_share<R: RngCore + CryptoRng>(&mut self, rng: &mut R) -> Result<(), String> {
-        if self.participants.len() < self.private_poly.coeffs().len() {
+        if self.participants.len() < self.nodes {
             return Err("not enough participants collected".to_string());
         }
 
@@ -113,7 +121,61 @@ impl Node {
         true
     }
 
-    // TODO recover keys
+    pub fn recover_keys(&mut self) -> Result<(), String> {
+        if self.shares.len() < self.nodes {
+            return Err("not enough shares collected".to_string());
+        } else if self.shsk.is_some() || self.shvk.is_some() || self.gshvk.is_some() {
+            return Err("share signing key already recovered".to_string());
+        }
+
+        // NOTE unwrap is fine because at this point our id
+        // is definitely among the map's keys
+        let mut self_index = None;
+        let id_scalars = self
+            .shares
+            .keys()
+            .enumerate()
+            .map(|(i, id_bytes)| {
+                if id_bytes == &self.id_bytes {
+                    self_index = Some(i)
+                }
+                Scalar::from_bytes(id_bytes).unwrap()
+            })
+            .collect::<Vec<Scalar>>();
+
+        let mut decrypted_shares_for_self = Vec::<Scalar>::with_capacity(self.participants.len());
+
+        // NOTE unwrap is fine because...
+        for share_vec in self.shares.values() {
+            decrypted_shares_for_self.push(
+                share_vec[self_index.unwrap()]
+                    .esh
+                    .decrypt(&self.id_bytes, &self.private_key),
+            );
+        }
+
+        let mut interpolated_shvks = Vec::<G2Projective>::with_capacity(self.participants.len());
+
+        for i in 0..self.shares.len() {
+            let shvks = self
+                .shares
+                .values()
+                .map(|vec| vec[i].vk.into())
+                .collect::<Vec<G2Projective>>();
+            let poly = Polynomial::interpolate(&id_scalars, &shvks).map_err(|e| e.to_string())?;
+            interpolated_shvks.push(poly.coeffs()[0]);
+        }
+
+        let shsk_poly = Polynomial::interpolate(&id_scalars, &decrypted_shares_for_self)
+            .map_err(|e| e.to_string())?;
+        let gshvk_poly =
+            Polynomial::interpolate(&id_scalars, &interpolated_shvks).map_err(|e| e.to_string())?;
+        self.shsk = Some(shsk_poly.coeffs()[0]);
+        self.shvk = Some(interpolated_shvks[self_index.unwrap()].into());
+        self.gshvk = Some(gshvk_poly.coeffs()[0].into());
+        Ok(())
+    }
+
     // TODO reshare keys
     // TODO sign message
 }
@@ -158,6 +220,12 @@ fn dkg_23() {
     assert!(node_0.verify_shares());
     assert!(node_1.verify_shares());
     assert!(node_2.verify_shares());
+    // recover signing and verification keys
+    node_0.recover_keys().unwrap();
+    node_1.recover_keys().unwrap();
+    node_2.recover_keys().unwrap();
+    assert_eq!(node_0.gshvk, node_1.gshvk);
+    assert_eq!(node_1.gshvk, node_2.gshvk);
 
     assert!(true);
 }
