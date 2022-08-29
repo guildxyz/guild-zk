@@ -22,75 +22,171 @@ pub struct Share {
 // Scalar does not implement `Ord` so
 // it cannot be used directly in a
 // BTreeMap
-pub type IdBytes = [u8; 32];
+#[derive(Debug, Clone, Copy, PartialOrd, Ord, PartialEq, Eq)]
+pub struct Address([u8; 32]);
 
-pub struct Node {
-    nodes: usize,
-    threshold: usize,
-    id_bytes: IdBytes,
-    public_key: G2Affine,
-    private_key: Scalar,
-    private_poly: Polynomial<Scalar>,
-    shsk: Option<Scalar>,
-    // own verification key
-    shvk: Option<G2Affine>,
-    // global verification key
-    gshvk: Option<G2Affine>,
-    shares: BTreeMap<IdBytes, Vec<Share>>,
-    participants: BTreeMap<IdBytes, G2Affine>,
+/// From public key
+impl From<G2Affine> for Address {
+    fn from(pubkey: G2Affine) -> Self {
+        Self::from(&pubkey)
+    }
 }
 
-impl Node {
-    // Copy is required due to Scalar::random(r: impl RngCore) which will
-    // reborrow &mut R as &mut *rng, meaning that rng is dereferenced and
-    // thus moved if it's not Copy
-    pub fn new<R: RngCore + CryptoRng + Copy>(rng: R, nodes: usize, threshold: usize) -> Self {
+impl From<&G2Affine> for Address {
+    fn from(pubkey: &G2Affine) -> Self {
+        let address_bytes = hash_to_fp(&pubkey.to_compressed()).to_bytes();
+        Self(address_bytes)
+    }
+}
+
+impl Address {
+    pub fn as_bytes(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+
+pub struct Keypair {
+    private: Scalar,
+    public: G2Affine,
+}
+
+impl Keypair {
+    pub fn new(private: Scalar) -> Self {
+        Self {
+            private,
+            public: G2Affine::from(G2Affine::generator() * private),
+        }
+    }
+
+    pub fn random<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
+        let private = Scalar::random(rng);
+        Self::new(private)
+    }
+
+    pub fn pubkey(&self) -> &G2Affine {
+        &self.public
+    }
+
+    pub fn sign(&self, msg: &[u8]) -> G1Affine {
+        let msg_hash_g1 = crate::hash::hash_to_g1(msg);
+        (msg_hash_g1 * self.private).into()
+    }
+}
+
+pub struct Parameters {
+    nodes: usize,
+    threshold: usize,
+}
+
+impl Parameters {
+    pub fn new(nodes: usize, threshold: usize) -> Self {
         assert!(
             nodes >= threshold,
             "threshold is greater than the total number of participants"
         );
-        let private_key = Scalar::random(rng);
-        let public_key = G2Affine::from(G2Affine::generator() * private_key);
-        let id_bytes = hash_to_fp(&public_key.to_compressed()).to_bytes();
+        Self { nodes, threshold }
+    }
+}
 
-        let mut private_coeffs = Vec::<Scalar>::with_capacity(threshold);
-        let mut public_coeffs = Vec::<G2Projective>::with_capacity(threshold);
-        for _ in 0..threshold {
-            let private_coeff = Scalar::random(rng);
-            private_coeffs.push(private_coeff);
-            public_coeffs.push(G2Affine::generator() * private_coeff);
-        }
+pub struct Node<P> {
+    parameters: Parameters,
+    address: Address,
+    keypair: Keypair,
+    phase: P,
+}
 
-        // TODO not necessarily needed
-        let private_poly = Polynomial::new(private_coeffs);
+pub struct Discovery {
+    participants: BTreeMap<Address, G2Affine>,
+}
+
+pub struct ShareCollection {
+    participants: BTreeMap<Address, G2Affine>,
+    shares: BTreeMap<Address, Vec<Share>>,
+    poly_secret: Scalar,
+}
+
+pub struct Finalized {
+    participants: BTreeMap<Address, G2Affine>,
+    signature_shares: Vec<G1Affine>,
+    share_keypair: Keypair,
+    global_vk: G2Affine,
+    poly_secret: Scalar,
+}
+
+impl Node<Discovery> {
+    // Copy is required due to Scalar::random(r: impl RngCore) which will
+    // reborrow &mut R as &mut *rng, meaning that rng is dereferenced and
+    // thus moved if it's not Copy
+    pub fn new(parameters: Parameters, keypair: Keypair) -> Node<Discovery> {
+        let address = Address::from(&keypair.public);
         let mut participants = BTreeMap::new();
-        participants.insert(id_bytes, public_key);
+        participants.insert(address, keypair.public);
 
         Self {
-            nodes,
-            threshold,
-            id_bytes,
-            public_key,
-            private_key,
-            private_poly,
-            shsk: None,
-            shvk: None,
-            gshvk: None,
-            shares: BTreeMap::new(),
-            participants,
+            parameters,
+            address,
+            keypair,
+            phase: Discovery { participants },
         }
     }
 
-    pub fn collect_participant(&mut self, id_bytes: IdBytes, pubkey: G2Affine) {
-        if self.participants.get(&id_bytes).is_none() {
-            self.participants.insert(id_bytes, pubkey);
-        }
+    pub fn pubkey(&self) -> G2Affine {
+        self.keypair.public
     }
 
-    pub fn generate_share<R: RngCore + CryptoRng>(&mut self, rng: &mut R) -> Result<(), String> {
-        if self.participants.len() < self.nodes {
+    pub fn collect_participant(&mut self, pubkey: G2Affine) {
+        let address = Address::from(&pubkey);
+        if self.phase.participants.get(&address).is_none() {
+            self.phase.participants.insert(address, pubkey);
+        }
+    }
+}
+
+impl Node<ShareCollection> {
+    pub fn new<R: CryptoRng + RngCore + Copy>(rng: R, node: Node<Discovery>) -> Result<Self, String> {
+        if node.phase.participants.len() < node.parameters.nodes {
             return Err("not enough participants collected".to_string());
         }
+
+        // generate own share in this step
+        let private_coeffs = 
+            (0..node.parameters.threshold).map(|_| Scalar::random(rng)).collect::<Vec<Scalar>>();
+        let private_poly = Polynomial::new(private_coeffs);
+
+        let shares = node.phase 
+            .participants
+            .iter()
+            .map(|(address, pubkey)| {
+                let secret_share = private_poly.evaluate(Scalar::from_bytes(address.as_bytes()).unwrap());
+                let public_share = G2Affine::from(G2Affine::generator() * secret_share);
+                let esh = todo!();//EncryptedShare::new(rng, address, pubkey, &secret_share);
+                Share {
+                    vk: public_share,
+                    esh,
+                }
+            })
+            .collect::<Vec<Share>>();
+        let mut shares_map = BTreeMap::new();
+        shares_map.insert(node.address, shares);
+
+        Ok(Self {
+            parameters: node.parameters,
+            address: node.address,
+            keypair: node.keypair,
+            phase: ShareCollection {
+                participants: node.phase.participants,
+                shares: shares_map,
+                poly_secret: private_poly.coeffs()[0],
+            }
+        })
+    }
+}
+
+
+
+/*
+impl TryFrom<Node<GenerateShare>>
+    pub fn generate_share<R: RngCore + CryptoRng>(&mut self, rng: &mut R) -> Result<(), String> {
 
         let shares = self
             .participants
@@ -105,17 +201,17 @@ impl Node {
                 }
             })
             .collect::<Vec<Share>>();
-        self.shares.insert(self.id_bytes, shares);
+        self.shares.insert(self.address, shares);
         Ok(())
     }
 
     pub fn publish_share(&self) -> Option<Vec<Share>> {
-        self.shares.get(&self.id_bytes).cloned()
+        self.shares.get(&self.address).cloned()
     }
 
-    pub fn collect_share(&mut self, id_bytes: IdBytes, shares: Vec<Share>) {
-        if self.shares.get(&id_bytes).is_none() {
-            self.shares.insert(id_bytes, shares);
+    pub fn collect_share(&mut self, address: Address, shares: Vec<Share>) {
+        if self.shares.get(&address).is_none() {
+            self.shares.insert(address, shares);
         }
     }
 
@@ -142,13 +238,13 @@ impl Node {
             .shares
             .keys()
             .enumerate()
-            .map(|(i, id_bytes)| {
-                if id_bytes == &self.id_bytes {
+            .map(|(i, address)| {
+                if address == &self.address {
                     self_index = Some(i)
                 }
-                // NOTE unwrap is fine because all stored id_bytes
+                // NOTE unwrap is fine because all stored address
                 // come from Scalars originally
-                Scalar::from_bytes(id_bytes).unwrap()
+                Scalar::from_bytes(address).unwrap()
             })
             .collect::<Vec<Scalar>>();
 
@@ -191,7 +287,7 @@ impl Node {
             decrypted_shares_for_self.push(
                 share_vec[self_index]
                     .esh
-                    .decrypt(&self.id_bytes, &self.private_key),
+                    .decrypt(&self.address, &self.private_key),
             );
         }
         decrypted_shares_for_self
@@ -226,23 +322,23 @@ mod test {
         let mut node_1 = Node::new(rng, nodes, threshold);
         let mut node_2 = Node::new(rng, nodes, threshold);
         // collect participants
-        node_0.collect_participant(node_1.id_bytes, node_1.public_key);
-        node_0.collect_participant(node_2.id_bytes, node_2.public_key);
-        node_1.collect_participant(node_0.id_bytes, node_0.public_key);
-        node_1.collect_participant(node_2.id_bytes, node_2.public_key);
-        node_2.collect_participant(node_0.id_bytes, node_0.public_key);
-        node_2.collect_participant(node_1.id_bytes, node_1.public_key);
+        node_0.collect_participant(node_1.address, node_1.public_key);
+        node_0.collect_participant(node_2.address, node_2.public_key);
+        node_1.collect_participant(node_0.address, node_0.public_key);
+        node_1.collect_participant(node_2.address, node_2.public_key);
+        node_2.collect_participant(node_0.address, node_0.public_key);
+        node_2.collect_participant(node_1.address, node_1.public_key);
         // generate partial shares
         node_0.generate_share(&mut rng).unwrap();
         node_1.generate_share(&mut rng).unwrap();
         node_2.generate_share(&mut rng).unwrap();
         // publish and collect shares
-        node_0.collect_share(node_1.id_bytes, node_1.publish_share().unwrap());
-        node_0.collect_share(node_2.id_bytes, node_2.publish_share().unwrap());
-        node_1.collect_share(node_0.id_bytes, node_0.publish_share().unwrap());
-        node_1.collect_share(node_2.id_bytes, node_2.publish_share().unwrap());
-        node_2.collect_share(node_0.id_bytes, node_0.publish_share().unwrap());
-        node_2.collect_share(node_1.id_bytes, node_1.publish_share().unwrap());
+        node_0.collect_share(node_1.address, node_1.publish_share().unwrap());
+        node_0.collect_share(node_2.address, node_2.publish_share().unwrap());
+        node_1.collect_share(node_0.address, node_0.publish_share().unwrap());
+        node_1.collect_share(node_2.address, node_2.publish_share().unwrap());
+        node_2.collect_share(node_0.address, node_0.publish_share().unwrap());
+        node_2.collect_share(node_1.address, node_1.publish_share().unwrap());
         assert_eq!(node_0.participants.len(), nodes);
         assert_eq!(node_1.participants.len(), nodes);
         assert_eq!(node_2.participants.len(), nodes);
@@ -274,3 +370,4 @@ mod test {
         );
     }
 }
+*/
