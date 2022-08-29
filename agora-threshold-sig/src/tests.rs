@@ -128,8 +128,6 @@ impl Node {
             return Err("share signing key already recovered".to_string());
         }
 
-        // NOTE unwrap is fine because at this point our id
-        // is definitely among the map's keys
         let mut self_index = None;
         let id_scalars = self
             .shares
@@ -139,21 +137,29 @@ impl Node {
                 if id_bytes == &self.id_bytes {
                     self_index = Some(i)
                 }
+                // NOTE unwrap is fine because all stored id_bytes
+                // come from Scalars originally
                 Scalar::from_bytes(id_bytes).unwrap()
             })
             .collect::<Vec<Scalar>>();
 
-        let mut decrypted_shares_for_self = Vec::<Scalar>::with_capacity(self.participants.len());
+        // NOTE unwrap is fine because self_index is already in
+        // the storage at this point
+        let self_index = self_index.unwrap();
+        let decrypted_shsks = self.decrypted_shsks(self_index);
+        let interpolated_shvks = self.interpolated_shvks(&id_scalars)?;
 
-        // NOTE unwrap is fine because...
-        for share_vec in self.shares.values() {
-            decrypted_shares_for_self.push(
-                share_vec[self_index.unwrap()]
-                    .esh
-                    .decrypt(&self.id_bytes, &self.private_key),
-            );
-        }
+        let shsk_poly =
+            Polynomial::interpolate(&id_scalars, &decrypted_shsks).map_err(|e| e.to_string())?;
+        let gshvk_poly =
+            Polynomial::interpolate(&id_scalars, &interpolated_shvks).map_err(|e| e.to_string())?;
+        self.shsk = Some(shsk_poly.coeffs()[0]);
+        self.shvk = Some(interpolated_shvks[self_index].into());
+        self.gshvk = Some(gshvk_poly.coeffs()[0].into());
+        Ok(())
+    }
 
+    fn interpolated_shvks(&self, id_scalars: &[Scalar]) -> Result<Vec<G2Projective>, String> {
         let mut interpolated_shvks = Vec::<G2Projective>::with_capacity(self.participants.len());
 
         for i in 0..self.shares.len() {
@@ -166,14 +172,20 @@ impl Node {
             interpolated_shvks.push(poly.coeffs()[0]);
         }
 
-        let shsk_poly = Polynomial::interpolate(&id_scalars, &decrypted_shares_for_self)
-            .map_err(|e| e.to_string())?;
-        let gshvk_poly =
-            Polynomial::interpolate(&id_scalars, &interpolated_shvks).map_err(|e| e.to_string())?;
-        self.shsk = Some(shsk_poly.coeffs()[0]);
-        self.shvk = Some(interpolated_shvks[self_index.unwrap()].into());
-        self.gshvk = Some(gshvk_poly.coeffs()[0].into());
-        Ok(())
+        Ok(interpolated_shvks)
+    }
+
+    fn decrypted_shsks(&self, self_index: usize) -> Vec<Scalar> {
+        let mut decrypted_shares_for_self = Vec::<Scalar>::with_capacity(self.participants.len());
+        // NOTE unwrap is fine because...
+        for share_vec in self.shares.values() {
+            decrypted_shares_for_self.push(
+                share_vec[self_index]
+                    .esh
+                    .decrypt(&self.id_bytes, &self.private_key),
+            );
+        }
+        decrypted_shares_for_self
     }
 
     // TODO reshare keys
@@ -226,6 +238,17 @@ fn dkg_23() {
     node_2.recover_keys().unwrap();
     assert_eq!(node_0.gshvk, node_1.gshvk);
     assert_eq!(node_1.gshvk, node_2.gshvk);
-
-    assert!(true);
+    // assert that keypairs belong together
+    assert_eq!(
+        node_0.shvk.unwrap(),
+        G2Affine::from(G2Affine::generator() * node_0.shsk.unwrap())
+    );
+    assert_eq!(
+        node_1.shvk.unwrap(),
+        G2Affine::from(G2Affine::generator() * node_1.shsk.unwrap())
+    );
+    assert_eq!(
+        node_2.shvk.unwrap(),
+        G2Affine::from(G2Affine::generator() * node_2.shsk.unwrap())
+    );
 }
