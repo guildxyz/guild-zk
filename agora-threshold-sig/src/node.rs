@@ -1,11 +1,17 @@
 use crate::encrypt::EncryptedShare;
 use crate::hash::hash_to_fp;
 use agora_interpolate::Polynomial;
-use bls::{G2Affine, G2Projective, Scalar};
+use bls::{G1Affine, G2Affine, G2Projective, Scalar};
 use ff::Field;
 use rand_core::{CryptoRng, RngCore};
 
 use std::collections::BTreeMap;
+
+// TODO do this in stages (like a builder)
+// instead of having one big node with option fields
+// 1) DiscoveryPhase
+// 2) ShareCollectionPhase
+// 3) RecoveryPhase -> Actual Node
 
 #[derive(Clone, Debug)]
 pub struct Share {
@@ -13,6 +19,9 @@ pub struct Share {
     esh: EncryptedShare,
 }
 
+// Scalar does not implement `Ord` so
+// it cannot be used directly in a
+// BTreeMap
 pub type IdBytes = [u8; 32];
 
 pub struct Node {
@@ -188,67 +197,80 @@ impl Node {
         decrypted_shares_for_self
     }
 
+    pub fn sign(&self, msg: &[u8]) -> G1Affine {
+        let msg_hash_g1 = crate::hash::hash_to_g1(msg);
+        // TODO unwrap -> fix with phases
+        (msg_hash_g1 * self.shsk.unwrap()).into()
+    }
+
     // TODO reshare keys
     // TODO sign message
 }
-// methods?
-//shsk: Scalar, // share signing key
-//shvk: G2Affine, // share verification key
 
-#[test]
-fn dkg_23() {
-    let mut rng = rand_core::OsRng;
-    let nodes = 3_usize;
-    let threshold = 2_usize;
-    // spin up nodes
-    let mut node_0 = Node::new(rng, nodes, threshold);
-    let mut node_1 = Node::new(rng, nodes, threshold);
-    let mut node_2 = Node::new(rng, nodes, threshold);
-    // collect participants
-    node_0.collect_participant(node_1.id_bytes, node_1.public_key);
-    node_0.collect_participant(node_2.id_bytes, node_2.public_key);
-    node_1.collect_participant(node_0.id_bytes, node_0.public_key);
-    node_1.collect_participant(node_2.id_bytes, node_2.public_key);
-    node_2.collect_participant(node_0.id_bytes, node_0.public_key);
-    node_2.collect_participant(node_1.id_bytes, node_1.public_key);
-    // generate partial shares
-    node_0.generate_share(&mut rng).unwrap();
-    node_1.generate_share(&mut rng).unwrap();
-    node_2.generate_share(&mut rng).unwrap();
-    // publish and collect shares
-    node_0.collect_share(node_1.id_bytes, node_1.publish_share().unwrap());
-    node_0.collect_share(node_2.id_bytes, node_2.publish_share().unwrap());
-    node_1.collect_share(node_0.id_bytes, node_0.publish_share().unwrap());
-    node_1.collect_share(node_2.id_bytes, node_2.publish_share().unwrap());
-    node_2.collect_share(node_0.id_bytes, node_0.publish_share().unwrap());
-    node_2.collect_share(node_1.id_bytes, node_1.publish_share().unwrap());
-    assert_eq!(node_0.participants.len(), nodes);
-    assert_eq!(node_1.participants.len(), nodes);
-    assert_eq!(node_2.participants.len(), nodes);
-    assert_eq!(node_0.shares.len(), nodes);
-    assert_eq!(node_1.shares.len(), nodes);
-    assert_eq!(node_2.shares.len(), nodes);
-    // verify collected shares
-    assert!(node_0.verify_shares());
-    assert!(node_1.verify_shares());
-    assert!(node_2.verify_shares());
-    // recover signing and verification keys
-    node_0.recover_keys().unwrap();
-    node_1.recover_keys().unwrap();
-    node_2.recover_keys().unwrap();
-    assert_eq!(node_0.gshvk, node_1.gshvk);
-    assert_eq!(node_1.gshvk, node_2.gshvk);
-    // assert that keypairs belong together
-    assert_eq!(
-        node_0.shvk.unwrap(),
-        G2Affine::from(G2Affine::generator() * node_0.shsk.unwrap())
-    );
-    assert_eq!(
-        node_1.shvk.unwrap(),
-        G2Affine::from(G2Affine::generator() * node_1.shsk.unwrap())
-    );
-    assert_eq!(
-        node_2.shvk.unwrap(),
-        G2Affine::from(G2Affine::generator() * node_2.shsk.unwrap())
-    );
+pub fn sig_verify(msg: &[u8], vk: &G2Affine, sig: &G1Affine) -> bool {
+    let msg_hash_g1 = crate::hash::hash_to_g1(msg);
+    bls::pairing(&msg_hash_g1, vk) == bls::pairing(sig, &G2Affine::generator())
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn dkg_23() {
+        let mut rng = rand_core::OsRng;
+        let nodes = 3_usize;
+        let threshold = 2_usize;
+        // spin up nodes
+        let mut node_0 = Node::new(rng, nodes, threshold);
+        let mut node_1 = Node::new(rng, nodes, threshold);
+        let mut node_2 = Node::new(rng, nodes, threshold);
+        // collect participants
+        node_0.collect_participant(node_1.id_bytes, node_1.public_key);
+        node_0.collect_participant(node_2.id_bytes, node_2.public_key);
+        node_1.collect_participant(node_0.id_bytes, node_0.public_key);
+        node_1.collect_participant(node_2.id_bytes, node_2.public_key);
+        node_2.collect_participant(node_0.id_bytes, node_0.public_key);
+        node_2.collect_participant(node_1.id_bytes, node_1.public_key);
+        // generate partial shares
+        node_0.generate_share(&mut rng).unwrap();
+        node_1.generate_share(&mut rng).unwrap();
+        node_2.generate_share(&mut rng).unwrap();
+        // publish and collect shares
+        node_0.collect_share(node_1.id_bytes, node_1.publish_share().unwrap());
+        node_0.collect_share(node_2.id_bytes, node_2.publish_share().unwrap());
+        node_1.collect_share(node_0.id_bytes, node_0.publish_share().unwrap());
+        node_1.collect_share(node_2.id_bytes, node_2.publish_share().unwrap());
+        node_2.collect_share(node_0.id_bytes, node_0.publish_share().unwrap());
+        node_2.collect_share(node_1.id_bytes, node_1.publish_share().unwrap());
+        assert_eq!(node_0.participants.len(), nodes);
+        assert_eq!(node_1.participants.len(), nodes);
+        assert_eq!(node_2.participants.len(), nodes);
+        assert_eq!(node_0.shares.len(), nodes);
+        assert_eq!(node_1.shares.len(), nodes);
+        assert_eq!(node_2.shares.len(), nodes);
+        // verify collected shares
+        assert!(node_0.verify_shares());
+        assert!(node_1.verify_shares());
+        assert!(node_2.verify_shares());
+        // recover signing and verification keys
+        node_0.recover_keys().unwrap();
+        node_1.recover_keys().unwrap();
+        node_2.recover_keys().unwrap();
+        assert_eq!(node_0.gshvk, node_1.gshvk);
+        assert_eq!(node_1.gshvk, node_2.gshvk);
+        // assert that keypairs belong together
+        assert_eq!(
+            node_0.shvk.unwrap(),
+            G2Affine::from(G2Affine::generator() * node_0.shsk.unwrap())
+        );
+        assert_eq!(
+            node_1.shvk.unwrap(),
+            G2Affine::from(G2Affine::generator() * node_1.shsk.unwrap())
+        );
+        assert_eq!(
+            node_2.shvk.unwrap(),
+            G2Affine::from(G2Affine::generator() * node_2.shsk.unwrap())
+        );
+    }
 }
