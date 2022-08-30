@@ -19,3 +19,10 @@ mod hash;
 mod keypair;
 mod node;
 mod share;
+
+pub use node::{Discovery, Finalized, Node, Parameters, ShareCollection};
+
+pub fn sig_verify(msg: &[u8], vk: &bls::G2Affine, sig: &bls::G1Affine) -> bool {
+    let msg_hash_g1 = hash::hash_to_g1(msg);
+    bls::pairing(&msg_hash_g1, vk) == bls::pairing(sig, &bls::G2Affine::generator())
+}

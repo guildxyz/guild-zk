@@ -3,9 +3,8 @@ use crate::keypair::Keypair;
 use crate::share::{EncryptedShare, PublicShare};
 
 use agora_interpolate::Polynomial;
-use bls::{G1Affine, G1Projective, G2Affine, G2Projective, Scalar};
+use bls::{G1Affine, G2Affine, G2Projective, Scalar};
 use ff::Field;
-use rand_core::{CryptoRng, RngCore};
 
 use std::collections::BTreeMap;
 
@@ -182,9 +181,12 @@ impl Node<ShareCollection> {
         let decrypted_shsks = self.decrypted_shsks(self_index);
         let interpolated_shvks = self.interpolated_shvks(&id_scalars)?;
 
-        // TODO zeroize coeffs
-        let shsk_poly =
+        // zeroize shsk poly
+        let mut shsk_poly =
             Polynomial::interpolate(&id_scalars, &decrypted_shsks).map_err(|e| e.to_string())?;
+        let shsk = shsk_poly.coeffs()[0];
+        shsk_poly = Polynomial::new(vec![]);
+
         let gshvk_poly =
             Polynomial::interpolate(&id_scalars, &interpolated_shvks).map_err(|e| e.to_string())?;
 
@@ -195,10 +197,7 @@ impl Node<ShareCollection> {
             phase: Finalized {
                 participants: self.phase.participants,
                 poly_secret: self.phase.poly_secret,
-                share_keypair: Keypair::new_checked(
-                    shsk_poly.coeffs()[0],
-                    interpolated_shvks[self_index].into(),
-                )?,
+                share_keypair: Keypair::new_checked(shsk, interpolated_shvks[self_index].into())?,
                 global_vk: gshvk_poly.coeffs()[0].into(),
             },
         })
@@ -233,15 +232,11 @@ impl Node<Finalized> {
 
 // TODO reshare keys
 
-pub fn sig_verify(msg: &[u8], vk: &G2Affine, sig: &G1Affine) -> bool {
-    let msg_hash_g1 = crate::hash::hash_to_g1(msg);
-    bls::pairing(&msg_hash_g1, vk) == bls::pairing(sig, &G2Affine::generator())
-}
-
 // TODO macro
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::sig_verify;
 
     #[test]
     fn dkg_23() {
@@ -340,5 +335,9 @@ mod test {
         .unwrap();
         let global_sig = G1Affine::from(global_poly.coeffs()[0]);
         assert!(sig_verify(msg, &node_0.global_verifying_key(), &global_sig));
+        // check that a single signature is not valid
+        assert!(!sig_verify(msg, &node_0.verifying_key(), &global_sig));
+        assert!(!sig_verify(msg, &node_1.verifying_key(), &global_sig));
+        assert!(!sig_verify(msg, &node_2.verifying_key(), &global_sig));
     }
 }
