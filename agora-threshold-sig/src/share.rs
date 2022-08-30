@@ -4,6 +4,12 @@ use ff::Field;
 use rand_core::{CryptoRng, RngCore};
 use zeroize::Zeroize;
 
+#[derive(Clone, Debug)]
+pub struct PublicShare {
+    pub vk: G2Affine,
+    pub esh: EncryptedShare,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct EncryptedShare {
     pub c: Scalar,
