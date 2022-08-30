@@ -1,7 +1,7 @@
 use crate::encrypt::EncryptedShare;
 use crate::hash::hash_to_fp;
 use agora_interpolate::Polynomial;
-use bls::{G1Affine, G2Affine, G2Projective, Scalar};
+use bls::{G1Affine, G1Projective, G2Affine, G2Projective, Scalar};
 use ff::Field;
 use rand_core::{CryptoRng, RngCore};
 
@@ -317,6 +317,10 @@ impl TryFrom<Node<ShareCollection>> for Node<Finalized> {
 }
 
 impl Node<Finalized> {
+    pub fn global_verifying_key(&self) -> G2Affine {
+        self.phase.global_vk
+    }
+
     pub fn verifying_key(&self) -> G2Affine {
         self.phase.share_keypair.public
     }
@@ -328,13 +332,9 @@ impl Node<Finalized> {
 
 // TODO reshare keys
 
-pub fn partial_sig_verify(msg: &[u8], vk: &G2Affine, sig: &G1Affine) -> bool {
+pub fn sig_verify(msg: &[u8], vk: &G2Affine, sig: &G1Affine) -> bool {
     let msg_hash_g1 = crate::hash::hash_to_g1(msg);
     bls::pairing(&msg_hash_g1, vk) == bls::pairing(sig, &G2Affine::generator())
-}
-
-pub fn global_sig_verify() -> bool {
-    todo!();
 }
 
 #[cfg(test)]
@@ -386,20 +386,57 @@ mod test {
             node_1.partial_sign(msg),
             node_2.partial_sign(msg),
         ];
-        assert!(partial_sig_verify(
-            msg,
-            &node_0.verifying_key(),
-            &signatures[0]
-        ));
-        assert!(partial_sig_verify(
-            msg,
-            &node_1.verifying_key(),
-            &signatures[1]
-        ));
-        assert!(partial_sig_verify(
-            msg,
-            &node_2.verifying_key(),
-            &signatures[2]
-        ));
+        assert!(sig_verify(msg, &node_0.verifying_key(), &signatures[0]));
+        assert!(sig_verify(msg, &node_1.verifying_key(), &signatures[1]));
+        assert!(sig_verify(msg, &node_2.verifying_key(), &signatures[2]));
+        // check global sig validity
+        let global_poly = Polynomial::interpolate(
+            &[node_0.address().to_scalar(), node_1.address().to_scalar()],
+            &[
+                G1Projective::from(signatures[0]),
+                G1Projective::from(signatures[1]),
+            ],
+        )
+        .unwrap();
+        let global_sig = G1Affine::from(global_poly.coeffs()[0]);
+        assert!(sig_verify(msg, &node_2.global_verifying_key(), &global_sig));
+
+        let global_poly = Polynomial::interpolate(
+            &[node_0.address().to_scalar(), node_2.address().to_scalar()],
+            &[
+                G1Projective::from(signatures[0]),
+                G1Projective::from(signatures[2]),
+            ],
+        )
+        .unwrap();
+        let global_sig = G1Affine::from(global_poly.coeffs()[0]);
+        assert!(sig_verify(msg, &node_1.global_verifying_key(), &global_sig));
+
+        let global_poly = Polynomial::interpolate(
+            &[node_1.address().to_scalar(), node_2.address().to_scalar()],
+            &[
+                G1Projective::from(signatures[1]),
+                G1Projective::from(signatures[2]),
+            ],
+        )
+        .unwrap();
+        let global_sig = G1Affine::from(global_poly.coeffs()[0]);
+        assert!(sig_verify(msg, &node_0.global_verifying_key(), &global_sig));
+
+        let global_poly = Polynomial::interpolate(
+            &[
+                node_0.address().to_scalar(),
+                node_1.address().to_scalar(),
+                node_2.address().to_scalar(),
+            ],
+            &[
+                G1Projective::from(signatures[0]),
+                G1Projective::from(signatures[1]),
+                G1Projective::from(signatures[2]),
+            ],
+        )
+        .unwrap();
+        let global_sig = G1Affine::from(global_poly.coeffs()[0]);
+        assert!(sig_verify(msg, &node_0.global_verifying_key(), &global_sig));
     }
 }
