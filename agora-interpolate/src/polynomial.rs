@@ -1,6 +1,9 @@
 use crate::{Interpolate, InterpolationError};
 use std::ops::{AddAssign, Mul, MulAssign, Neg, SubAssign};
+#[cfg(feature = "zeroize-poly")]
+use zeroize::Zeroize;
 
+#[cfg_attr(feature = "zeroize-poly", derive(Zeroize))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Polynomial<Y> {
     coeffs: Vec<Y>,
