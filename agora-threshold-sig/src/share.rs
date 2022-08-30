@@ -18,7 +18,6 @@ pub struct EncryptedShare {
 }
 
 impl EncryptedShare {
-    #[allow(unused_assignments)]
     pub fn new<R: RngCore + CryptoRng>(
         rng: &mut R,
         id: &[u8],
@@ -28,8 +27,8 @@ impl EncryptedShare {
         let mut r = Scalar::random(rng);
         let mut Q = hash_to_g1(id); // instead of hashing the whole participant?
 
-        let mut e = pairing(&Q, &G2Affine::from(pubkey * r));
-        let mut eh = hash_to_fp(e.to_string().as_bytes());
+        let e = pairing(&Q, &G2Affine::from(pubkey * r));
+        let eh = hash_to_fp(e.to_string().as_bytes());
 
         let c = secret_share + eh;
         let U = G2Affine::from(G2Affine::generator() * r);
@@ -47,12 +46,8 @@ impl EncryptedShare {
 
         // zeroize before dropping
         r.zeroize();
-        eh.zeroize();
         Q.zeroize();
         H.zeroize();
-        // NOTE Gt doesn't have Zeroize implemented, so just assign
-        // identity to this. Is this the right way though -> unused assignment?
-        e = Default::default();
 
         Self { c, U, V }
     }
@@ -81,19 +76,13 @@ impl EncryptedShare {
         e1 == e2
     }
 
-    #[allow(unused_assignments)]
+    // TODO zeroize?
     pub fn decrypt(&self, id: &[u8], secret_key: &Scalar) -> Scalar {
-        let mut Q = hash_to_g1(id);
-        let mut e = pairing(&G1Affine::from(Q * secret_key), &self.U);
-        let mut eh = hash_to_fp(e.to_string().as_bytes());
+        let Q = hash_to_g1(id);
+        let e = pairing(&G1Affine::from(Q * secret_key), &self.U);
+        let eh = hash_to_fp(e.to_string().as_bytes());
 
-        let result = self.c - eh;
-        // NOTE Gt doesn't have Zeroize implemented, so just assign
-        // identity to this. Is this the right way though -> unused assignment?
-        e = Default::default();
-        eh.zeroize();
-        Q.zeroize();
-        result
+        self.c - eh
     }
 }
 

@@ -15,7 +15,7 @@
 //
 // with $x\in\mathbb{F_p}$ and $A_i = g_2^{a_i}\in\mathbb{G_2}\ \forall i$.
 mod address;
-mod hash;
+pub mod hash;
 mod keypair;
 mod node;
 mod share;

@@ -21,7 +21,7 @@ impl Address {
         &self.0
     }
 
-    pub fn to_scalar(&self) -> Scalar {
+    pub fn as_scalar(&self) -> Scalar {
         // NOTE unwrap is fine because a valid address
         // can only be created from a Scalar type via
         // hash_to_fp

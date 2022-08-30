@@ -5,6 +5,7 @@ use crate::share::{EncryptedShare, PublicShare};
 use agora_interpolate::Polynomial;
 use bls::{G1Affine, G2Affine, G2Projective, Scalar};
 use ff::Field;
+use zeroize::Zeroize;
 
 use std::collections::BTreeMap;
 
@@ -67,14 +68,16 @@ impl TryFrom<Node<Discovery>> for Node<ShareCollection> {
         let private_coeffs = (0..node.parameters.threshold())
             .map(|_| Scalar::random(rand_core::OsRng))
             .collect::<Vec<Scalar>>();
-        let private_poly = Polynomial::new(private_coeffs);
+        let mut private_poly = Polynomial::new(private_coeffs);
+        let poly_secret = private_poly.coeffs()[0];
+        private_poly.zeroize();
 
         let shares = node
             .phase
             .participants
             .iter()
             .map(|(address, pubkey)| {
-                let secret_share = private_poly.evaluate(address.to_scalar());
+                let secret_share = private_poly.evaluate(address.as_scalar());
                 let public_share = G2Affine::from(G2Affine::generator() * secret_share);
                 let esh = EncryptedShare::new(
                     &mut rand_core::OsRng,
@@ -98,7 +101,7 @@ impl TryFrom<Node<Discovery>> for Node<ShareCollection> {
             phase: ShareCollection {
                 participants: node.phase.participants,
                 shares: shares_map,
-                poly_secret: private_poly.coeffs()[0],
+                poly_secret,
             },
         })
     }
@@ -141,7 +144,7 @@ impl Node<ShareCollection> {
                 .map(|vec| vec[i].vk.into())
                 .collect::<Vec<G2Projective>>();
             let poly =
-                Polynomial::interpolate(&address_scalars, &shvks).map_err(|e| e.to_string())?;
+                Polynomial::interpolate(address_scalars, &shvks).map_err(|e| e.to_string())?;
             interpolated_shvks.push(poly.coeffs()[0]);
         }
 
@@ -172,20 +175,20 @@ impl Node<ShareCollection> {
                 if address == &self.address {
                     self_index = Some(i)
                 }
-                address.to_scalar()
+                address.as_scalar()
             })
             .collect::<Vec<Scalar>>();
 
-        let self_index = self_index.ok_or("self index not found in storage".to_string())?;
+        let self_index = self_index.ok_or_else(|| "self index not found in storage".to_string())?;
 
-        let decrypted_shsks = self.decrypted_shsks(self_index);
+        let mut decrypted_shsks = self.decrypted_shsks(self_index);
         let interpolated_shvks = self.interpolated_shvks(&id_scalars)?;
 
-        // zeroize shsk poly
         let mut shsk_poly =
             Polynomial::interpolate(&id_scalars, &decrypted_shsks).map_err(|e| e.to_string())?;
         let shsk = shsk_poly.coeffs()[0];
-        shsk_poly = Polynomial::new(vec![]);
+        shsk_poly.zeroize();
+        decrypted_shsks.zeroize();
 
         let gshvk_poly =
             Polynomial::interpolate(&id_scalars, &interpolated_shvks).map_err(|e| e.to_string())?;
@@ -232,11 +235,12 @@ impl Node<Finalized> {
 
 // TODO reshare keys
 
-// TODO macro
+// TODO test macro
 #[cfg(test)]
 mod test {
     use super::*;
     use crate::sig_verify;
+    use bls::G1Projective;
 
     #[test]
     fn dkg_23() {
@@ -288,7 +292,7 @@ mod test {
         assert!(sig_verify(msg, &node_2.verifying_key(), &signatures[2]));
         // check global sig validity
         let global_poly = Polynomial::interpolate(
-            &[node_0.address().to_scalar(), node_1.address().to_scalar()],
+            &[node_0.address().as_scalar(), node_1.address().as_scalar()],
             &[
                 G1Projective::from(signatures[0]),
                 G1Projective::from(signatures[1]),
@@ -299,7 +303,7 @@ mod test {
         assert!(sig_verify(msg, &node_2.global_verifying_key(), &global_sig));
 
         let global_poly = Polynomial::interpolate(
-            &[node_0.address().to_scalar(), node_2.address().to_scalar()],
+            &[node_0.address().as_scalar(), node_2.address().as_scalar()],
             &[
                 G1Projective::from(signatures[0]),
                 G1Projective::from(signatures[2]),
@@ -310,7 +314,7 @@ mod test {
         assert!(sig_verify(msg, &node_1.global_verifying_key(), &global_sig));
 
         let global_poly = Polynomial::interpolate(
-            &[node_1.address().to_scalar(), node_2.address().to_scalar()],
+            &[node_1.address().as_scalar(), node_2.address().as_scalar()],
             &[
                 G1Projective::from(signatures[1]),
                 G1Projective::from(signatures[2]),
@@ -322,9 +326,9 @@ mod test {
 
         let global_poly = Polynomial::interpolate(
             &[
-                node_0.address().to_scalar(),
-                node_1.address().to_scalar(),
-                node_2.address().to_scalar(),
+                node_0.address().as_scalar(),
+                node_1.address().as_scalar(),
+                node_2.address().as_scalar(),
             ],
             &[
                 G1Projective::from(signatures[0]),
