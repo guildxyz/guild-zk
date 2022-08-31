@@ -1,9 +1,10 @@
 use crate::address::Address;
 use crate::keypair::Keypair;
 use crate::share::{EncryptedShare, PublicShare};
+use crate::signature::Signature;
 
 use agora_interpolate::Polynomial;
-use bls::{G1Affine, G2Affine, G2Projective, Scalar};
+use bls::{G2Affine, G2Projective, Scalar};
 use ff::Field;
 use zeroize::Zeroize;
 
@@ -115,9 +116,18 @@ impl Node<ShareCollection> {
         self.phase.shares.get(&self.address).cloned().unwrap()
     }
 
-    pub fn collect_share(&mut self, address: Address, shares: Vec<PublicShare>) {
-        if self.phase.shares.get(&address).is_none() {
+    pub fn collect_share(
+        &mut self,
+        address: Address,
+        shares: Vec<PublicShare>,
+    ) -> Result<(), String> {
+        if self.phase.participants.get(&address).is_none() {
+            Err("no such participant registered".to_string())
+        } else if self.phase.shares.get(&address).is_none() {
             self.phase.shares.insert(address, shares);
+            Ok(())
+        } else {
+            Err("share already collected from this participant".to_string())
         }
     }
 
@@ -228,7 +238,7 @@ impl Node<Finalized> {
         self.phase.share_keypair.pubkey()
     }
 
-    pub fn partial_sign(&self, msg: &[u8]) -> G1Affine {
+    pub fn sign(&self, msg: &[u8]) -> Signature {
         self.phase.share_keypair.sign(msg)
     }
 }
@@ -239,7 +249,6 @@ impl Node<Finalized> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::sig_verify;
     use bls::G1Projective;
 
     #[test]
@@ -262,12 +271,24 @@ mod test {
         let mut node_1 = Node::<ShareCollection>::try_from(node_1).unwrap();
         let mut node_2 = Node::<ShareCollection>::try_from(node_2).unwrap();
         // publish and collect shares
-        node_0.collect_share(node_1.address(), node_1.publish_share());
-        node_0.collect_share(node_2.address(), node_2.publish_share());
-        node_1.collect_share(node_0.address(), node_0.publish_share());
-        node_1.collect_share(node_2.address(), node_2.publish_share());
-        node_2.collect_share(node_0.address(), node_0.publish_share());
-        node_2.collect_share(node_1.address(), node_1.publish_share());
+        node_0
+            .collect_share(node_1.address(), node_1.publish_share())
+            .unwrap();
+        node_0
+            .collect_share(node_2.address(), node_2.publish_share())
+            .unwrap();
+        node_1
+            .collect_share(node_0.address(), node_0.publish_share())
+            .unwrap();
+        node_1
+            .collect_share(node_2.address(), node_2.publish_share())
+            .unwrap();
+        node_2
+            .collect_share(node_0.address(), node_0.publish_share())
+            .unwrap();
+        node_2
+            .collect_share(node_1.address(), node_1.publish_share())
+            .unwrap();
         assert_eq!(node_0.phase.participants.len(), parameters.nodes());
         assert_eq!(node_1.phase.participants.len(), parameters.nodes());
         assert_eq!(node_2.phase.participants.len(), parameters.nodes());
@@ -282,47 +303,44 @@ mod test {
         assert_eq!(node_1.phase.global_vk, node_2.phase.global_vk);
         // sign message
         let msg = b"hello world";
-        let signatures = vec![
-            node_0.partial_sign(msg),
-            node_1.partial_sign(msg),
-            node_2.partial_sign(msg),
-        ];
-        assert!(sig_verify(msg, &node_0.verifying_key(), &signatures[0]));
-        assert!(sig_verify(msg, &node_1.verifying_key(), &signatures[1]));
-        assert!(sig_verify(msg, &node_2.verifying_key(), &signatures[2]));
+        let signatures = vec![node_0.sign(msg), node_1.sign(msg), node_2.sign(msg)];
+        // TODO this is ugly write loops and macros
+        signatures[0].verify(msg, &node_0.verifying_key());
+        signatures[1].verify(msg, &node_1.verifying_key());
+        signatures[2].verify(msg, &node_2.verifying_key());
         // check global sig validity
         let global_poly = Polynomial::interpolate(
             &[node_0.address().as_scalar(), node_1.address().as_scalar()],
             &[
-                G1Projective::from(signatures[0]),
-                G1Projective::from(signatures[1]),
+                G1Projective::from(signatures[0].inner()),
+                G1Projective::from(signatures[1].inner()),
             ],
         )
         .unwrap();
-        let global_sig = G1Affine::from(global_poly.coeffs()[0]);
-        assert!(sig_verify(msg, &node_2.global_verifying_key(), &global_sig));
+        let global_sig = Signature::from(global_poly.coeffs()[0]);
+        assert!(global_sig.verify(msg, &node_2.global_verifying_key()));
 
         let global_poly = Polynomial::interpolate(
             &[node_0.address().as_scalar(), node_2.address().as_scalar()],
             &[
-                G1Projective::from(signatures[0]),
-                G1Projective::from(signatures[2]),
+                G1Projective::from(signatures[0].inner()),
+                G1Projective::from(signatures[2].inner()),
             ],
         )
         .unwrap();
-        let global_sig = G1Affine::from(global_poly.coeffs()[0]);
-        assert!(sig_verify(msg, &node_1.global_verifying_key(), &global_sig));
+        let global_sig = Signature::from(global_poly.coeffs()[0]);
+        assert!(global_sig.verify(msg, &node_1.global_verifying_key()));
 
         let global_poly = Polynomial::interpolate(
             &[node_1.address().as_scalar(), node_2.address().as_scalar()],
             &[
-                G1Projective::from(signatures[1]),
-                G1Projective::from(signatures[2]),
+                G1Projective::from(signatures[1].inner()),
+                G1Projective::from(signatures[2].inner()),
             ],
         )
         .unwrap();
-        let global_sig = G1Affine::from(global_poly.coeffs()[0]);
-        assert!(sig_verify(msg, &node_0.global_verifying_key(), &global_sig));
+        let global_sig = Signature::from(global_poly.coeffs()[0]);
+        assert!(global_sig.verify(msg, &node_0.global_verifying_key()));
 
         let global_poly = Polynomial::interpolate(
             &[
@@ -331,17 +349,13 @@ mod test {
                 node_2.address().as_scalar(),
             ],
             &[
-                G1Projective::from(signatures[0]),
-                G1Projective::from(signatures[1]),
-                G1Projective::from(signatures[2]),
+                G1Projective::from(signatures[0].inner()),
+                G1Projective::from(signatures[1].inner()),
+                G1Projective::from(signatures[2].inner()),
             ],
         )
         .unwrap();
-        let global_sig = G1Affine::from(global_poly.coeffs()[0]);
-        assert!(sig_verify(msg, &node_0.global_verifying_key(), &global_sig));
-        // check that a single signature is not valid
-        assert!(!sig_verify(msg, &node_0.verifying_key(), &global_sig));
-        assert!(!sig_verify(msg, &node_1.verifying_key(), &global_sig));
-        assert!(!sig_verify(msg, &node_2.verifying_key(), &global_sig));
+        let global_sig = Signature::from(global_poly.coeffs()[0]);
+        assert!(global_sig.verify(msg, &node_0.global_verifying_key()));
     }
 }

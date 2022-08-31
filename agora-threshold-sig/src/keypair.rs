@@ -1,4 +1,5 @@
-use bls::{G1Affine, G2Affine, Scalar};
+use crate::signature::Signature;
+use bls::{G2Affine, Scalar};
 use ff::Field;
 use rand_core::{CryptoRng, RngCore};
 
@@ -36,8 +37,8 @@ impl Keypair {
         &self.privkey
     }
 
-    pub fn sign(&self, msg: &[u8]) -> G1Affine {
+    pub fn sign(&self, msg: &[u8]) -> Signature {
         let msg_hash_g1 = crate::hash::hash_to_g1(msg);
-        (msg_hash_g1 * self.privkey).into()
+        Signature::new((msg_hash_g1 * self.privkey).into())
     }
 }
