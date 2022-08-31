@@ -1,3 +1,11 @@
+mod parameters;
+mod phase;
+#[cfg(test)]
+mod test;
+
+pub use parameters::Parameters;
+pub use phase::{Discovery, Finalized, ShareCollection};
+
 use crate::address::Address;
 use crate::keypair::Keypair;
 use crate::share::{EncryptedShare, PublicShare};
@@ -9,12 +17,6 @@ use ff::Field;
 use zeroize::Zeroize;
 
 use std::collections::BTreeMap;
-
-mod parameters;
-mod phase;
-
-pub use parameters::Parameters;
-pub use phase::{Discovery, Finalized, ShareCollection};
 
 pub struct Node<P> {
     parameters: Parameters,
@@ -244,118 +246,3 @@ impl Node<Finalized> {
 }
 
 // TODO reshare keys
-
-// TODO test macro
-#[cfg(test)]
-mod test {
-    use super::*;
-    use bls::G1Projective;
-
-    #[test]
-    fn dkg_23() {
-        let mut rng = rand_core::OsRng;
-        let parameters = Parameters::new(3, 2);
-        // spin up nodes
-        let mut node_0 = Node::<Discovery>::new(parameters, Keypair::random(&mut rng));
-        let mut node_1 = Node::<Discovery>::new(parameters, Keypair::random(&mut rng));
-        let mut node_2 = Node::<Discovery>::new(parameters, Keypair::random(&mut rng));
-        // collect participants
-        node_0.collect_participant(node_1.pubkey());
-        node_0.collect_participant(node_2.pubkey());
-        node_1.collect_participant(node_0.pubkey());
-        node_1.collect_participant(node_2.pubkey());
-        node_2.collect_participant(node_0.pubkey());
-        node_2.collect_participant(node_1.pubkey());
-        // generate partial shares
-        let mut node_0 = Node::<ShareCollection>::try_from(node_0).unwrap();
-        let mut node_1 = Node::<ShareCollection>::try_from(node_1).unwrap();
-        let mut node_2 = Node::<ShareCollection>::try_from(node_2).unwrap();
-        // publish and collect shares
-        node_0
-            .collect_share(node_1.address(), node_1.publish_share())
-            .unwrap();
-        node_0
-            .collect_share(node_2.address(), node_2.publish_share())
-            .unwrap();
-        node_1
-            .collect_share(node_0.address(), node_0.publish_share())
-            .unwrap();
-        node_1
-            .collect_share(node_2.address(), node_2.publish_share())
-            .unwrap();
-        node_2
-            .collect_share(node_0.address(), node_0.publish_share())
-            .unwrap();
-        node_2
-            .collect_share(node_1.address(), node_1.publish_share())
-            .unwrap();
-        assert_eq!(node_0.phase.participants.len(), parameters.nodes());
-        assert_eq!(node_1.phase.participants.len(), parameters.nodes());
-        assert_eq!(node_2.phase.participants.len(), parameters.nodes());
-        assert_eq!(node_0.phase.shares.len(), parameters.nodes());
-        assert_eq!(node_1.phase.shares.len(), parameters.nodes());
-        assert_eq!(node_2.phase.shares.len(), parameters.nodes());
-        // verify collected shares
-        let node_0 = Node::<Finalized>::try_from(node_0).unwrap();
-        let node_1 = Node::<Finalized>::try_from(node_1).unwrap();
-        let node_2 = Node::<Finalized>::try_from(node_2).unwrap();
-        assert_eq!(node_0.phase.global_vk, node_1.phase.global_vk);
-        assert_eq!(node_1.phase.global_vk, node_2.phase.global_vk);
-        // sign message
-        let msg = b"hello world";
-        let signatures = vec![node_0.sign(msg), node_1.sign(msg), node_2.sign(msg)];
-        // TODO this is ugly write loops and macros
-        signatures[0].verify(msg, &node_0.verifying_key());
-        signatures[1].verify(msg, &node_1.verifying_key());
-        signatures[2].verify(msg, &node_2.verifying_key());
-        // check global sig validity
-        let global_poly = Polynomial::interpolate(
-            &[node_0.address().as_scalar(), node_1.address().as_scalar()],
-            &[
-                G1Projective::from(signatures[0].inner()),
-                G1Projective::from(signatures[1].inner()),
-            ],
-        )
-        .unwrap();
-        let global_sig = Signature::from(global_poly.coeffs()[0]);
-        assert!(global_sig.verify(msg, &node_2.global_verifying_key()));
-
-        let global_poly = Polynomial::interpolate(
-            &[node_0.address().as_scalar(), node_2.address().as_scalar()],
-            &[
-                G1Projective::from(signatures[0].inner()),
-                G1Projective::from(signatures[2].inner()),
-            ],
-        )
-        .unwrap();
-        let global_sig = Signature::from(global_poly.coeffs()[0]);
-        assert!(global_sig.verify(msg, &node_1.global_verifying_key()));
-
-        let global_poly = Polynomial::interpolate(
-            &[node_1.address().as_scalar(), node_2.address().as_scalar()],
-            &[
-                G1Projective::from(signatures[1].inner()),
-                G1Projective::from(signatures[2].inner()),
-            ],
-        )
-        .unwrap();
-        let global_sig = Signature::from(global_poly.coeffs()[0]);
-        assert!(global_sig.verify(msg, &node_0.global_verifying_key()));
-
-        let global_poly = Polynomial::interpolate(
-            &[
-                node_0.address().as_scalar(),
-                node_1.address().as_scalar(),
-                node_2.address().as_scalar(),
-            ],
-            &[
-                G1Projective::from(signatures[0].inner()),
-                G1Projective::from(signatures[1].inner()),
-                G1Projective::from(signatures[2].inner()),
-            ],
-        )
-        .unwrap();
-        let global_sig = Signature::from(global_poly.coeffs()[0]);
-        assert!(global_sig.verify(msg, &node_0.global_verifying_key()));
-    }
-}
