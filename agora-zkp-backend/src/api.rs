@@ -43,7 +43,7 @@ async fn get_xyz_holders_pubkeys(
 
 async fn verify_signed_xyz_holders(
     app: web::Data<app::Application>,
-    req_body: web::Json<signer::SignedResponse>,
+    req_body: web::Json<signer::VerifyParams>,
 ) -> impl Responder {
     let req = req_body.into_inner();
     let resp = app.verify_signed_xyz_holders(&req).await;

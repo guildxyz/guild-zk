@@ -10,6 +10,7 @@ pub struct Settings {
     pub url_pubkey: String,
     pub apikey_pubkey: String,
     pub private_key: String,
+    pub db_uri: String,
 }
 
 pub fn get_config() -> Settings {

@@ -26,3 +26,15 @@ http = "0.2"
 anyhow = "1.0"
 blake2 = "0.10.4"
 libsecp256k1 = "0.7.1"
+
+[dependencies.sqlx]
+version = "0.5.7"
+default-features = false
+features = [
+	"runtime-actix-rustls",
+	"macros",
+	"postgres",
+	"uuid",
+	"chrono",
+	"migrate"
+]

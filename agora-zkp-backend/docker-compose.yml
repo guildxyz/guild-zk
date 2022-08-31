@@ -1,0 +1,10 @@
+version: "3.3"
+services:
+  db:
+    image: "postgres:14.3"
+    ports:
+      - "5432:5432"
+    env_file:
+      - .env # configure postgres
+    volumes:
+      - ${PWD}/.docker_data/db:/var/lib/postgresql/data/

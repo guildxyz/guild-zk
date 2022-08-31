@@ -5,13 +5,53 @@ use std::fmt::Write;
 use std::num::ParseIntError;
 use uuid::Uuid;
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, serde::Serialize)]
 pub struct SignedResponse {
     pub pubkeys: Vec<String>,
     pub hash: String,
     pub nonce: String,
     pub timestamp: i64,
     pub signature: String,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct VerifyParams {
+    pub pubkeys: Vec<String>,
+    pub hash: String,
+    pub nonce: String,
+    pub timestamp: i64,
+    pub signature: String,
+    pub proof: Proof,
+    pub platform_id: String,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct Proof {
+    rpoint: Rpoint,
+    guild_id: String,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+struct Rpoint {
+    x: String,
+    y: String,
+    z: String,
+}
+
+impl VerifyParams {
+    pub fn get_rpoint(&self) -> String {
+        let Rpoint {x, y, z} = self.proof.rpoint.clone();
+        format!(
+            "{}-{}-{}",
+            x.to_string(),
+            y.to_string(),
+            z.to_string()
+        )
+    }
+
+    pub fn get_guild_id(&self) -> String {
+        self.proof.guild_id.clone()
+    }
 }
 
 pub struct Signer {
@@ -44,7 +84,7 @@ impl Signer {
         resp
     }
 
-    pub fn verify(&self, resp: &SignedResponse) -> bool {
+    pub fn verify(&self, resp: &VerifyParams) -> bool {
         let hash = hash_message(&resp.nonce, resp.timestamp.to_string(), &resp.pubkeys);
         verify_message_hash(&self.pubkey, hash, decode_hex(&resp.signature))
     }
@@ -116,14 +156,30 @@ mod tests {
         let signer = Signer::new(privkey);
         let pubkeys = vec![String::from("1"), String::from("2"), String::from("3")];
 
-        let mut resp = signer.sign_pubkeys(pubkeys);
-        println!("{:?}", resp);
-        let ok = signer.verify(&resp);
+        let signed = signer.sign_pubkeys(pubkeys);
+        let mut verify_params = VerifyParams{
+            pubkeys: signed.pubkeys,
+            hash: signed.hash,
+            nonce: signed.nonce,
+            timestamp: signed.timestamp,
+            signature: signed.signature,
+            proof: Proof {
+                rpoint: Rpoint {
+                    x: String::from("1"),
+                    y: String::from("2"),
+                    z: String::from("3"),
+                },
+                guild_id: String::from("4"),
+            },
+            platform_id: String::from("5"),
+        };
+        println!("{:?}", verify_params);
+        let ok = signer.verify(&verify_params);
         assert!(ok);
 
         // change timestamp to invalidate signature
-        resp.timestamp = 1;
-        let ok = signer.verify(&resp);
+        verify_params.timestamp = 1;
+        let ok = signer.verify(&verify_params);
         assert!(!ok);
     }
 

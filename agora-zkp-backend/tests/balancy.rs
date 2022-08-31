@@ -71,11 +71,12 @@ async fn test_get_xyz_holders() {
         .await
         .expect("balancy /xyzHolders request failed");
     let mut want = vec![
-        String::from("0x996Ed16B7a5FAfB99c6722101e083E455882D8B6"),
-        String::from("0x299A299A22F8C7397d9DB3702439069d951AeA74"),
-        String::from("0x621A78F100aab6a8e9f388E135E7BE42efA1e29d"),
-        String::from("0xC77aab3c6D7dAb46248F3CC3033C856171878BD5"),
-        String::from("0x4D7324471e0e4fa908E5573c5f0A4E1CcBB8aD8B"),
+        "0x4D7324471e0e4fa908E5573c5f0A4E1CcBB8aD8B",
+        "0xC77aab3c6D7dAb46248F3CC3033C856171878BD5",
+        "0xdc4edf4754f8a6291a1C4c923E837538FdBb15dD",
+        "0x996Ed16B7a5FAfB99c6722101e083E455882D8B6",
+        "0x621A78F100aab6a8e9f388E135E7BE42efA1e29d",
+        "0x299A299A22F8C7397d9DB3702439069d951AeA74",
     ];
     got.sort();
     want.sort();
