@@ -42,16 +42,29 @@ fn dkg_23() {
         .into_iter()
         .map(|node| Node::<Finalized>::try_from(node).unwrap())
         .collect::<Vec<Node<Finalized>>>();
-    /*
-    assert_eq!(node_0.phase.global_vk, node_1.phase.global_vk);
-    assert_eq!(node_1.phase.global_vk, node_2.phase.global_vk);
-    // sign message
+
+    for node in nodes.iter().skip(1) {
+        assert_eq!(nodes[0].global_verifying_key(), node.global_verifying_key());
+    }
+    // sign message and verify individual signatures
     let msg = b"hello world";
-    let signatures = vec![node_0.sign(msg), node_1.sign(msg), node_2.sign(msg)];
-    // TODO this is ugly write loops and macros
-    signatures[0].verify(msg, &node_0.verifying_key());
-    signatures[1].verify(msg, &node_1.verifying_key());
-    signatures[2].verify(msg, &node_2.verifying_key());
+    let signatures = nodes.iter().map(|node| node.sign(msg)).collect::<Vec<Signature>>();
+    
+    for (node, signature) in nodes.iter().zip(&signatures) {
+        assert!(signature.verify(msg, &node.verifying_key()));
+    }
+
+    let subset_iterator = nodes.iter().cycle();
+    for i in 0..nodes.len() {
+        let mut addr_scalars = Vec::<Scalar>::with_capacity(parameters.threshold());
+        let mut sig_points = Vec::<G1Projective>::with_capacity(parameters.threshold());
+        for j in parameters.threshold() {
+            addr_scalars.push(subset_iterator.next().unwrap().address().as_scalar());
+            sig_points.push(subset_iterator.next().unwrap().address().as_scalar());
+        }
+
+    }
+    /*
     // check global sig validity
     let global_poly = Polynomial::interpolate(
         &[node_0.address().as_scalar(), node_1.address().as_scalar()],
