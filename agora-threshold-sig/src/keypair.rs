@@ -42,3 +42,22 @@ impl Keypair {
         Signature::new((msg_hash_g1 * self.privkey).into())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use rand_core::OsRng;
+
+    #[test]
+    fn signature() {
+        let keypair = Keypair::random(&mut OsRng);
+        let msg = b"message to be signed";
+        let signature = keypair.sign(msg);
+        assert!(signature.verify(msg, &keypair.pubkey));
+        // wrong message
+        assert!(!signature.verify(&[23; 32], &keypair.pubkey));
+        let other_keypair = Keypair::random(&mut OsRng);
+        // wrong verifying key
+        assert!(!signature.verify(msg, &other_keypair.pubkey));
+    }
+}

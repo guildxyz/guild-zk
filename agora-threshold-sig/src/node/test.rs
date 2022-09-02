@@ -2,12 +2,23 @@ use super::*;
 use bls::G1Projective;
 
 #[test]
+fn dkg_32() {
+    let mut rng = rand_core::OsRng;
+    let parameters = Parameters::new(3, 2);
+    run(&mut rng, parameters);
+}
+
+#[test]
 fn dkg_53() {
     let mut rng = rand_core::OsRng;
     let parameters = Parameters::new(5, 3);
+    run(&mut rng, parameters);
+}
+
+fn run(rng: &mut rand_core::OsRng, parameters: Parameters) {
     // spin up nodes
     let mut nodes = (0..parameters.nodes())
-        .map(|_| Node::<Discovery>::new(parameters, Keypair::random(&mut rng)))
+        .map(|_| Node::<Discovery>::new(parameters, Keypair::random(rng)))
         .collect::<Vec<Node<Discovery>>>();
     // collect participants (iter and iter_mut does not work together)
     for i in 0..parameters.nodes() {
@@ -67,9 +78,8 @@ fn dkg_53() {
             let (node, signature) = subset_iterator.next().unwrap();
             addr_scalars.push(node.address().as_scalar());
             sig_points.push(G1Projective::from(signature.inner()));
-            dbg!(addr_scalars.len());
-            dbg!(sig_points.len());
 
+            // reject signature with not enough signers
             let global_poly = Polynomial::interpolate(&addr_scalars, &sig_points).unwrap();
             let global_sig = Signature::from(global_poly.coeffs()[0]);
             assert!(!global_sig.verify(msg, &nodes[i].global_verifying_key()));
@@ -78,27 +88,23 @@ fn dkg_53() {
         let (node, signature) = subset_iterator.next().unwrap();
         addr_scalars.push(node.address().as_scalar());
         sig_points.push(G1Projective::from(signature.inner()));
+        assert_eq!(addr_scalars.len(), parameters.threshold());
+        assert_eq!(sig_points.len(), parameters.threshold());
         let global_poly = Polynomial::interpolate(&addr_scalars, &sig_points).unwrap();
         let global_sig = Signature::from(global_poly.coeffs()[0]);
         assert!(global_sig.verify(msg, &nodes[i].global_verifying_key()));
     }
 
-    // reject signature with not enough signers
-
     // test n out of n signature validity
-    //let global_poly = Polynomial::interpolate(
-    //    &[
-    //        node_0.address().as_scalar(),
-    //        node_1.address().as_scalar(),
-    //        node_2.address().as_scalar(),
-    //    ],
-    //    &[
-    //        G1Projective::from(signatures[0].inner()),
-    //        G1Projective::from(signatures[1].inner()),
-    //        G1Projective::from(signatures[2].inner()),
-    //    ],
-    //)
-    //.unwrap();
-    //let global_sig = Signature::from(global_poly.coeffs()[0]);
-    //assert!(global_sig.verify(msg, &node_0.global_verifying_key()));
+    let mut addr_scalars = Vec::<Scalar>::with_capacity(parameters.nodes());
+    let mut sig_points = Vec::<G1Projective>::with_capacity(parameters.nodes());
+
+    for (node, signature) in nodes.iter().zip(&signatures) {
+        addr_scalars.push(node.address().as_scalar());
+        sig_points.push(G1Projective::from(signature.inner()));
+    }
+
+    let global_poly = Polynomial::interpolate(&addr_scalars, &sig_points).unwrap();
+    let global_sig = Signature::from(global_poly.coeffs()[0]);
+    assert!(global_sig.verify(msg, &nodes[0].global_verifying_key()));
 }

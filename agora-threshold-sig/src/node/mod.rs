@@ -73,7 +73,6 @@ impl TryFrom<Node<Discovery>> for Node<ShareCollection> {
             .collect::<Vec<Scalar>>();
         let mut private_poly = Polynomial::new(private_coeffs);
         let poly_secret = private_poly.coeffs()[0];
-        private_poly.zeroize();
 
         let shares = node
             .phase
@@ -94,6 +93,7 @@ impl TryFrom<Node<Discovery>> for Node<ShareCollection> {
                 }
             })
             .collect::<Vec<PublicShare>>();
+        private_poly.zeroize();
         let mut shares_map = BTreeMap::new();
         shares_map.insert(node.address, shares);
 
@@ -212,7 +212,10 @@ impl Node<ShareCollection> {
             phase: Finalized {
                 participants: self.phase.participants,
                 poly_secret: self.phase.poly_secret,
-                share_keypair: Keypair::new_checked(shsk, interpolated_shvks[self_index].into())?,
+                share_keypair: Keypair::new_checked(
+                    dbg!(shsk),
+                    interpolated_shvks[self_index].into(),
+                )?,
                 global_vk: gshvk_poly.coeffs()[0].into(),
             },
         })
