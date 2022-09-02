@@ -2,9 +2,9 @@ use super::*;
 use bls::G1Projective;
 
 #[test]
-fn dkg_23() {
+fn dkg_53() {
     let mut rng = rand_core::OsRng;
-    let parameters = Parameters::new(3, 2);
+    let parameters = Parameters::new(5, 3);
     // spin up nodes
     let mut nodes = (0..parameters.nodes())
         .map(|_| Node::<Discovery>::new(parameters, Keypair::random(&mut rng)))
@@ -48,71 +48,57 @@ fn dkg_23() {
     }
     // sign message and verify individual signatures
     let msg = b"hello world";
-    let signatures = nodes.iter().map(|node| node.sign(msg)).collect::<Vec<Signature>>();
-    
+    let signatures = nodes
+        .iter()
+        .map(|node| node.sign(msg))
+        .collect::<Vec<Signature>>();
+
     for (node, signature) in nodes.iter().zip(&signatures) {
         assert!(signature.verify(msg, &node.verifying_key()));
     }
 
-    let subset_iterator = nodes.iter().cycle();
+    // test t of n signature validity
+    let mut subset_iterator = nodes.iter().zip(&signatures).cycle();
     for i in 0..nodes.len() {
         let mut addr_scalars = Vec::<Scalar>::with_capacity(parameters.threshold());
         let mut sig_points = Vec::<G1Projective>::with_capacity(parameters.threshold());
-        for j in parameters.threshold() {
-            addr_scalars.push(subset_iterator.next().unwrap().address().as_scalar());
-            sig_points.push(subset_iterator.next().unwrap().address().as_scalar());
+        for _ in 0..parameters.threshold() - 1 {
+            // NOTE unwrap is fine because we cycle the iterator "endlessly"
+            let (node, signature) = subset_iterator.next().unwrap();
+            addr_scalars.push(node.address().as_scalar());
+            sig_points.push(G1Projective::from(signature.inner()));
+            dbg!(addr_scalars.len());
+            dbg!(sig_points.len());
+
+            let global_poly = Polynomial::interpolate(&addr_scalars, &sig_points).unwrap();
+            let global_sig = Signature::from(global_poly.coeffs()[0]);
+            assert!(!global_sig.verify(msg, &nodes[i].global_verifying_key()));
         }
-
+        // reaching threshold now
+        let (node, signature) = subset_iterator.next().unwrap();
+        addr_scalars.push(node.address().as_scalar());
+        sig_points.push(G1Projective::from(signature.inner()));
+        let global_poly = Polynomial::interpolate(&addr_scalars, &sig_points).unwrap();
+        let global_sig = Signature::from(global_poly.coeffs()[0]);
+        assert!(global_sig.verify(msg, &nodes[i].global_verifying_key()));
     }
-    /*
-    // check global sig validity
-    let global_poly = Polynomial::interpolate(
-        &[node_0.address().as_scalar(), node_1.address().as_scalar()],
-        &[
-            G1Projective::from(signatures[0].inner()),
-            G1Projective::from(signatures[1].inner()),
-        ],
-    )
-    .unwrap();
-    let global_sig = Signature::from(global_poly.coeffs()[0]);
-    assert!(global_sig.verify(msg, &node_2.global_verifying_key()));
 
-    let global_poly = Polynomial::interpolate(
-        &[node_0.address().as_scalar(), node_2.address().as_scalar()],
-        &[
-            G1Projective::from(signatures[0].inner()),
-            G1Projective::from(signatures[2].inner()),
-        ],
-    )
-    .unwrap();
-    let global_sig = Signature::from(global_poly.coeffs()[0]);
-    assert!(global_sig.verify(msg, &node_1.global_verifying_key()));
+    // reject signature with not enough signers
 
-    let global_poly = Polynomial::interpolate(
-        &[node_1.address().as_scalar(), node_2.address().as_scalar()],
-        &[
-            G1Projective::from(signatures[1].inner()),
-            G1Projective::from(signatures[2].inner()),
-        ],
-    )
-    .unwrap();
-    let global_sig = Signature::from(global_poly.coeffs()[0]);
-    assert!(global_sig.verify(msg, &node_0.global_verifying_key()));
-
-    let global_poly = Polynomial::interpolate(
-        &[
-            node_0.address().as_scalar(),
-            node_1.address().as_scalar(),
-            node_2.address().as_scalar(),
-        ],
-        &[
-            G1Projective::from(signatures[0].inner()),
-            G1Projective::from(signatures[1].inner()),
-            G1Projective::from(signatures[2].inner()),
-        ],
-    )
-    .unwrap();
-    let global_sig = Signature::from(global_poly.coeffs()[0]);
-    assert!(global_sig.verify(msg, &node_0.global_verifying_key()));
-    */
+    // test n out of n signature validity
+    //let global_poly = Polynomial::interpolate(
+    //    &[
+    //        node_0.address().as_scalar(),
+    //        node_1.address().as_scalar(),
+    //        node_2.address().as_scalar(),
+    //    ],
+    //    &[
+    //        G1Projective::from(signatures[0].inner()),
+    //        G1Projective::from(signatures[1].inner()),
+    //        G1Projective::from(signatures[2].inner()),
+    //    ],
+    //)
+    //.unwrap();
+    //let global_sig = Signature::from(global_poly.coeffs()[0]);
+    //assert!(global_sig.verify(msg, &node_0.global_verifying_key()));
 }
