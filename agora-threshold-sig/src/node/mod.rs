@@ -68,6 +68,7 @@ impl TryFrom<Node<Discovery>> for Node<ShareCollection> {
         }
 
         // generate own share in this step
+        // TODO private coeff_0 could be the private key of the node
         let private_coeffs = (0..node.parameters.threshold())
             .map(|_| Scalar::random(rand_core::OsRng))
             .collect::<Vec<Scalar>>();

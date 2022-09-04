@@ -7,6 +7,7 @@ pub struct Parameters {
 impl Parameters {
     /// Panics when `nodes < threshold`
     pub fn new(nodes: usize, threshold: usize) -> Self {
+        assert!(threshold > 0, "threshold must be greater than 0");
         assert!(
             nodes >= threshold,
             "threshold is greater than the total number of participants"
