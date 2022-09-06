@@ -214,7 +214,7 @@ impl Node<ShareCollection> {
                 participants: self.phase.participants,
                 poly_secret: self.phase.poly_secret,
                 share_keypair: Keypair::new_checked(
-                    dbg!(shsk),
+                    shsk,
                     interpolated_shvks[self_index].into(),
                 )?,
                 global_vk: gshvk_poly.coeffs()[0].into(),
