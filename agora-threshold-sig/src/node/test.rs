@@ -39,7 +39,7 @@ fn run(rng: &mut rand_core::OsRng, parameters: Parameters) {
         for j in 0..parameters.nodes() {
             if i != j {
                 let address = nodes[j].address();
-                let share = nodes[j].publish_share();
+                let share = nodes[j].publish_share().unwrap();
                 nodes[i].collect_share(address, share).unwrap();
             }
         }

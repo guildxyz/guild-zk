@@ -2,18 +2,18 @@ mod parameters;
 mod phase;
 #[cfg(test)]
 mod test;
+mod utils;
 
 pub use parameters::Parameters;
 pub use phase::{Discovery, Finalized, ShareCollection};
 
 use crate::address::Address;
 use crate::keypair::Keypair;
-use crate::share::{EncryptedShare, PublicShare};
+use crate::share::PublicShare;
 use crate::signature::Signature;
 
 use agora_interpolate::Polynomial;
 use bls::{G2Affine, G2Projective, Scalar};
-use ff::Field;
 use zeroize::Zeroize;
 
 use std::collections::BTreeMap;
@@ -58,45 +58,25 @@ impl Node<Discovery> {
             self.phase.participants.insert(address, pubkey);
         }
     }
+
+    fn generate_shares(&self, shares_map: &mut BTreeMap<Address, Vec<PublicShare>>) {
+        let mut private_poly = utils::random_polynomial(self.parameters.threshold(), None);
+        let shares = utils::generate_shares(&self.phase.participants, &private_poly);
+        shares_map.insert(self.address, shares);
+        private_poly.zeroize();
+    }
 }
 
 impl TryFrom<Node<Discovery>> for Node<ShareCollection> {
     type Error = String;
     fn try_from(node: Node<Discovery>) -> Result<Self, Self::Error> {
+        // TODO do we need this check when resharing
         if node.phase.participants.len() < node.parameters.nodes() {
             return Err("not enough participants collected".to_string());
         }
 
-        // generate own share in this step
-        // TODO private coeff_0 could be the private key of the node
-        let private_coeffs = (0..node.parameters.threshold())
-            .map(|_| Scalar::random(rand_core::OsRng))
-            .collect::<Vec<Scalar>>();
-        let mut private_poly = Polynomial::new(private_coeffs);
-        let poly_secret = private_poly.coeffs()[0];
-
-        let shares = node
-            .phase
-            .participants
-            .iter()
-            .map(|(address, pubkey)| {
-                let secret_share = private_poly.evaluate(address.as_scalar());
-                let public_share = G2Affine::from(G2Affine::generator() * secret_share);
-                let esh = EncryptedShare::new(
-                    &mut rand_core::OsRng,
-                    address.as_bytes(),
-                    pubkey,
-                    &secret_share,
-                );
-                PublicShare {
-                    vk: public_share,
-                    esh,
-                }
-            })
-            .collect::<Vec<PublicShare>>();
-        private_poly.zeroize();
         let mut shares_map = BTreeMap::new();
-        shares_map.insert(node.address, shares);
+        node.generate_shares(&mut shares_map);
 
         Ok(Self {
             parameters: node.parameters,
@@ -105,18 +85,14 @@ impl TryFrom<Node<Discovery>> for Node<ShareCollection> {
             phase: ShareCollection {
                 participants: node.phase.participants,
                 shares: shares_map,
-                poly_secret,
             },
         })
     }
 }
 
 impl Node<ShareCollection> {
-    pub fn publish_share(&self) -> Vec<PublicShare> {
-        // NOTE unwrap is fine because at this phase, we have
-        // definitely generated our own share when converting
-        // from Discovery phase
-        self.phase.shares.get(&self.address).cloned().unwrap()
+    pub fn publish_share(&self) -> Option<Vec<PublicShare>> {
+        self.phase.shares.get(&self.address).cloned()
     }
 
     pub fn collect_share(
@@ -212,11 +188,7 @@ impl Node<ShareCollection> {
             keypair: self.keypair,
             phase: Finalized {
                 participants: self.phase.participants,
-                poly_secret: self.phase.poly_secret,
-                share_keypair: Keypair::new_checked(
-                    shsk,
-                    interpolated_shvks[self_index].into(),
-                )?,
+                share_keypair: Keypair::new_checked(shsk, interpolated_shvks[self_index].into())?,
                 global_vk: gshvk_poly.coeffs()[0].into(),
             },
         })
@@ -247,6 +219,8 @@ impl Node<Finalized> {
     pub fn sign(&self, msg: &[u8]) -> Signature {
         self.phase.share_keypair.sign(msg)
     }
+    // TODO collect new participants
+    // TODO initiate reshare process
 }
 
 // TODO reshare keys
