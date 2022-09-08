@@ -5,7 +5,7 @@ mod test;
 mod utils;
 
 pub use parameters::Parameters;
-pub use phase::{Discovery, Finalized, Phase, ShareCollection};
+pub use phase::{Discovery, Finalized, ShareCollection};
 
 use crate::address::Address;
 use crate::keypair::Keypair;
@@ -22,6 +22,7 @@ pub struct Node<P> {
     parameters: Parameters,
     address: Address,
     keypair: Keypair,
+    participants: BTreeMap<Address, G2Affine>,
     phase: P,
 }
 
@@ -33,13 +34,11 @@ impl<P> Node<P> {
     pub fn pubkey(&self) -> G2Affine {
         self.keypair.pubkey()
     }
-}
 
-impl<P: Phase> Node<P> {
     pub fn collect_participant(&mut self, pubkey: G2Affine) {
         let address = Address::from(&pubkey);
-        if self.phase.participants().get(&address).is_none() {
-            self.phase.participants_mut().insert(address, pubkey);
+        if self.participants.get(&address).is_none() {
+            self.participants.insert(address, pubkey);
         }
     }
 }
@@ -54,13 +53,14 @@ impl Node<Discovery> {
             parameters,
             address,
             keypair,
-            phase: Discovery { participants },
+            participants,
+            phase: Discovery,
         }
     }
 
     fn generate_shares(&self, shares_map: &mut BTreeMap<Address, Vec<PublicShare>>) {
         let mut private_poly = utils::random_polynomial(self.parameters.threshold(), None);
-        let shares = utils::generate_shares(&self.phase.participants, &private_poly);
+        let shares = utils::generate_shares(&self.participants, &private_poly);
         shares_map.insert(self.address, shares);
         private_poly.zeroize();
     }
@@ -70,7 +70,7 @@ impl TryFrom<Node<Discovery>> for Node<ShareCollection> {
     type Error = String;
     fn try_from(mut node: Node<Discovery>) -> Result<Self, Self::Error> {
         // TODO do we need this check when resharing
-        if node.phase.participants.len() < node.parameters.nodes() {
+        if node.participants.len() < node.parameters.nodes() {
             return Err("not enough participants collected".to_string());
         }
 
@@ -88,10 +88,8 @@ impl TryFrom<Node<Discovery>> for Node<ShareCollection> {
             parameters: node.parameters,
             address: node.address,
             keypair: node.keypair,
-            phase: ShareCollection {
-                participants: node.phase.participants,
-                shares_map,
-            },
+            participants: node.participants,
+            phase: ShareCollection { shares_map },
         })
     }
 }
@@ -106,7 +104,7 @@ impl Node<ShareCollection> {
         address: Address,
         shares: Vec<PublicShare>,
     ) -> Result<(), String> {
-        if self.phase.participants.get(&address).is_none() {
+        if self.participants.get(&address).is_none() {
             Err("no such participant registered".to_string())
         } else if self.phase.shares_map.get(&address).is_none() {
             self.phase.shares_map.insert(address, shares);
@@ -129,7 +127,7 @@ impl Node<ShareCollection> {
 
     fn interpolated_shvks(&self, address_scalars: &[Scalar]) -> Result<Vec<G2Projective>, String> {
         let mut interpolated_shvks =
-            Vec::<G2Projective>::with_capacity(self.phase.participants.len());
+            Vec::<G2Projective>::with_capacity(self.participants.len());
 
         for i in 0..self.phase.shares_map.len() {
             let shvks = self
@@ -148,7 +146,7 @@ impl Node<ShareCollection> {
 
     fn decrypted_shsks(&self, self_index: usize) -> Vec<Scalar> {
         let mut decrypted_shares_for_self =
-            Vec::<Scalar>::with_capacity(self.phase.participants.len());
+            Vec::<Scalar>::with_capacity(self.participants.len());
         for share_vec in self.phase.shares_map.values() {
             decrypted_shares_for_self.push(
                 share_vec[self_index]
@@ -192,8 +190,8 @@ impl Node<ShareCollection> {
             parameters: self.parameters,
             address: self.address,
             keypair: self.keypair,
+            participants: self.participants,
             phase: Finalized {
-                participants: self.phase.participants,
                 share_keypair: Keypair::new_checked(shsk, interpolated_shvks[self_index].into())?,
                 global_vk: gshvk_poly.coeffs()[0].into(),
             },
@@ -229,27 +227,26 @@ impl Node<Finalized> {
     pub fn initiate_resharing(
         self,
         parameters: Parameters,
-    ) -> Result<Node<ShareCollection>, String> {
+    ) -> Node<ShareCollection> {
         // TODO check parameters (or auto-generate them?)
         let mut shares_map = BTreeMap::new();
         let mut private_poly = utils::random_polynomial(
             self.parameters.threshold(),
             Some(*self.phase.share_keypair.privkey()),
         );
-        let shares = utils::generate_shares(&self.phase.participants, &private_poly);
+        let shares = utils::generate_shares(&self.participants, &private_poly);
         shares_map.insert(self.address, shares);
         private_poly.zeroize();
-        Ok(Node {
+        Node {
             parameters,
             address: self.address,
             keypair: self.keypair,
+            participants: self.participants,
             phase: ShareCollection {
-                participants: self.phase.participants,
                 shares_map,
             },
-        })
+        }
     }
-
     // TODO collect new participants
     // TODO initiate reshare process
 }

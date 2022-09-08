@@ -45,7 +45,7 @@ fn run(rng: &mut rand_core::OsRng, parameters: Parameters) {
         }
     }
     for node in &nodes {
-        assert_eq!(node.phase.participants.len(), parameters.nodes());
+        assert_eq!(node.participants.len(), parameters.nodes());
         assert_eq!(node.phase.shares_map.len(), parameters.nodes());
     }
     // verify collected shares
