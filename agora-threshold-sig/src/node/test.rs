@@ -2,20 +2,23 @@ use super::*;
 use bls::G1Projective;
 
 #[test]
-fn dkg_32() {
+fn dkg_23() {
     let mut rng = rand_core::OsRng;
-    let parameters = Parameters::new(2, 3, true);
-    run(&mut rng, parameters);
+    let parameters = Parameters::new(2, 3);
+    let _og_nodes = first_round(&mut rng, parameters);
+    //let new_parameters = Parameters::new(3, 4);
+    //let new_node = Node::<Discovery>::new(parameters, Keypair::random(&mut rng));
+    //todo!()
 }
 
 #[test]
-fn dkg_53() {
+fn dkg_35() {
     let mut rng = rand_core::OsRng;
-    let parameters = Parameters::new(3, 5, true);
-    run(&mut rng, parameters);
+    let parameters = Parameters::new(3, 5);
+    let _og_nodes = first_round(&mut rng, parameters);
 }
 
-fn run(rng: &mut rand_core::OsRng, parameters: Parameters) {
+fn first_round(rng: &mut rand_core::OsRng, parameters: Parameters) -> Vec<Node<Finalized>> {
     // spin up nodes
     let mut nodes = (0..parameters.nodes())
         .map(|_| Node::<Discovery>::new(parameters, Keypair::random(rng)))
@@ -32,7 +35,11 @@ fn run(rng: &mut rand_core::OsRng, parameters: Parameters) {
     // generate partial shares
     let mut nodes = nodes
         .into_iter()
-        .map(|node| Node::<ShareCollection>::try_from(node).unwrap())
+        .map(|node| {
+            Node::<ShareGeneration>::try_from(node)
+                .unwrap()
+                .initiate_share_collection()
+        })
         .collect::<Vec<Node<ShareCollection>>>();
     // publish and collect shares
     for i in 0..parameters.nodes() {
@@ -107,4 +114,6 @@ fn run(rng: &mut rand_core::OsRng, parameters: Parameters) {
     let global_poly = Polynomial::interpolate(&addr_scalars, &sig_points).unwrap();
     let global_sig = Signature::from(global_poly.coeffs()[0]);
     assert!(global_sig.verify(msg, &nodes[0].global_verifying_key()));
+
+    nodes
 }

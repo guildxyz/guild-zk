@@ -25,7 +25,7 @@ impl EncryptedShare {
         secret_share: &Scalar,
     ) -> Self {
         let mut r = Scalar::random(rng);
-        let mut Q = hash_to_g1(id); // instead of hashing the whole participant?
+        let Q = hash_to_g1(id); // instead of hashing the whole participant?
 
         let e = pairing(&Q, &G2Affine::from(pubkey * r));
         let eh = hash_to_fp(e.to_string().as_bytes());
@@ -46,7 +46,6 @@ impl EncryptedShare {
 
         // zeroize before dropping
         r.zeroize();
-        Q.zeroize();
         H.zeroize();
 
         Self { c, U, V }
@@ -80,9 +79,11 @@ impl EncryptedShare {
     pub fn decrypt(&self, id: &[u8], secret_key: &Scalar) -> Scalar {
         let Q = hash_to_g1(id);
         let e = pairing(&G1Affine::from(Q * secret_key), &self.U);
-        let eh = hash_to_fp(e.to_string().as_bytes());
+        let mut eh = hash_to_fp(e.to_string().as_bytes());
 
-        self.c - eh
+        let decrypted = self.c - eh;
+        eh.zeroize();
+        decrypted
     }
 }
 
