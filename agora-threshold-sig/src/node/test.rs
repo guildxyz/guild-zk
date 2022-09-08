@@ -4,14 +4,14 @@ use bls::G1Projective;
 #[test]
 fn dkg_32() {
     let mut rng = rand_core::OsRng;
-    let parameters = Parameters::new(3, 2);
+    let parameters = Parameters::new(2, 3, true);
     run(&mut rng, parameters);
 }
 
 #[test]
 fn dkg_53() {
     let mut rng = rand_core::OsRng;
-    let parameters = Parameters::new(5, 3);
+    let parameters = Parameters::new(3, 5, true);
     run(&mut rng, parameters);
 }
 
@@ -46,7 +46,7 @@ fn run(rng: &mut rand_core::OsRng, parameters: Parameters) {
     }
     for node in &nodes {
         assert_eq!(node.phase.participants.len(), parameters.nodes());
-        assert_eq!(node.phase.shares.len(), parameters.nodes());
+        assert_eq!(node.phase.shares_map.len(), parameters.nodes());
     }
     // verify collected shares
     let nodes = nodes
