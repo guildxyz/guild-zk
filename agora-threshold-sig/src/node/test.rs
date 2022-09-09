@@ -5,36 +5,80 @@ use bls::G1Projective;
 fn dkg_23() {
     let mut rng = rand_core::OsRng;
     let parameters = Parameters::new(2, 3);
-    let mut old_nodes = first_round(&mut rng, parameters);
-    let old_global_vk = old_nodes[0].global_verifying_key(); // save for testing purposes
-    let new_parameters = Parameters::new(3, 4);
-    let mut new_node = Node::<Discovery>::new(new_parameters, Keypair::random(&mut rng));
+    let old_nodes = initial_round(&mut rng, parameters);
+    test_signature(&parameters, &old_nodes);
+    // resharing
+    let parameters = Parameters::new(3, 4);
+    let nodes = resharing(&mut rng, parameters, old_nodes);
+    test_signature(&parameters, &nodes);
+}
+
+#[test]
+fn dkg_35() {
+    let mut rng = rand_core::OsRng;
+    let parameters = Parameters::new(3, 5);
+    let old_nodes = initial_round(&mut rng, parameters);
+    test_signature(&parameters, &old_nodes);
+    // resharing
+    let parameters = Parameters::new(5, 7);
+    let nodes = resharing(&mut rng, parameters, old_nodes);
+    test_signature(&parameters, &nodes);
+}
+
+fn resharing(
+    rng: &mut rand_core::OsRng,
+    parameters: Parameters,
+    mut old_nodes: Vec<Node<Finalized>>,
+) -> Vec<Node<Finalized>> {
+    let old_global_vk = old_nodes[0].global_verifying_key();
+    let n = (parameters.nodes() as isize - old_nodes[0].parameters.nodes() as isize).abs() as usize;
+    let mut new_nodes = (0..n)
+        .map(|_| Node::<Discovery>::new(parameters, Keypair::random(rng)))
+        .collect::<Vec<Node<Discovery>>>();
 
     // collect participants
-    for node in old_nodes.iter_mut() {
-        new_node.collect_participant(node.pubkey());
-        node.collect_participant(new_node.pubkey());
+    for old_node in old_nodes.iter_mut() {
+        for new_node in new_nodes.iter_mut() {
+            new_node.collect_participant(old_node.pubkey());
+            old_node.collect_participant(new_node.pubkey());
+        }
+    }
+    // TODO put this in a function?
+    // new participants also collect each other's public info
+    for i in 0..new_nodes.len() {
+        for j in 0..new_nodes.len() {
+            if i != j {
+                let pubkey = new_nodes[j].pubkey();
+                new_nodes[i].collect_participant(pubkey);
+            }
+        }
     }
 
     // old nodes initiate resharing and share collection
     let mut nodes = old_nodes
         .into_iter()
         .map(|node| {
-            node.initiate_resharing(new_parameters)
+            node.initiate_resharing(parameters)
                 .unwrap()
                 .initiate_share_collection()
         })
         .collect::<Vec<Node<ShareCollection>>>();
 
     // don't generate shares just wait for old node's shares
-    let new_node = Node::<ShareCollection>::try_from(new_node).unwrap();
-    // add new node to the node pool
-    nodes.push(new_node);
+    let new_nodes = new_nodes
+        .into_iter()
+        .map(|node| Node::<ShareCollection>::try_from(node).unwrap())
+        .collect::<Vec<Node<ShareCollection>>>();
+    // add new nodes to the node pool
+    for node in new_nodes.into_iter() {
+        nodes.push(node);
+    }
+
     // publish and collect shares (new node will publish None)
     // TODO duplicate code (refractor into a function? But it's
     // tricky because of both & and &mut references to nodes)
-    for i in 0..new_parameters.nodes() {
-        for j in 0..new_parameters.nodes() {
+    for i in 0..nodes.len() {
+        for j in 0..nodes.len() {
             if i != j {
                 let address = nodes[j].address();
                 let share = nodes[j].publish_share();
@@ -42,11 +86,12 @@ fn dkg_23() {
             }
         }
     }
-    // check that the new node didn't send a share
+
     for node in &nodes {
-        assert_eq!(node.participants.len(), new_parameters.nodes());
-        assert_eq!(node.phase.shares_map.len(), new_parameters.nodes());
+        assert_eq!(node.participants.len(), parameters.nodes());
+        assert_eq!(node.phase.shares_map.len(), parameters.nodes());
     }
+
     // verify collected shares
     let nodes = nodes
         .into_iter()
@@ -56,16 +101,11 @@ fn dkg_23() {
     for node in nodes.iter() {
         assert_eq!(old_global_vk, node.global_verifying_key());
     }
+
+    nodes
 }
 
-#[test]
-fn dkg_35() {
-    let mut rng = rand_core::OsRng;
-    let parameters = Parameters::new(3, 5);
-    let _og_nodes = first_round(&mut rng, parameters);
-}
-
-fn first_round(rng: &mut rand_core::OsRng, parameters: Parameters) -> Vec<Node<Finalized>> {
+fn initial_round(rng: &mut rand_core::OsRng, parameters: Parameters) -> Vec<Node<Finalized>> {
     // spin up nodes
     let mut nodes = (0..parameters.nodes())
         .map(|_| Node::<Discovery>::new(parameters, Keypair::random(rng)))
@@ -89,8 +129,8 @@ fn first_round(rng: &mut rand_core::OsRng, parameters: Parameters) -> Vec<Node<F
         })
         .collect::<Vec<Node<ShareCollection>>>();
     // publish and collect shares
-    for i in 0..parameters.nodes() {
-        for j in 0..parameters.nodes() {
+    for i in 0..nodes.len() {
+        for j in 0..nodes.len() {
             if i != j {
                 let address = nodes[j].address();
                 let share = nodes[j].publish_share();
@@ -111,6 +151,11 @@ fn first_round(rng: &mut rand_core::OsRng, parameters: Parameters) -> Vec<Node<F
     for node in nodes.iter().skip(1) {
         assert_eq!(nodes[0].global_verifying_key(), node.global_verifying_key());
     }
+
+    nodes
+}
+
+fn test_signature(parameters: &Parameters, nodes: &[Node<Finalized>]) {
     // sign message and verify individual signatures
     let msg = b"hello world";
     let signatures = nodes
@@ -161,6 +206,4 @@ fn first_round(rng: &mut rand_core::OsRng, parameters: Parameters) -> Vec<Node<F
     let global_poly = Polynomial::interpolate(&addr_scalars, &sig_points).unwrap();
     let global_sig = Signature::from(global_poly.coeffs()[0]);
     assert!(global_sig.verify(msg, &nodes[0].global_verifying_key()));
-
-    nodes
 }
