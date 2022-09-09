@@ -31,7 +31,7 @@ fn resharing(
     mut old_nodes: Vec<Node<Finalized>>,
 ) -> Vec<Node<Finalized>> {
     let old_global_vk = old_nodes[0].global_verifying_key();
-    let n = (parameters.nodes() as isize - old_nodes[0].parameters.nodes() as isize).abs() as usize;
+    let n = (parameters.nodes() as isize - old_nodes[0].parameters.nodes() as isize).unsigned_abs();
     let mut new_nodes = (0..n)
         .map(|_| Node::<Discovery>::new(parameters, Keypair::random(rng)))
         .collect::<Vec<Node<Discovery>>>();
@@ -65,12 +65,11 @@ fn resharing(
         .collect::<Vec<Node<ShareCollection>>>();
 
     // don't generate shares just wait for old node's shares
-    let new_nodes = new_nodes
+    // add new nodes to the node pool
+    for node in new_nodes
         .into_iter()
         .map(|node| Node::<ShareCollection>::try_from(node).unwrap())
-        .collect::<Vec<Node<ShareCollection>>>();
-    // add new nodes to the node pool
-    for node in new_nodes.into_iter() {
+    {
         nodes.push(node);
     }
 
@@ -80,16 +79,17 @@ fn resharing(
     for i in 0..nodes.len() {
         for j in 0..nodes.len() {
             if i != j {
-                let address = nodes[j].address();
-                let share = nodes[j].publish_share();
-                nodes[i].collect_share(address, share).unwrap();
+                if let Some(share) = nodes[j].publish_share() {
+                    let address = nodes[j].address();
+                    nodes[i].collect_share(address, share).unwrap();
+                }
             }
         }
     }
 
     for node in &nodes {
         assert_eq!(node.participants.len(), parameters.nodes());
-        assert_eq!(node.phase.shares_map.len(), parameters.nodes());
+        assert_eq!(node.phase.shares_map.len(), parameters.nodes() - n);
     }
 
     // verify collected shares
@@ -132,9 +132,10 @@ fn initial_round(rng: &mut rand_core::OsRng, parameters: Parameters) -> Vec<Node
     for i in 0..nodes.len() {
         for j in 0..nodes.len() {
             if i != j {
-                let address = nodes[j].address();
-                let share = nodes[j].publish_share();
-                nodes[i].collect_share(address, share).unwrap();
+                if let Some(share) = nodes[j].publish_share() {
+                    let address = nodes[j].address();
+                    nodes[i].collect_share(address, share).unwrap();
+                }
             }
         }
     }
@@ -169,29 +170,29 @@ fn test_signature(parameters: &Parameters, nodes: &[Node<Finalized>]) {
 
     // test t of n signature validity
     let mut subset_iterator = nodes.iter().zip(&signatures).cycle();
-    for i in 0..nodes.len() {
+    for node in nodes {
         let mut addr_scalars = Vec::<Scalar>::with_capacity(parameters.threshold());
         let mut sig_points = Vec::<G1Projective>::with_capacity(parameters.threshold());
         for _ in 0..parameters.threshold() - 1 {
             // NOTE unwrap is fine because we cycle the iterator "endlessly"
-            let (node, signature) = subset_iterator.next().unwrap();
-            addr_scalars.push(node.address().as_scalar());
+            let (subset_node, signature) = subset_iterator.next().unwrap();
+            addr_scalars.push(subset_node.address().as_scalar());
             sig_points.push(G1Projective::from(signature.inner()));
 
             // reject signature with not enough signers
             let global_poly = Polynomial::interpolate(&addr_scalars, &sig_points).unwrap();
             let global_sig = Signature::from(global_poly.coeffs()[0]);
-            assert!(!global_sig.verify(msg, &nodes[i].global_verifying_key()));
+            assert!(!global_sig.verify(msg, &node.global_verifying_key()));
         }
         // reaching threshold now
-        let (node, signature) = subset_iterator.next().unwrap();
-        addr_scalars.push(node.address().as_scalar());
+        let (subset_node, signature) = subset_iterator.next().unwrap();
+        addr_scalars.push(subset_node.address().as_scalar());
         sig_points.push(G1Projective::from(signature.inner()));
         assert_eq!(addr_scalars.len(), parameters.threshold());
         assert_eq!(sig_points.len(), parameters.threshold());
         let global_poly = Polynomial::interpolate(&addr_scalars, &sig_points).unwrap();
         let global_sig = Signature::from(global_poly.coeffs()[0]);
-        assert!(global_sig.verify(msg, &nodes[i].global_verifying_key()));
+        assert!(global_sig.verify(msg, &node.global_verifying_key()));
     }
 
     // test n out of n signature validity

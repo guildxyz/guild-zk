@@ -8,11 +8,11 @@ pub struct Discovery;
 
 pub struct ShareGeneration {
     pub private_share: Option<Scalar>,
-    pub shares_map: BTreeMap<Address, Option<Vec<PublicShare>>>,
+    pub shares_map: BTreeMap<Address, Vec<PublicShare>>,
 }
 
 pub struct ShareCollection {
-    pub shares_map: BTreeMap<Address, Option<Vec<PublicShare>>>,
+    pub shares_map: BTreeMap<Address, Vec<PublicShare>>,
 }
 
 pub struct Finalized {

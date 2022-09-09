@@ -66,7 +66,7 @@ impl Node<ShareGeneration> {
         let mut private_poly =
             utils::random_polynomial(self.parameters.threshold(), self.phase.private_share);
         let shares = utils::generate_shares(&self.participants, &private_poly);
-        shares_map.insert(self.address, Some(shares));
+        shares_map.insert(self.address, shares);
         private_poly.zeroize();
         Node {
             parameters: self.parameters,
@@ -103,14 +103,14 @@ impl TryFrom<Node<Discovery>> for Node<ShareCollection> {
         if node.participants.len() < node.parameters.nodes() {
             return Err("not enough participants collected".to_string());
         }
-        let mut shares_map = BTreeMap::new();
-        shares_map.insert(node.address, None);
         Ok(Self {
             parameters: node.parameters,
             address: node.address,
             keypair: node.keypair,
             participants: node.participants,
-            phase: ShareCollection { shares_map },
+            phase: ShareCollection {
+                shares_map: BTreeMap::new(),
+            },
         })
     }
 }
@@ -119,15 +119,13 @@ impl Node<ShareCollection> {
     pub fn publish_share(&self) -> Option<Vec<PublicShare>> {
         // NOTE unwrap is fine because at this point we definitely have
         // a share inserted in the map
-        // This returns an Option<Option<Vec<PublicShare>>> but
-        // we only unwrap the first one
-        self.phase.shares_map.get(&self.address).unwrap().clone()
+        self.phase.shares_map.get(&self.address).cloned()
     }
 
     pub fn collect_share(
         &mut self,
         address: Address,
-        shares: Option<Vec<PublicShare>>,
+        shares: Vec<PublicShare>,
     ) -> Result<(), String> {
         if self.participants.get(&address).is_none() {
             Err("no such participant registered".to_string())
@@ -140,8 +138,8 @@ impl Node<ShareCollection> {
     }
 
     fn verify_shares(&self) -> bool {
-        for shares in self.phase.shares_map.values().filter_map(|v| v.as_ref()) {
-            for (address, share) in self.phase.shares_map.keys().zip(shares) {
+        for shares in self.phase.shares_map.values() {
+            for (address, share) in self.participants.keys().zip(shares) {
                 if !share.esh.verify(address.as_bytes(), &share.vk) {
                     return false;
                 }
@@ -150,19 +148,18 @@ impl Node<ShareCollection> {
         true
     }
 
-    fn interpolated_shvks(&self, address_scalars: &[Scalar]) -> Result<Vec<G2Projective>, String> {
+    fn interpolated_shvks(&self, id_scalars: &[Scalar]) -> Result<Vec<G2Projective>, String> {
         let mut interpolated_shvks = Vec::<G2Projective>::with_capacity(self.participants.len());
 
-        for i in 0..self.phase.shares_map.len() {
+        for i in 0..self.participants.len() {
             let shvks = self
                 .phase
                 .shares_map
                 .values()
-                .filter_map(|v| v.as_ref())
-                .map(|vec| vec[i].vk.into())
+                .map(|shares| shares[i].vk.into())
                 .collect::<Vec<G2Projective>>();
-            let poly =
-                Polynomial::interpolate(address_scalars, &shvks).map_err(|e| e.to_string())?;
+
+            let poly = Polynomial::interpolate(id_scalars, &shvks).map_err(|e| e.to_string())?;
             interpolated_shvks.push(poly.coeffs()[0]);
         }
 
@@ -170,10 +167,11 @@ impl Node<ShareCollection> {
     }
 
     fn decrypted_shsks(&self, self_index: usize) -> Vec<Scalar> {
-        let mut decrypted_shares_for_self = Vec::<Scalar>::with_capacity(self.participants.len());
-        for share_vec in self.phase.shares_map.values().filter_map(|v| v.as_ref()) {
+        let mut decrypted_shares_for_self =
+            Vec::<Scalar>::with_capacity(self.phase.shares_map.len());
+        for shares in self.phase.shares_map.values() {
             decrypted_shares_for_self.push(
-                share_vec[self_index]
+                shares[self_index]
                     .esh
                     .decrypt(self.address.as_bytes(), self.keypair.privkey()),
             );
@@ -182,35 +180,34 @@ impl Node<ShareCollection> {
     }
 
     fn recover_keys(self) -> Result<Node<Finalized>, String> {
-        let mut self_index = None;
-        let mut id_scalars = Vec::<Scalar>::with_capacity(self.parameters.nodes());
-        for (i, address) in self.phase.shares_map.keys().enumerate() {
-            if address == &self.address {
-                self_index = Some(i)
-            }
-            // in case of resharing, don't push new address (would be none)
-            if self.phase.shares_map.get(&address).unwrap().is_some() {
-                id_scalars.push(address.as_scalar());
-            }
-        }
-
-        let self_index = self_index.ok_or_else(|| "self index not found in storage".to_string())?;
-
-        let mut decrypted_shsks = self.decrypted_shsks(self_index);
-        let interpolated_shvks = self.interpolated_shvks(&id_scalars)?;
-
-        let mut shsk_poly =
-            Polynomial::interpolate(&id_scalars, &decrypted_shsks).map_err(|e| e.to_string())?;
-        let shsk = shsk_poly.coeffs()[0];
-        shsk_poly.zeroize();
-        decrypted_shsks.zeroize();
-
-        let all_id_scalars = self
+        let share_id_scalars = self
             .phase
             .shares_map
             .keys()
             .map(|address| address.as_scalar())
             .collect::<Vec<Scalar>>();
+        let mut self_index = None;
+        let all_id_scalars = self
+            .participants
+            .keys()
+            .enumerate()
+            .map(|(i, address)| {
+                if address == &self.address {
+                    self_index = Some(i);
+                }
+                address.as_scalar()
+            })
+            .collect::<Vec<Scalar>>();
+
+        let self_index = self_index.ok_or_else(|| "self index not found in storage".to_string())?;
+        let mut decrypted_shsks = self.decrypted_shsks(self_index);
+        let interpolated_shvks = self.interpolated_shvks(&share_id_scalars)?;
+
+        let mut shsk_poly = Polynomial::interpolate(&share_id_scalars, &decrypted_shsks)
+            .map_err(|e| e.to_string())?;
+        let shsk = shsk_poly.coeffs()[0];
+        shsk_poly.zeroize();
+        decrypted_shsks.zeroize();
 
         let gshvk_poly = Polynomial::interpolate(&all_id_scalars, &interpolated_shvks)
             .map_err(|e| e.to_string())?;
