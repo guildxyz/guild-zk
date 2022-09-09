@@ -5,10 +5,57 @@ use bls::G1Projective;
 fn dkg_23() {
     let mut rng = rand_core::OsRng;
     let parameters = Parameters::new(2, 3);
-    let _og_nodes = first_round(&mut rng, parameters);
-    //let new_parameters = Parameters::new(3, 4);
-    //let new_node = Node::<Discovery>::new(parameters, Keypair::random(&mut rng));
-    //todo!()
+    let mut old_nodes = first_round(&mut rng, parameters);
+    let old_global_vk = old_nodes[0].global_verifying_key(); // save for testing purposes
+    let new_parameters = Parameters::new(3, 4);
+    let mut new_node = Node::<Discovery>::new(new_parameters, Keypair::random(&mut rng));
+
+    // collect participants
+    for node in old_nodes.iter_mut() {
+        new_node.collect_participant(node.pubkey());
+        node.collect_participant(new_node.pubkey());
+    }
+
+    // old nodes initiate resharing and share collection
+    let mut nodes = old_nodes
+        .into_iter()
+        .map(|node| {
+            node.initiate_resharing(new_parameters)
+                .unwrap()
+                .initiate_share_collection()
+        })
+        .collect::<Vec<Node<ShareCollection>>>();
+
+    // don't generate shares just wait for old node's shares
+    let new_node = Node::<ShareCollection>::try_from(new_node).unwrap();
+    // add new node to the node pool
+    nodes.push(new_node);
+    // publish and collect shares (new node will publish None)
+    // TODO duplicate code (refractor into a function? But it's
+    // tricky because of both & and &mut references to nodes)
+    for i in 0..new_parameters.nodes() {
+        for j in 0..new_parameters.nodes() {
+            if i != j {
+                let address = nodes[j].address();
+                let share = nodes[j].publish_share();
+                nodes[i].collect_share(address, share).unwrap();
+            }
+        }
+    }
+    // check that the new node didn't send a share
+    for node in &nodes {
+        assert_eq!(node.participants.len(), new_parameters.nodes());
+        assert_eq!(node.phase.shares_map.len(), new_parameters.nodes());
+    }
+    // verify collected shares
+    let nodes = nodes
+        .into_iter()
+        .map(|node| Node::<Finalized>::try_from(node).unwrap())
+        .collect::<Vec<Node<Finalized>>>();
+
+    for node in nodes.iter() {
+        assert_eq!(old_global_vk, node.global_verifying_key());
+    }
 }
 
 #[test]
@@ -46,7 +93,7 @@ fn first_round(rng: &mut rand_core::OsRng, parameters: Parameters) -> Vec<Node<F
         for j in 0..parameters.nodes() {
             if i != j {
                 let address = nodes[j].address();
-                let share = nodes[j].publish_share().unwrap();
+                let share = nodes[j].publish_share();
                 nodes[i].collect_share(address, share).unwrap();
             }
         }

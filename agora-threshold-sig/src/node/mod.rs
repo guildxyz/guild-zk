@@ -66,7 +66,7 @@ impl Node<ShareGeneration> {
         let mut private_poly =
             utils::random_polynomial(self.parameters.threshold(), self.phase.private_share);
         let shares = utils::generate_shares(&self.participants, &private_poly);
-        shares_map.insert(self.address, shares);
+        shares_map.insert(self.address, Some(shares));
         private_poly.zeroize();
         Node {
             parameters: self.parameters,
@@ -103,27 +103,31 @@ impl TryFrom<Node<Discovery>> for Node<ShareCollection> {
         if node.participants.len() < node.parameters.nodes() {
             return Err("not enough participants collected".to_string());
         }
+        let mut shares_map = BTreeMap::new();
+        shares_map.insert(node.address, None);
         Ok(Self {
             parameters: node.parameters,
             address: node.address,
             keypair: node.keypair,
             participants: node.participants,
-            phase: ShareCollection {
-                shares_map: BTreeMap::new(),
-            },
+            phase: ShareCollection { shares_map },
         })
     }
 }
 
 impl Node<ShareCollection> {
     pub fn publish_share(&self) -> Option<Vec<PublicShare>> {
-        self.phase.shares_map.get(&self.address).cloned()
+        // NOTE unwrap is fine because at this point we definitely have
+        // a share inserted in the map
+        // This returns an Option<Option<Vec<PublicShare>>> but
+        // we only unwrap the first one
+        self.phase.shares_map.get(&self.address).unwrap().clone()
     }
 
     pub fn collect_share(
         &mut self,
         address: Address,
-        shares: Vec<PublicShare>,
+        shares: Option<Vec<PublicShare>>,
     ) -> Result<(), String> {
         if self.participants.get(&address).is_none() {
             Err("no such participant registered".to_string())
@@ -136,7 +140,7 @@ impl Node<ShareCollection> {
     }
 
     fn verify_shares(&self) -> bool {
-        for shares in self.phase.shares_map.values() {
+        for shares in self.phase.shares_map.values().filter_map(|v| v.as_ref()) {
             for (address, share) in self.phase.shares_map.keys().zip(shares) {
                 if !share.esh.verify(address.as_bytes(), &share.vk) {
                     return false;
@@ -154,6 +158,7 @@ impl Node<ShareCollection> {
                 .phase
                 .shares_map
                 .values()
+                .filter_map(|v| v.as_ref())
                 .map(|vec| vec[i].vk.into())
                 .collect::<Vec<G2Projective>>();
             let poly =
@@ -166,7 +171,7 @@ impl Node<ShareCollection> {
 
     fn decrypted_shsks(&self, self_index: usize) -> Vec<Scalar> {
         let mut decrypted_shares_for_self = Vec::<Scalar>::with_capacity(self.participants.len());
-        for share_vec in self.phase.shares_map.values() {
+        for share_vec in self.phase.shares_map.values().filter_map(|v| v.as_ref()) {
             decrypted_shares_for_self.push(
                 share_vec[self_index]
                     .esh
@@ -178,18 +183,16 @@ impl Node<ShareCollection> {
 
     fn recover_keys(self) -> Result<Node<Finalized>, String> {
         let mut self_index = None;
-        let id_scalars = self
-            .phase
-            .shares_map
-            .keys()
-            .enumerate()
-            .map(|(i, address)| {
-                if address == &self.address {
-                    self_index = Some(i)
-                }
-                address.as_scalar()
-            })
-            .collect::<Vec<Scalar>>();
+        let mut id_scalars = Vec::<Scalar>::with_capacity(self.parameters.nodes());
+        for (i, address) in self.phase.shares_map.keys().enumerate() {
+            if address == &self.address {
+                self_index = Some(i)
+            }
+            // in case of resharing, don't push new address (would be none)
+            if self.phase.shares_map.get(&address).unwrap().is_some() {
+                id_scalars.push(address.as_scalar());
+            }
+        }
 
         let self_index = self_index.ok_or_else(|| "self index not found in storage".to_string())?;
 
@@ -202,8 +205,15 @@ impl Node<ShareCollection> {
         shsk_poly.zeroize();
         decrypted_shsks.zeroize();
 
-        let gshvk_poly =
-            Polynomial::interpolate(&id_scalars, &interpolated_shvks).map_err(|e| e.to_string())?;
+        let all_id_scalars = self
+            .phase
+            .shares_map
+            .keys()
+            .map(|address| address.as_scalar())
+            .collect::<Vec<Scalar>>();
+
+        let gshvk_poly = Polynomial::interpolate(&all_id_scalars, &interpolated_shvks)
+            .map_err(|e| e.to_string())?;
 
         Ok(Node {
             parameters: self.parameters,
@@ -221,7 +231,7 @@ impl Node<ShareCollection> {
 impl TryFrom<Node<ShareCollection>> for Node<Finalized> {
     type Error = String;
     fn try_from(node: Node<ShareCollection>) -> Result<Self, Self::Error> {
-        if node.phase.shares_map.len() < node.parameters.nodes() {
+        if node.phase.shares_map.len() < node.parameters.threshold() {
             return Err("not enough shares collected".to_string());
         } else if !node.verify_shares() {
             return Err("invalid shares collected".to_string());
