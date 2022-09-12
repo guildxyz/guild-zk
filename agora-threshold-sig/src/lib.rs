@@ -15,6 +15,8 @@
 //
 // with $x\in\mathbb{F_p}$ and $A_i = g_2^{a_i}\in\mathbb{G_2}\ \forall i$.
 pub mod address;
+#[cfg(feature = "encryption")]
+pub mod encryption;
 pub mod hash;
 pub mod keypair;
 pub mod node;
