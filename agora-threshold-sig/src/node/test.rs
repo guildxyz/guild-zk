@@ -6,11 +6,11 @@ fn dkg_23() {
     let mut rng = rand_core::OsRng;
     let parameters = Parameters::new(2, 3);
     let old_nodes = initial_round(&mut rng, parameters);
-    test_signature(&parameters, &old_nodes);
+    test_signature_and_encryption(&mut rng, &parameters, &old_nodes);
     // resharing
     let parameters = Parameters::new(3, 4);
     let nodes = resharing(&mut rng, parameters, old_nodes);
-    test_signature(&parameters, &nodes);
+    test_signature_and_encryption(&mut rng, &parameters, &nodes);
 }
 
 #[test]
@@ -18,11 +18,11 @@ fn dkg_35() {
     let mut rng = rand_core::OsRng;
     let parameters = Parameters::new(3, 5);
     let old_nodes = initial_round(&mut rng, parameters);
-    test_signature(&parameters, &old_nodes);
+    test_signature_and_encryption(&mut rng, &parameters, &old_nodes);
     // resharing
     let parameters = Parameters::new(5, 7);
     let nodes = resharing(&mut rng, parameters, old_nodes);
-    test_signature(&parameters, &nodes);
+    test_signature_and_encryption(&mut rng, &parameters, &nodes);
 }
 
 fn resharing(
@@ -156,43 +156,72 @@ fn initial_round(rng: &mut rand_core::OsRng, parameters: Parameters) -> Vec<Node
     nodes
 }
 
-fn test_signature(parameters: &Parameters, nodes: &[Node<Finalized>]) {
+fn test_signature_and_encryption(
+    rng: &mut rand_core::OsRng,
+    parameters: &Parameters,
+    nodes: &[Node<Finalized>],
+) {
     // sign message and verify individual signatures
     let msg = b"hello world";
+    let encryption = Encryption::new(rng, msg, nodes[0].global_verifying_key()).unwrap();
     let signatures = nodes
         .iter()
         .map(|node| node.sign(msg))
         .collect::<Vec<Signature>>();
+
+    let decryption_shares = nodes
+        .iter()
+        .map(|node| node.decryption_share(&encryption))
+        .collect::<Vec<G2Projective>>();
 
     for (node, signature) in nodes.iter().zip(&signatures) {
         assert!(signature.verify(msg, &node.verifying_key()));
     }
 
     // test t of n signature validity
-    let mut subset_iterator = nodes.iter().zip(&signatures).cycle();
+    let mut subset_iterator = nodes
+        .iter()
+        .zip(&signatures)
+        .zip(&decryption_shares)
+        .cycle();
     for node in nodes {
         let mut addr_scalars = Vec::<Scalar>::with_capacity(parameters.threshold());
         let mut sig_points = Vec::<G1Projective>::with_capacity(parameters.threshold());
+        let mut decryption_points = Vec::<G2Projective>::with_capacity(parameters.threshold());
         for _ in 0..parameters.threshold() - 1 {
             // NOTE unwrap is fine because we cycle the iterator "endlessly"
-            let (subset_node, signature) = subset_iterator.next().unwrap();
+            let ((subset_node, signature), decryption_share) = subset_iterator.next().unwrap();
             addr_scalars.push(subset_node.address().as_scalar());
             sig_points.push(G1Projective::from(signature.inner()));
+            decryption_points.push(*decryption_share);
 
             // reject signature with not enough signers
             let global_poly = Polynomial::interpolate(&addr_scalars, &sig_points).unwrap();
             let global_sig = Signature::from(global_poly.coeffs()[0]);
             assert!(!global_sig.verify(msg, &node.global_verifying_key()));
+            let global_poly = Polynomial::interpolate(&addr_scalars, &decryption_points).unwrap();
+            let decryption_key = global_poly.coeffs()[0];
+            assert!(encryption
+                .decrypt_with_pubkey(&decryption_key.into())
+                .is_err());
         }
         // reaching threshold now
-        let (subset_node, signature) = subset_iterator.next().unwrap();
+        let ((subset_node, signature), decryption_share) = subset_iterator.next().unwrap();
         addr_scalars.push(subset_node.address().as_scalar());
         sig_points.push(G1Projective::from(signature.inner()));
+        decryption_points.push(*decryption_share);
         assert_eq!(addr_scalars.len(), parameters.threshold());
         assert_eq!(sig_points.len(), parameters.threshold());
+        assert_eq!(decryption_points.len(), parameters.threshold());
         let global_poly = Polynomial::interpolate(&addr_scalars, &sig_points).unwrap();
         let global_sig = Signature::from(global_poly.coeffs()[0]);
         assert!(global_sig.verify(msg, &node.global_verifying_key()));
+        let global_poly = Polynomial::interpolate(&addr_scalars, &decryption_points).unwrap();
+        let decryption_key = global_poly.coeffs()[0];
+        let decrypted = encryption
+            .decrypt_with_pubkey(&decryption_key.into())
+            .unwrap();
+        assert_eq!(decrypted, msg);
     }
 
     // test n out of n signature validity
@@ -207,4 +236,10 @@ fn test_signature(parameters: &Parameters, nodes: &[Node<Finalized>]) {
     let global_poly = Polynomial::interpolate(&addr_scalars, &sig_points).unwrap();
     let global_sig = Signature::from(global_poly.coeffs()[0]);
     assert!(global_sig.verify(msg, &nodes[0].global_verifying_key()));
+    let global_poly = Polynomial::interpolate(&addr_scalars, &decryption_shares).unwrap();
+    let decryption_key = global_poly.coeffs()[0];
+    let decrypted = encryption
+        .decrypt_with_pubkey(&decryption_key.into())
+        .unwrap();
+    assert_eq!(decrypted, msg);
 }

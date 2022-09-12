@@ -8,6 +8,7 @@ pub use parameters::Parameters;
 pub use phase::{Discovery, Finalized, ShareCollection, ShareGeneration};
 
 use crate::address::Address;
+use crate::encryption::Encryption;
 use crate::keypair::Keypair;
 use crate::share::PublicShare;
 use crate::signature::Signature;
@@ -248,6 +249,10 @@ impl Node<Finalized> {
 
     pub fn sign(&self, msg: &[u8]) -> Signature {
         self.phase.share_keypair.sign(msg)
+    }
+
+    pub fn decryption_share(&self, encryption: &Encryption) -> G2Projective {
+        encryption.ephemeral_pubkey * self.phase.share_keypair.privkey()
     }
 
     pub fn initiate_resharing(
