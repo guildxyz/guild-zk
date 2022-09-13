@@ -1,7 +1,7 @@
 use crate::address::Address;
 use crate::share::{EncryptedShare, PublicShare};
 use agora_interpolate::Polynomial;
-use bls::{G2Affine, Scalar};
+use bls::{G2Affine, G2Projective, Scalar};
 use ff::Field;
 
 use std::collections::BTreeMap;
@@ -38,4 +38,41 @@ pub fn generate_shares(
             }
         })
         .collect::<Vec<PublicShare>>()
+}
+
+pub fn interpolated_shvks(
+    participants: usize,
+    id_scalars: &[Scalar],
+    shares_map: &BTreeMap<Address, Vec<PublicShare>>,
+) -> Result<Vec<G2Projective>, String> {
+    let mut interpolated_shvks = Vec::<G2Projective>::with_capacity(participants);
+
+    for i in 0..participants {
+        let shvks = shares_map
+            .values()
+            .map(|shares| shares[i].vk.into())
+            .collect::<Vec<G2Projective>>();
+
+        let poly = Polynomial::interpolate(id_scalars, &shvks).map_err(|e| e.to_string())?;
+        interpolated_shvks.push(poly.coeffs()[0]);
+    }
+
+    Ok(interpolated_shvks)
+}
+
+pub fn decrypted_shsks(
+    self_index: usize,
+    self_address_bytes: &[u8; 32],
+    self_privkey: &Scalar,
+    shares_map: &BTreeMap<Address, Vec<PublicShare>>,
+) -> Vec<Scalar> {
+    let mut decrypted_shares_for_self = Vec::<Scalar>::with_capacity(shares_map.len());
+    for shares in shares_map.values() {
+        decrypted_shares_for_self.push(
+            shares[self_index]
+                .esh
+                .decrypt(self_address_bytes, self_privkey),
+        );
+    }
+    decrypted_shares_for_self
 }

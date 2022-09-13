@@ -149,37 +149,6 @@ impl Node<ShareCollection> {
         true
     }
 
-    fn interpolated_shvks(&self, id_scalars: &[Scalar]) -> Result<Vec<G2Projective>, String> {
-        let mut interpolated_shvks = Vec::<G2Projective>::with_capacity(self.participants.len());
-
-        for i in 0..self.participants.len() {
-            let shvks = self
-                .phase
-                .shares_map
-                .values()
-                .map(|shares| shares[i].vk.into())
-                .collect::<Vec<G2Projective>>();
-
-            let poly = Polynomial::interpolate(id_scalars, &shvks).map_err(|e| e.to_string())?;
-            interpolated_shvks.push(poly.coeffs()[0]);
-        }
-
-        Ok(interpolated_shvks)
-    }
-
-    fn decrypted_shsks(&self, self_index: usize) -> Vec<Scalar> {
-        let mut decrypted_shares_for_self =
-            Vec::<Scalar>::with_capacity(self.phase.shares_map.len());
-        for shares in self.phase.shares_map.values() {
-            decrypted_shares_for_self.push(
-                shares[self_index]
-                    .esh
-                    .decrypt(self.address.as_bytes(), self.keypair.privkey()),
-            );
-        }
-        decrypted_shares_for_self
-    }
-
     fn recover_keys(self) -> Result<Node<Finalized>, String> {
         let share_id_scalars = self
             .phase
@@ -201,8 +170,17 @@ impl Node<ShareCollection> {
             .collect::<Vec<Scalar>>();
 
         let self_index = self_index.ok_or_else(|| "self index not found in storage".to_string())?;
-        let mut decrypted_shsks = self.decrypted_shsks(self_index);
-        let interpolated_shvks = self.interpolated_shvks(&share_id_scalars)?;
+        let mut decrypted_shsks = utils::decrypted_shsks(
+            self_index,
+            self.address.as_bytes(),
+            self.keypair.privkey(),
+            &self.phase.shares_map,
+        );
+        let interpolated_shvks = utils::interpolated_shvks(
+            self.participants.len(),
+            &share_id_scalars,
+            &self.phase.shares_map,
+        )?;
 
         let mut shsk_poly = Polynomial::interpolate(&share_id_scalars, &decrypted_shsks)
             .map_err(|e| e.to_string())?;
