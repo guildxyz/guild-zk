@@ -22,6 +22,12 @@ impl From<[u8; 32]> for Address {
     }
 }
 
+impl std::fmt::Display for Address {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", hex::encode(self.0))
+    }
+}
+
 impl Address {
     pub fn as_bytes(&self) -> &[u8; 32] {
         &self.0

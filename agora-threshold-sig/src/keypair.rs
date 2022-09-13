@@ -2,6 +2,14 @@ use crate::signature::Signature;
 use bls::{G2Affine, Scalar};
 use ff::Field;
 use rand_core::{CryptoRng, RngCore};
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
+pub enum KeypairError {
+    #[error("pubkey-privkey mismatch")]
+    InvalidKeypair,
+}
 
 pub struct Keypair {
     privkey: Scalar,
@@ -16,11 +24,11 @@ impl Keypair {
         }
     }
 
-    pub fn new_checked(privkey: Scalar, pubkey: G2Affine) -> Result<Self, String> {
-        if pubkey == (G2Affine::generator() * privkey).into() {
-            Ok(Self { privkey, pubkey })
+    pub fn new_checked(privkey: Scalar, pubkey: G2Affine) -> Result<Self, KeypairError> {
+        if pubkey != (G2Affine::generator() * privkey).into() {
+            Err(KeypairError::InvalidKeypair)
         } else {
-            Err("invalid keypair".to_string())
+            Ok(Self { privkey, pubkey })
         }
     }
 

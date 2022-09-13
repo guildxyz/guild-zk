@@ -15,6 +15,7 @@ use crate::keypair::Keypair;
 use crate::share::PublicShare;
 use crate::signature::Signature;
 
+use anyhow::ensure;
 use bls::{G2Affine, G2Projective};
 use zeroize::Zeroize;
 
@@ -62,7 +63,7 @@ impl Node<Discovery> {
 }
 
 impl TryFrom<Node<ShareGeneration>> for Node<ShareCollection> {
-    type Error = String;
+    type Error = anyhow::Error;
     fn try_from(node: Node<ShareGeneration>) -> Result<Self, Self::Error> {
         // generate own shares first
         let mut shares_map = node.phase.shares_map;
@@ -129,15 +130,16 @@ impl Node<ShareCollection> {
         &mut self,
         address: Address,
         shares: Vec<PublicShare>,
-    ) -> Result<(), String> {
-        if self.participants.get(&address).is_none() {
-            Err("no such participant registered".to_string())
-        } else {
-            self.phase.shares_map.insert(address, shares)
-        }
+    ) -> Result<(), anyhow::Error> {
+        ensure!(
+            self.participants.get(&address).is_some(),
+            "no such participant registered"
+        );
+        self.phase.shares_map.insert(address, shares)?;
+        Ok(())
     }
 
-    fn finalize(self) -> Result<Node<Finalized>, String> {
+    fn finalize(self) -> Result<Node<Finalized>, anyhow::Error> {
         let phase = self.phase.shares_map.recover_keys(
             &self.address,
             self.keypair.privkey(),
@@ -155,11 +157,12 @@ impl Node<ShareCollection> {
 }
 
 impl TryFrom<Node<ShareCollection>> for Node<Finalized> {
-    type Error = String;
+    type Error = anyhow::Error;
     fn try_from(node: Node<ShareCollection>) -> Result<Self, Self::Error> {
-        if node.phase.shares_map.map().len() < node.parameters.threshold() {
-            return Err("not enough shares collected".to_string());
-        }
+        ensure!(
+            node.phase.shares_map.map().len() >= node.parameters.threshold(),
+            "not enough shares collected"
+        );
         node.finalize()
     }
 }
