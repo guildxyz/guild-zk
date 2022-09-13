@@ -184,6 +184,64 @@ mod test {
     use crate::share::EncryptedShare;
     use bls::G1Affine;
 
+    #[rustfmt::skip]
+    const ADDRESSES: &[Address; 4] = &[
+        Address::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]),
+        Address::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2]),
+        Address::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3]),
+        Address::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4]),
+    ];
+
+    const THRESHOLD: usize = 3;
+    const START: usize = 2;
+
+    // everything will be encrypted with this keypair
+    fn test_keypair() -> Keypair {
+        Keypair::new(Scalar::from(2))
+    }
+
+    fn test_polynomials() -> (Polynomial<Scalar>, Polynomial<G2Projective>) {
+        let mut scalars = Vec::<Scalar>::with_capacity(THRESHOLD);
+        let mut points = Vec::<G2Projective>::with_capacity(THRESHOLD);
+        for i in 0..THRESHOLD {
+            let scalar = Scalar::from((START + i) as u64);
+            let point = G2Affine::generator() * scalar;
+            scalars.push(scalar);
+            points.push(point);
+        }
+        (Polynomial::new(scalars), Polynomial::new(points))
+    }
+
+    fn build_test_map() -> SharesMap {
+        let keypair = test_keypair();
+        let mut rng = rand_core::OsRng;
+        let mut shares_map = SharesMap::new(ADDRESSES.len());
+
+        for address in ADDRESSES {
+            let (private_poly, public_poly) = test_polynomials();
+            let shares = ADDRESSES
+                .iter()
+                .map(|address| {
+                    let public_share = public_poly.evaluate(address.as_scalar());
+                    let private_share = private_poly.evaluate(address.as_scalar());
+                    let esh = EncryptedShare::new(
+                        &mut rng,
+                        address.as_bytes(),
+                        &keypair.pubkey(),
+                        &private_share,
+                    );
+                    PublicShare {
+                        vk: public_share.into(),
+                        esh,
+                    }
+                })
+                .collect::<Vec<PublicShare>>();
+            shares_map.insert(*address, shares).unwrap();
+        }
+
+        shares_map
+    }
+
     #[test]
     fn insert_shares() {
         fn default_share_vec(len: usize) -> Vec<PublicShare> {
@@ -243,5 +301,31 @@ mod test {
     }
 
     #[test]
-    fn interpolate_share_vks() {}
+    fn key_recovery() {
+        let shares_map = build_test_map();
+        let scalars = ADDRESSES
+            .iter()
+            .map(|address| address.as_scalar())
+            .collect::<Vec<Scalar>>();
+        let interpolated_shvks = shares_map.interpolated_shvks(&scalars).unwrap();
+        //let p = Polynomial::interpolate(&[
+        //    Scalar::from(1),
+        //    Scalar::from(2),
+        //    Scalar::from(3),
+        //    Scalar::from(4),
+        //], &[
+        //    Scalar::from(10),
+        //    Scalar::from(18),
+        //    Scalar::from(27),
+        //    Scalar::from(36),
+        //]).unwrap();
+        //dbg!(p.coeffs());
+        //assert!(false);
+        let expected_scalars = [Scalar::from(4); 4];
+        for (shvk, expected_scalar) in interpolated_shvks.iter().zip(&expected_scalars) {
+            println!("HELLO");
+            let expected = G2Affine::generator() * expected_scalar;
+            assert_eq!(&expected, shvk)
+        }
+    }
 }

@@ -1,4 +1,4 @@
-//#![deny(warnings)]
+#![deny(warnings)]
 #![deny(clippy::all)]
 #![deny(clippy::dbg_macro)]
 
