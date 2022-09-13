@@ -61,24 +61,23 @@ impl Node<Discovery> {
     }
 }
 
-impl Node<ShareGeneration> {
-    pub fn initiate_share_collection(self) -> Node<ShareCollection> {
+impl TryFrom<Node<ShareGeneration>> for Node<ShareCollection> {
+    type Error = String;
+    fn try_from(node: Node<ShareGeneration>) -> Result<Self, Self::Error> {
         // generate own shares first
-        let mut sh_map = BTreeMap::new();
+        let mut shares_map = node.phase.shares_map;
         let mut private_poly =
-            utils::random_polynomial(self.parameters.threshold(), self.phase.private_share);
-        let shares = utils::generate_shares(&self.participants, &private_poly);
-        sh_map.insert(self.address, shares);
+            utils::random_polynomial(node.parameters.threshold(), node.phase.private_share);
+        let shares = utils::generate_shares(&node.participants, &private_poly);
+        shares_map.insert(node.address, shares)?;
         private_poly.zeroize();
-        Node {
-            parameters: self.parameters,
-            address: self.address,
-            keypair: self.keypair,
-            participants: self.participants,
-            phase: ShareCollection {
-                shares_map: SharesMap::new(sh_map),
-            },
-        }
+        Ok(Node {
+            parameters: node.parameters,
+            address: node.address,
+            keypair: node.keypair,
+            participants: node.participants,
+            phase: ShareCollection { shares_map },
+        })
     }
 }
 
@@ -95,7 +94,7 @@ impl TryFrom<Node<Discovery>> for Node<ShareGeneration> {
             participants: node.participants,
             phase: ShareGeneration {
                 private_share: None,
-                shares_map: SharesMap::new(BTreeMap::new()),
+                shares_map: SharesMap::new(node.parameters.nodes()),
             },
         })
     }
@@ -113,7 +112,7 @@ impl TryFrom<Node<Discovery>> for Node<ShareCollection> {
             keypair: node.keypair,
             participants: node.participants,
             phase: ShareCollection {
-                shares_map: SharesMap::new(BTreeMap::new()),
+                shares_map: SharesMap::new(node.parameters.nodes()),
             },
         })
     }
@@ -123,7 +122,7 @@ impl Node<ShareCollection> {
     pub fn publish_share(&self) -> Option<Vec<PublicShare>> {
         // NOTE unwrap is fine because at this point we definitely have
         // a share inserted in the map
-        self.phase.shares_map.inner().get(&self.address).cloned()
+        self.phase.shares_map.map().get(&self.address).cloned()
     }
 
     pub fn collect_share(
@@ -133,23 +132,9 @@ impl Node<ShareCollection> {
     ) -> Result<(), String> {
         if self.participants.get(&address).is_none() {
             Err("no such participant registered".to_string())
-        } else if self.phase.shares_map.inner().get(&address).is_none() {
-            self.phase.shares_map.inner_mut().insert(address, shares);
-            Ok(())
         } else {
-            Err("share already collected from this participant".to_string())
+            self.phase.shares_map.insert(address, shares)
         }
-    }
-
-    fn verify_shares(&self) -> bool {
-        for shares in self.phase.shares_map.inner().values() {
-            for (address, share) in self.participants.keys().zip(shares) {
-                if !share.esh.verify(address.as_bytes(), &share.vk) {
-                    return false;
-                }
-            }
-        }
-        true
     }
 
     fn finalize(self) -> Result<Node<Finalized>, String> {
@@ -172,10 +157,8 @@ impl Node<ShareCollection> {
 impl TryFrom<Node<ShareCollection>> for Node<Finalized> {
     type Error = String;
     fn try_from(node: Node<ShareCollection>) -> Result<Self, Self::Error> {
-        if node.phase.shares_map.inner().len() < node.parameters.threshold() {
+        if node.phase.shares_map.map().len() < node.parameters.threshold() {
             return Err("not enough shares collected".to_string());
-        } else if !node.verify_shares() {
-            return Err("invalid shares collected".to_string());
         }
         node.finalize()
     }
@@ -214,7 +197,7 @@ impl Node<Finalized> {
             participants: self.participants,
             phase: ShareGeneration {
                 private_share: Some(*self.phase.share_keypair.privkey()),
-                shares_map: SharesMap::new(BTreeMap::new()),
+                shares_map: SharesMap::new(parameters.nodes()),
             },
         })
     }

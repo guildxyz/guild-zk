@@ -61,7 +61,8 @@ fn resharing(
         .map(|node| {
             node.initiate_resharing(parameters)
                 .unwrap()
-                .initiate_share_collection()
+                .try_into()
+                .unwrap()
         })
         .collect::<Vec<Node<ShareCollection>>>();
 
@@ -90,7 +91,7 @@ fn resharing(
 
     for node in &nodes {
         assert_eq!(node.participants.len(), parameters.nodes());
-        assert_eq!(node.phase.shares_map.inner().len(), parameters.nodes() - n);
+        assert_eq!(node.phase.shares_map.map().len(), parameters.nodes() - n);
     }
 
     // verify collected shares
@@ -126,7 +127,8 @@ fn initial_round(rng: &mut rand_core::OsRng, parameters: Parameters) -> Vec<Node
         .map(|node| {
             Node::<ShareGeneration>::try_from(node)
                 .unwrap()
-                .initiate_share_collection()
+                .try_into()
+                .unwrap()
         })
         .collect::<Vec<Node<ShareCollection>>>();
     // publish and collect shares
@@ -142,7 +144,7 @@ fn initial_round(rng: &mut rand_core::OsRng, parameters: Parameters) -> Vec<Node
     }
     for node in &nodes {
         assert_eq!(node.participants.len(), parameters.nodes());
-        assert_eq!(node.phase.shares_map.inner().len(), parameters.nodes());
+        assert_eq!(node.phase.shares_map.map().len(), parameters.nodes());
     }
     // verify collected shares
     let nodes = nodes

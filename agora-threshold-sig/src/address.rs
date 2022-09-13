@@ -16,6 +16,12 @@ impl From<&G2Affine> for Address {
     }
 }
 
+impl From<[u8; 32]> for Address {
+    fn from(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
+}
+
 impl Address {
     pub fn as_bytes(&self) -> &[u8; 32] {
         &self.0
