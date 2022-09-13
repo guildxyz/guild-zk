@@ -1,5 +1,6 @@
 use super::*;
-use bls::G1Projective;
+use agora_interpolate::Polynomial;
+use bls::{G1Projective, Scalar};
 
 #[test]
 fn dkg_23() {
@@ -89,7 +90,7 @@ fn resharing(
 
     for node in &nodes {
         assert_eq!(node.participants.len(), parameters.nodes());
-        assert_eq!(node.phase.shares_map.len(), parameters.nodes() - n);
+        assert_eq!(node.phase.shares_map.inner().len(), parameters.nodes() - n);
     }
 
     // verify collected shares
@@ -141,7 +142,7 @@ fn initial_round(rng: &mut rand_core::OsRng, parameters: Parameters) -> Vec<Node
     }
     for node in &nodes {
         assert_eq!(node.participants.len(), parameters.nodes());
-        assert_eq!(node.phase.shares_map.len(), parameters.nodes());
+        assert_eq!(node.phase.shares_map.inner().len(), parameters.nodes());
     }
     // verify collected shares
     let nodes = nodes

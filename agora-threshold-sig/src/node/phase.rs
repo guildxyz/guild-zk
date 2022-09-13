@@ -1,18 +1,17 @@
-use crate::address::Address;
+use super::shares_map::SharesMap;
 use crate::keypair::Keypair;
-use crate::share::PublicShare;
+
 use bls::{G2Affine, Scalar};
-use std::collections::BTreeMap;
 
 pub struct Discovery;
 
 pub struct ShareGeneration {
     pub private_share: Option<Scalar>,
-    pub shares_map: BTreeMap<Address, Vec<PublicShare>>,
+    pub shares_map: SharesMap,
 }
 
 pub struct ShareCollection {
-    pub shares_map: BTreeMap<Address, Vec<PublicShare>>,
+    pub shares_map: SharesMap,
 }
 
 pub struct Finalized {

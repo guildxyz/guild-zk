@@ -108,7 +108,7 @@ mod test {
             .collect::<Vec<Scalar>>();
         let public_coeffs = private_coeffs
             .iter()
-            .map(|s| &G2Affine::generator() * s)
+            .map(|s| G2Affine::generator() * s)
             .collect::<Vec<G2Projective>>();
 
         let private_poly = Polynomial::new(private_coeffs);
@@ -131,7 +131,7 @@ mod test {
         // collect decryption key shares
         let decryption_shares = share_keypairs
             .iter()
-            .map(|keypair| &encryption.ephemeral_pubkey * keypair.privkey())
+            .map(|keypair| encryption.ephemeral_pubkey * keypair.privkey())
             .collect::<Vec<G2Projective>>();
         // interpolate to get the decryption key
         let decryption_pubkey = Polynomial::interpolate(&id_vec, &decryption_shares)
