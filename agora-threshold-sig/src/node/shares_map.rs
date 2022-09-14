@@ -40,6 +40,7 @@ pub enum SharesMapError {
 ///
 /// It also contains the total number of participants which is used to check
 /// that only valid length public share vectors are inserted in the map.
+#[derive(Clone, Debug)]
 pub struct SharesMap {
     map: BTreeMap<Address, Vec<PublicShare>>,
     share_vec_len: usize,
@@ -219,12 +220,18 @@ mod test {
             .collect()
     }
 
-    // NOTE test map will look like this:
-    // Node        Polynomial  Node 1 shares  Node 2 shares  Node 3 shares  Node 4 shares
-    //    1     2 + 3x + 4x^2              9             24             47             78
-    //    2     5 + 6x + 7x^2             18             45             86            141
-    //    3    8 + 9x + 10x^2             27             66            125            204
-    //    4  11 + 12x + 13x^2             36             87            164            267
+    // NOTE test map will look like this: These are the secret shares generated
+    // by each node for themselves and others (by evaluating the polynomial at
+    // the node identifier, i.e. the address as a scalar). The test map
+    // actually consists of the public parts of these scalars, i.e. the
+    // respective point on the curve and the secret share encrypted by the
+    // recipient's public key
+    //
+    // Address        Polynomial  Node 1 shares  Node 2 shares  Node 3 shares  Node 4 shares
+    //       1     2 + 3x + 4x^2              9             24             47             78
+    //       2     5 + 6x + 7x^2             18             45             86            141
+    //       3    8 + 9x + 10x^2             27             66            125            204
+    //       4  11 + 12x + 13x^2             36             87            164            267
     fn build_test_map(keypair: &Keypair) -> SharesMap {
         let mut rng = rand_core::OsRng;
         let mut shares_map = SharesMap::new(ADDRESSES.len());
@@ -313,10 +320,12 @@ mod test {
     }
 
     #[test]
-    fn key_recovery() {
+    fn key_recovery_utils() {
         let test_keypair = test_keypair();
         let shares_map = build_test_map(&test_keypair);
         let participants = test_participants();
+        shares_map.verify_shares(&participants);
+
         let scalars = participants
             .keys()
             .map(|address| address.as_scalar())
@@ -333,22 +342,43 @@ mod test {
             assert_eq!(&expected_public, shvk)
         }
 
-        //for (i, address) in ADDRESSES.iter().enumerate() {
-        //    let decrypted_shsks = shares_map.decrypted_shsks(i, address.as_bytes(), test_keypair.privkey()).unwrap();
-        //    println!("{:?}", decrypted_shsks);
-        //}
-        //let p = Polynomial::interpolate(&[
-        //    Scalar::from(1),
-        //    Scalar::from(2),
-        //    Scalar::from(3),
-        //    Scalar::from(4),
-        //], &[
-        //    Scalar::from(78),
-        //    Scalar::from(141),
-        //    Scalar::from(204),
-        //    Scalar::from(267),
-        //]).unwrap();
-        //dbg!(p.coeffs());
-        //assert!(false);
+        #[rustfmt::skip]
+        let expected_secret_evals_array = [
+            [Scalar::from(9), Scalar::from(18), Scalar::from(27), Scalar::from(36)],
+            [Scalar::from(24), Scalar::from(45), Scalar::from(66), Scalar::from(87)],
+            [Scalar::from(47), Scalar::from(86), Scalar::from(125), Scalar::from(164)],
+            [Scalar::from(78), Scalar::from(141), Scalar::from(204), Scalar::from(267)],
+        ];
+
+        for (i, (address, expected_secret_evals)) in ADDRESSES
+            .iter()
+            .zip(&expected_secret_evals_array)
+            .enumerate()
+        {
+            let decrypted_shsks = shares_map
+                .decrypted_shsks(i, address.as_bytes(), test_keypair.privkey())
+                .unwrap();
+            assert_eq!(&decrypted_shsks, expected_secret_evals);
+        }
+    }
+
+    #[test]
+    fn key_recovery() {
+        let expected_secrets = [
+            Scalar::from(0),
+            Scalar::from(3),
+            Scalar::from(8),
+            Scalar::from(15),
+        ];
+        let test_keypair = test_keypair();
+        let shares_map = build_test_map(&test_keypair);
+        let participants = test_participants();
+        for (address, expected_secret) in participants.keys().zip(&expected_secrets) {
+            let keys = shares_map
+                .clone()
+                .recover_keys(address, test_keypair.privkey(), &participants)
+                .unwrap();
+            assert_eq!(expected_secret, keys.share_keypair.privkey());
+        }
     }
 }
