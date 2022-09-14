@@ -186,10 +186,10 @@ mod test {
 
     #[rustfmt::skip]
     const ADDRESSES: &[Address; 4] = &[
-        Address::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]),
-        Address::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2]),
-        Address::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3]),
-        Address::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4]),
+        Address::new([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+        Address::new([2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+        Address::new([3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+        Address::new([4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
     ];
 
     const THRESHOLD: usize = 3;
@@ -200,11 +200,11 @@ mod test {
         Keypair::new(Scalar::from(2))
     }
 
-    fn test_polynomials() -> (Polynomial<Scalar>, Polynomial<G2Projective>) {
+    fn test_polynomials(start: usize) -> (Polynomial<Scalar>, Polynomial<G2Projective>) {
         let mut scalars = Vec::<Scalar>::with_capacity(THRESHOLD);
         let mut points = Vec::<G2Projective>::with_capacity(THRESHOLD);
         for i in 0..THRESHOLD {
-            let scalar = Scalar::from((START + i) as u64);
+            let scalar = Scalar::from((start + i) as u64);
             let point = G2Affine::generator() * scalar;
             scalars.push(scalar);
             points.push(point);
@@ -212,13 +212,25 @@ mod test {
         (Polynomial::new(scalars), Polynomial::new(points))
     }
 
-    fn build_test_map() -> SharesMap {
-        let keypair = test_keypair();
+    fn test_participants() -> BTreeMap<Address, G2Affine> {
+        ADDRESSES
+            .iter()
+            .map(|address| (*address, G2Affine::generator()))
+            .collect()
+    }
+
+    // NOTE test map will look like this:
+    // Node        Polynomial  Node 1 shares  Node 2 shares  Node 3 shares  Node 4 shares
+    //    1     2 + 3x + 4x^2              9             24             47             78
+    //    2     5 + 6x + 7x^2             18             45             86            141
+    //    3    8 + 9x + 10x^2             27             66            125            204
+    //    4  11 + 12x + 13x^2             36             87            164            267
+    fn build_test_map(keypair: &Keypair) -> SharesMap {
         let mut rng = rand_core::OsRng;
         let mut shares_map = SharesMap::new(ADDRESSES.len());
 
-        for address in ADDRESSES {
-            let (private_poly, public_poly) = test_polynomials();
+        for (i, address) in ADDRESSES.iter().enumerate() {
+            let (private_poly, public_poly) = test_polynomials(START + i * THRESHOLD);
             let shares = ADDRESSES
                 .iter()
                 .map(|address| {
@@ -302,30 +314,41 @@ mod test {
 
     #[test]
     fn key_recovery() {
-        let shares_map = build_test_map();
-        let scalars = ADDRESSES
-            .iter()
+        let test_keypair = test_keypair();
+        let shares_map = build_test_map(&test_keypair);
+        let participants = test_participants();
+        let scalars = participants
+            .keys()
             .map(|address| address.as_scalar())
             .collect::<Vec<Scalar>>();
         let interpolated_shvks = shares_map.interpolated_shvks(&scalars).unwrap();
+        let expected_secrets = [
+            Scalar::from(0),
+            Scalar::from(3),
+            Scalar::from(8),
+            Scalar::from(15),
+        ];
+        for (shvk, expected_secret) in interpolated_shvks.iter().zip(&expected_secrets) {
+            let expected_public = G2Affine::generator() * expected_secret;
+            assert_eq!(&expected_public, shvk)
+        }
+
+        //for (i, address) in ADDRESSES.iter().enumerate() {
+        //    let decrypted_shsks = shares_map.decrypted_shsks(i, address.as_bytes(), test_keypair.privkey()).unwrap();
+        //    println!("{:?}", decrypted_shsks);
+        //}
         //let p = Polynomial::interpolate(&[
         //    Scalar::from(1),
         //    Scalar::from(2),
         //    Scalar::from(3),
         //    Scalar::from(4),
         //], &[
-        //    Scalar::from(10),
-        //    Scalar::from(18),
-        //    Scalar::from(27),
-        //    Scalar::from(36),
+        //    Scalar::from(78),
+        //    Scalar::from(141),
+        //    Scalar::from(204),
+        //    Scalar::from(267),
         //]).unwrap();
         //dbg!(p.coeffs());
         //assert!(false);
-        let expected_scalars = [Scalar::from(4); 4];
-        for (shvk, expected_scalar) in interpolated_shvks.iter().zip(&expected_scalars) {
-            println!("HELLO");
-            let expected = G2Affine::generator() * expected_scalar;
-            assert_eq!(&expected, shvk)
-        }
     }
 }

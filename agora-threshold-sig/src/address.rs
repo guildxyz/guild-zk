@@ -42,6 +42,9 @@ impl Address {
         // NOTE unwrap is fine because a valid address
         // can only be created from a Scalar type via
         // hash_to_fp
+        //
+        // NOTE Scalar is generated from little endian
+        // representation
         Scalar::from_bytes(&self.0).unwrap()
     }
 }
