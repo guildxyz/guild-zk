@@ -3,6 +3,22 @@ use agora_interpolate::Polynomial;
 use bls::{G1Projective, Scalar};
 
 #[test]
+fn dkg_11() {
+    let mut rng = rand_core::OsRng;
+    let parameters = Parameters::new(1, 1);
+    let old_nodes = initial_round(&mut rng, parameters);
+    test_signature_and_encryption(&mut rng, &parameters, &old_nodes);
+    // resharing
+    let parameters = Parameters::new(1, 2);
+    let next_nodes = resharing(&mut rng, parameters, old_nodes);
+    test_signature_and_encryption(&mut rng, &parameters, &next_nodes);
+    // resharing
+    let parameters = Parameters::new(2, 3);
+    let final_nodes = resharing(&mut rng, parameters, next_nodes);
+    test_signature_and_encryption(&mut rng, &parameters, &final_nodes);
+}
+
+#[test]
 fn dkg_23() {
     let mut rng = rand_core::OsRng;
     let parameters = Parameters::new(2, 3);
