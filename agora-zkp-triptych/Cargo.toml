@@ -14,6 +14,7 @@ hex = "0.4"
 k256 = { version = "0.11", default-features = false, features = ["arithmetic", "pem", "pkcs8", "serde"] }
 rand_core = { version = "0.6.3", default-features = false, features = ["getrandom"] }
 serde = { version = "1", features = ["derive"] }
+serde-wasm-bindgen = "0.4.3"
 sha3 = "0.10"
-wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
+wasm-bindgen = "0.2"
 zeroize = "1.5.6"

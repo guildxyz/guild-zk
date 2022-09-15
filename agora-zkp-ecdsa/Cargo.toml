@@ -15,9 +15,10 @@ num-integer = { version = "0.1", default-features = false }
 rand_core = { version = "0.6.3", default-features = false }
 getrandom = { version = "0.2", features = ["js"] }
 serde = { version = "1", features = ["derive"], default-features = false }
+serde-wasm-bindgen = "0.4.3"
 serdect = "0.1.0"
 sha3 = "0.10.1"
-wasm-bindgen = { version = "0.2.80", features = ["serde-serialize"] }
+wasm-bindgen = "0.2.80"
 
 [dev-dependencies]
 criterion = "0.3.5"

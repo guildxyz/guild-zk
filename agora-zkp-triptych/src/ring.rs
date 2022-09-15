@@ -19,7 +19,7 @@ pub fn parse_ring(frontend_ring: FrontendRing) -> Result<Ring, String> {
 fn parse_pubkey(pk_string: &str) -> Result<AffinePoint, String> {
     let mut bytes = [0u8; 64];
     hex::decode_to_slice(
-        &pk_string.trim_start_matches("0x").trim_start_matches("04"),
+        pk_string.trim_start_matches("0x").trim_start_matches("04"),
         &mut bytes,
     )
     .map_err(|e| e.to_string())?;
