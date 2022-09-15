@@ -1,5 +1,5 @@
 [package]
-name = "agora-threshold-sig"
+name = "agora-dkg"
 version = "0.0.1-alpha"
 edition = "2021"
 
