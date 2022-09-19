@@ -1,39 +1,49 @@
 use crate::{Interpolate, InterpolationError};
 use std::ops::{AddAssign, Mul, MulAssign, Neg, SubAssign};
+#[cfg(feature = "zeroize-poly")]
+use zeroize::Zeroize;
 
+#[cfg_attr(feature = "zeroize-poly", derive(Zeroize))]
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Polynomial<T> {
-    coeffs: Vec<T>,
+pub struct Polynomial<Y> {
+    coeffs: Vec<Y>,
 }
 
-impl<T> Polynomial<T> {
-    pub fn new(coeffs: Vec<T>) -> Self {
+impl<Y> Polynomial<Y> {
+    pub fn new(coeffs: Vec<Y>) -> Self {
         Self { coeffs }
     }
 
-    pub fn coeffs(&self) -> &[T] {
+    pub fn coeffs(&self) -> &[Y] {
         &self.coeffs
     }
 
-    pub fn into_coeffs(self) -> Vec<T> {
+    pub fn into_coeffs(self) -> Vec<Y> {
         self.coeffs
     }
 }
 
-impl<T> Polynomial<T>
-where
-    T: Interpolate + Copy + Mul<Output = T> + Neg<Output = T> + AddAssign + SubAssign + MulAssign,
-{
-    pub fn interpolate(x: &[T], y: &[T]) -> Result<Self, InterpolationError> {
+impl<Y> Polynomial<Y> {
+    pub fn interpolate<X>(x: &[X], y: &[Y]) -> Result<Self, InterpolationError>
+    where
+        Y: Default + Copy + AddAssign + Mul<X, Output = Y>,
+        X: Interpolate
+            + Copy
+            + Mul<Output = X>
+            + Neg<Output = X>
+            + AddAssign
+            + SubAssign
+            + MulAssign,
+    {
         if x.len() != y.len() {
             return Err(InterpolationError::InvalidInputLengths(x.len(), y.len()));
         }
 
         let n = x.len();
-        let mut s = vec![T::zero(); n];
-        let mut coeffs = vec![T::zero(); n];
+        let mut s = vec![X::zero(); n];
+        let mut coeffs = vec![Y::default(); n];
 
-        s.push(T::one());
+        s.push(X::one());
         s[n - 1] = -x[0];
 
         for (i, &x_elem) in x.iter().enumerate().skip(1) {
@@ -45,16 +55,16 @@ where
         }
 
         for i in 0..n {
-            let mut phi = T::zero();
+            let mut phi = X::zero();
             for j in (1..=n).rev() {
                 phi *= x[i];
-                phi += T::from_u64(j as u64) * s[j];
+                phi += X::from_u64(j as u64) * s[j];
             }
-            let maybe_ff: Option<T> = <T as Interpolate>::inverse(&phi).into();
+            let maybe_ff: Option<X> = <X as Interpolate>::inverse(&phi).into();
             let ff = maybe_ff.ok_or(InterpolationError::TriedToInvertZero)?;
-            let mut b = T::one();
+            let mut b = X::one();
             for j in (0..n).rev() {
-                let aux = b * ff * y[i];
+                let aux = y[i] * b * ff;
                 coeffs[j] += aux;
                 b *= x[i];
                 b += s[j];
@@ -64,8 +74,12 @@ where
         Ok(Self { coeffs })
     }
 
-    pub fn evaluate(&self, at: T) -> T {
-        let mut ret = T::zero();
+    pub fn evaluate<X>(&self, at: X) -> Y
+    where
+        X: Copy,
+        Y: Default + Copy + AddAssign + MulAssign<X>,
+    {
+        let mut ret = Y::default(); // TODO default is not necessarily always zero?
         for coeff in self.coeffs.iter().rev() {
             ret *= at;
             ret += *coeff;

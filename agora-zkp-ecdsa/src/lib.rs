@@ -33,13 +33,12 @@ pub fn generate_proof(input: JsValue, ring: JsValue) -> Result<JsValue, JsValue>
     let mut rng = rand_core::OsRng;
     let pedersen = PedersenCycle::<Secp256k1, Tom256k1>::new(&mut rng);
 
-    let input: ParsedProofInput<Secp256k1> = input
-        .into_serde::<ProofInput>()
+    let input: ParsedProofInput<Secp256k1> = serde_wasm_bindgen::from_value::<ProofInput>(input)
         .map_err(|e| e.to_string())?
         .try_into()?;
 
-    let ring: ParsedRing<Tom256k1> =
-        parse_ring(ring.into_serde::<Ring>().map_err(|e| e.to_string())?)?;
+    let wasm_ring = serde_wasm_bindgen::from_value::<Ring>(ring).map_err(|e| e.to_string())?;
+    let ring: ParsedRing<Tom256k1> = parse_ring(wasm_ring)?;
 
     let zk_attest_proof = ZkAttestProof::construct(&mut rng, pedersen, input, &ring)?;
 
@@ -53,7 +52,7 @@ pub fn generate_proof(input: JsValue, ring: JsValue) -> Result<JsValue, JsValue>
         proof_binary,
     };
 
-    JsValue::from_serde(&proof_output).map_err(|e| JsValue::from(e.to_string()))
+    serde_wasm_bindgen::to_value(&proof_output).map_err(|e| JsValue::from(e.to_string()))
 }
 
 // This function is only for wasm test purposes as the
@@ -66,8 +65,8 @@ pub fn verify_proof(proof: Vec<u8>, ring: JsValue) -> Result<JsValue, JsValue> {
     let proof: ZkAttestProof<Secp256k1, Tom256k1> =
         borsh::BorshDeserialize::try_from_slice(proof.as_slice()).map_err(|e| e.to_string())?;
 
-    let ring: ParsedRing<Tom256k1> =
-        parse_ring(ring.into_serde::<Ring>().map_err(|e| e.to_string())?)?;
+    let wasm_ring = serde_wasm_bindgen::from_value::<Ring>(ring).map_err(|e| e.to_string())?;
+    let ring: ParsedRing<Tom256k1> = parse_ring(wasm_ring)?;
 
     proof.verify(&mut rng, &ring)?;
     Ok(JsValue::from(true))

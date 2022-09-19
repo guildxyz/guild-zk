@@ -37,7 +37,8 @@ pub fn sign(
 ) -> Result<JsValue, JsValue> {
     let parameters = Parameters::new(MAX_2_EXPONENT);
 
-    let frontend_ring: FrontendRing = ring.into_serde().map_err(|e| e.to_string())?;
+    let frontend_ring: FrontendRing =
+        serde_wasm_bindgen::from_value(ring).map_err(|e| e.to_string())?;
     let ring = parse_ring(frontend_ring)?;
     let parsed_msg_hash = parse_msg_hash(&msg_hash)?;
     let parsed_privkey = parse_privkey(&privkey)?;
@@ -54,13 +55,14 @@ pub fn sign(
         parameters,
         signature,
     };
-    JsValue::from_serde(&proof).map_err(|e| e.to_string().into())
+    serde_wasm_bindgen::to_value(&proof).map_err(|e| e.to_string().into())
 }
 
 #[wasm_bindgen]
 pub fn verify(msg_hash: String, proof: JsValue, ring: JsValue) -> Result<JsValue, JsValue> {
-    let proof: Proof = proof.into_serde().map_err(|e| e.to_string())?;
-    let frontend_ring: FrontendRing = ring.into_serde().map_err(|e| e.to_string())?;
+    let proof: Proof = serde_wasm_bindgen::from_value(proof).map_err(|e| e.to_string())?;
+    let frontend_ring: FrontendRing =
+        serde_wasm_bindgen::from_value(ring).map_err(|e| e.to_string())?;
     let ring = parse_ring(frontend_ring)?;
     let parsed_msg_hash = parse_msg_hash(&msg_hash)?;
 

@@ -28,6 +28,12 @@ impl<C: Curve> Ord for Scalar<C> {
     }
 }
 
+impl<C: Curve> Default for Scalar<C> {
+    fn default() -> Self {
+        Self::ZERO
+    }
+}
+
 impl<C: Curve> Scalar<C> {
     pub const ONE: Self = Self(U256::ONE, PhantomData);
     pub const ZERO: Self = Self(U256::ZERO, PhantomData);
