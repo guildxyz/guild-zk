@@ -22,9 +22,9 @@ pub fn hash_to_fp(msg: &[u8]) -> Scalar {
     let mut hasher = Sha3_384::new();
     hasher.update(msg);
     let mut hash_bytes = [0u8; 48];
-    let mut hash = GenericArray::from_mut_slice(&mut hash_bytes);
-    hasher.finalize_into(&mut hash);
-    Scalar::from_okm(&hash)
+    let hash = GenericArray::from_mut_slice(&mut hash_bytes);
+    hasher.finalize_into(hash);
+    Scalar::from_okm(hash)
 }
 
 #[cfg(test)]
