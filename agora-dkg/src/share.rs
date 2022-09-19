@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 use crate::hash::*;
 use bls::{pairing, G1Affine, G2Affine, Scalar};
 use ff::Field;
@@ -42,6 +43,8 @@ impl EncryptedShare {
             .as_bytes(),
         );
 
+        // NOTE unwrap is fine because the probability of
+        // r = 0 is infinitesimal ???
         let V = G1Affine::from(H * (eh * r.invert().unwrap()));
 
         // zeroize before dropping
@@ -75,7 +78,6 @@ impl EncryptedShare {
         e1 == e2
     }
 
-    // TODO zeroize?
     pub fn decrypt(&self, id: &[u8], secret_key: &Scalar) -> Scalar {
         let Q = hash_to_g1(id);
         let e = pairing(&G1Affine::from(Q * secret_key), &self.U);

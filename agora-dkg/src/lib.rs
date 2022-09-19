@@ -1,4 +1,4 @@
-#![allow(non_snake_case)]
+#[deny(warnings)]
 #[deny(clippy::all)]
 #[deny(clippy::dbg_macro)]
 pub mod address;

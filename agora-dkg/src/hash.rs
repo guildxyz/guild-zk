@@ -21,7 +21,8 @@ pub fn hash_to_g2(msg: &[u8]) -> G2Affine {
 pub fn hash_to_fp(msg: &[u8]) -> Scalar {
     let mut hasher = Sha3_384::new();
     hasher.update(msg);
-    let mut hash = GenericArray::from_exact_iter([0u8; 48].into_iter()).unwrap();
+    let mut hash_bytes = [0u8; 48];
+    let mut hash = GenericArray::from_mut_slice(&mut hash_bytes);
     hasher.finalize_into(&mut hash);
     Scalar::from_okm(&hash)
 }

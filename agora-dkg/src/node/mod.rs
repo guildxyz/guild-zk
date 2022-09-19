@@ -83,11 +83,12 @@ impl TryFrom<Node<ShareGeneration>> for Node<ShareCollection> {
 }
 
 impl TryFrom<Node<Discovery>> for Node<ShareGeneration> {
-    type Error = String;
+    type Error = anyhow::Error;
     fn try_from(node: Node<Discovery>) -> Result<Self, Self::Error> {
-        if node.participants.len() < node.parameters.nodes() {
-            return Err("not enough participants collected".to_string());
-        }
+        ensure!(
+            node.participants.len() == node.parameters.nodes(),
+            "not enough participants collected"
+        );
         Ok(Self {
             parameters: node.parameters,
             address: node.address,
@@ -102,11 +103,12 @@ impl TryFrom<Node<Discovery>> for Node<ShareGeneration> {
 }
 
 impl TryFrom<Node<Discovery>> for Node<ShareCollection> {
-    type Error = String;
+    type Error = anyhow::Error;
     fn try_from(node: Node<Discovery>) -> Result<Self, Self::Error> {
-        if node.participants.len() < node.parameters.nodes() {
-            return Err("not enough participants collected".to_string());
-        }
+        ensure!(
+            node.participants.len() == node.parameters.nodes(),
+            "not enough participants collected"
+        );
         Ok(Self {
             parameters: node.parameters,
             address: node.address,
@@ -121,8 +123,6 @@ impl TryFrom<Node<Discovery>> for Node<ShareCollection> {
 
 impl Node<ShareCollection> {
     pub fn publish_share(&self) -> Option<Vec<PublicShare>> {
-        // NOTE unwrap is fine because at this point we definitely have
-        // a share inserted in the map
         self.phase.shares_map.map().get(&self.address).cloned()
     }
 
