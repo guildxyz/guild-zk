@@ -85,12 +85,12 @@ pub struct PointAddCommitments<C: Curve> {
 impl<C: Curve> PointAddCommitments<C> {
     pub fn into_commitments(self) -> PointAddCommitmentPoints<C> {
         PointAddCommitmentPoints {
-            px: self.px.into_commitment(),
-            py: self.py.into_commitment(),
-            qx: self.qx.into_commitment(),
-            qy: self.qy.into_commitment(),
-            rx: self.rx.into_commitment(),
-            ry: self.ry.into_commitment(),
+            px: self.px.commitment(),
+            py: self.py.commitment(),
+            qx: self.qx.commitment(),
+            qy: self.qy.commitment(),
+            rx: self.rx.commitment(),
+            ry: self.ry.commitment(),
         }
     }
 }
@@ -236,10 +236,10 @@ impl<CC: Cycle<C>, C: Curve> PointAddProof<CC, C> {
         );
 
         Self {
-            mult_proof_8: MultCommitProof::new(commitment_8.into_commitment(), mult_proof_8),
-            mult_proof_10: MultCommitProof::new(commitment_10.into_commitment(), mult_proof_10),
-            mult_proof_11: MultCommitProof::new(commitment_11.into_commitment(), mult_proof_11),
-            mult_proof_13: MultCommitProof::new(commitment_13.into_commitment(), mult_proof_13),
+            mult_proof_8: MultCommitProof::new(commitment_8.commitment(), mult_proof_8),
+            mult_proof_10: MultCommitProof::new(commitment_10.commitment(), mult_proof_10),
+            mult_proof_11: MultCommitProof::new(commitment_11.commitment(), mult_proof_11),
+            mult_proof_13: MultCommitProof::new(commitment_13.commitment(), mult_proof_13),
             equality_proof_x,
             equality_proof_y,
             base_curve: PhantomData,
@@ -253,62 +253,62 @@ impl<CC: Cycle<C>, C: Curve> PointAddProof<CC, C> {
         commitments: &PointAddCommitmentPoints<CC>,
         multimult: &mut MultiMult<CC>,
     ) {
-        let commitment_7 = &commitments.qx - &commitments.px;
-        let commitment_9 = &commitments.qy - &commitments.py;
-        let commitment_12 = &commitments.px - &commitments.rx;
+        let commitment_7 = commitments.qx - commitments.px;
+        let commitment_9 = commitments.qy - commitments.py;
+        let commitment_12 = commitments.px - commitments.rx;
 
         // aggregate multiplication proofs
         self.mult_proof_8.proof.aggregate(
             rng,
             pedersen_generator,
-            &commitment_7,
-            &self.mult_proof_8.commitment,
-            &Point::<CC>::GENERATOR,
+            commitment_7,
+            self.mult_proof_8.commitment,
+            Point::<CC>::GENERATOR,
             multimult,
         );
 
         self.mult_proof_10.proof.aggregate(
             rng,
             pedersen_generator,
-            &self.mult_proof_8.commitment,
-            &commitment_9,
-            &self.mult_proof_10.commitment,
+            self.mult_proof_8.commitment,
+            commitment_9,
+            self.mult_proof_10.commitment,
             multimult,
         );
 
         self.mult_proof_11.proof.aggregate(
             rng,
             pedersen_generator,
-            &self.mult_proof_10.commitment,
-            &self.mult_proof_10.commitment,
-            &self.mult_proof_11.commitment,
+            self.mult_proof_10.commitment,
+            self.mult_proof_10.commitment,
+            self.mult_proof_11.commitment,
             multimult,
         );
 
         self.mult_proof_13.proof.aggregate(
             rng,
             pedersen_generator,
-            &self.mult_proof_10.commitment,
-            &commitment_12,
-            &self.mult_proof_13.commitment,
+            self.mult_proof_10.commitment,
+            commitment_12,
+            self.mult_proof_13.commitment,
             multimult,
         );
         // aggregate equality proofs
-        let aux_commitment = &(&commitments.rx + &commitments.px) + &commitments.qx;
+        let aux_commitment = commitments.rx + commitments.px + commitments.qx;
         self.equality_proof_x.aggregate(
             rng,
             pedersen_generator,
-            &self.mult_proof_11.commitment,
-            &aux_commitment,
+            self.mult_proof_11.commitment,
+            aux_commitment,
             multimult,
         );
 
-        let aux_commitment = &commitments.py + &commitments.ry;
+        let aux_commitment = commitments.py + commitments.ry;
         self.equality_proof_y.aggregate(
             rng,
             pedersen_generator,
-            &self.mult_proof_13.commitment,
-            &aux_commitment,
+            self.mult_proof_13.commitment,
+            aux_commitment,
             multimult,
         );
     }
@@ -338,9 +338,9 @@ mod test {
         let mut rng = StdRng::from_seed([14; 32]);
         let pedersen_generator = PedersenGenerator::<Tom256k1>::new(&mut rng);
 
-        let p = &Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(&mut rng);
-        let q = &Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(&mut rng);
-        let r = &p + &q;
+        let p = Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(&mut rng);
+        let q = Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(&mut rng);
+        let r = p + q;
         let secret = PointAddSecrets::new(p.into(), q.into(), r.into());
         let commitments = secret.commit(&mut rng, &pedersen_generator);
 
@@ -358,9 +358,9 @@ mod test {
         let mut rng = StdRng::from_seed([14; 32]);
         let pedersen_generator = PedersenGenerator::<Tom256k1>::new(&mut rng);
 
-        let p = &Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(&mut rng);
-        let q = &Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(&mut rng);
-        let r = (&p + &q) + Point::<Secp256k1>::GENERATOR; // invalid sum
+        let p = Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(&mut rng);
+        let q = Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(&mut rng);
+        let r = p + q + Point::<Secp256k1>::GENERATOR; // invalid sum
         let secret = PointAddSecrets::new(p.into(), q.into(), r.into());
         let commitments = secret.commit(&mut rng, &pedersen_generator);
 
@@ -381,9 +381,9 @@ mod test {
 
         let mut multimult = MultiMult::new();
         for _ in 0..50 {
-            let p = &Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(&mut rng);
-            let q = &Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(&mut rng);
-            let r = &p + &q;
+            let p = Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(&mut rng);
+            let q = Point::<Secp256k1>::GENERATOR * Scalar::<Secp256k1>::random(&mut rng);
+            let r = p + q;
             let secret = PointAddSecrets::new(p.into(), q.into(), r.into());
             let commitments = secret.commit(&mut rng, &pedersen_generator);
 

@@ -24,7 +24,7 @@ fn main() {
         let mut start = Instant::now();
         let proof = ExpProof::construct(
             //&mut rng,
-            &base_gen,
+            base_gen,
             &pedersen_cycle,
             &secrets,
             &commitments,
@@ -36,7 +36,7 @@ fn main() {
         assert!(proof
             .verify(
                 //&mut rng,
-                &base_gen,
+                base_gen,
                 &pedersen_cycle,
                 &commitments.into_commitments(),
                 None,

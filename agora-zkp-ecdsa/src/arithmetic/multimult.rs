@@ -42,7 +42,7 @@ impl<C: Curve> MultiMult<C> {
     pub fn add_known(&mut self, pt: Point<C>) {
         if !self.known.iter().any(|known| known.point == pt) {
             self.pairs.push(Pair {
-                point: pt.clone(),
+                point: pt,
                 scalar: Scalar::ZERO,
             });
             self.known.push(Known {
@@ -88,11 +88,11 @@ impl<C: Curve> MultiMult<C> {
                 }
 
                 c = Pair {
-                    point: a.point.clone(),
+                    point: a.point,
                     scalar: a.scalar - b.scalar,
                 };
                 let d = Pair {
-                    point: &a.point + &b.point,
+                    point: a.point + b.point,
                     scalar: b.scalar,
                 };
 
@@ -144,7 +144,7 @@ impl<C: Curve> fmt::Display for MultiMult<C> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for pair in &self.pairs {
             writeln!(f, "scalar: {}", pair.scalar)?;
-            let pt_aff: AffinePoint<C> = pair.point.clone().into();
+            let pt_aff: AffinePoint<C> = pair.point.into();
             writeln!(f, "point: {}", pt_aff)?;
         }
         fmt::Result::Ok(())
@@ -155,7 +155,7 @@ impl<C: Curve> fmt::Display for Relation<C> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for pair in &self.pairs {
             writeln!(f, "scalar: {}", pair.scalar)?;
-            let pt_aff: AffinePoint<C> = pair.point.clone().into();
+            let pt_aff: AffinePoint<C> = pair.point.into();
             writeln!(f, "point: {}", pt_aff)?;
         }
         fmt::Result::Ok(())
@@ -283,7 +283,7 @@ mod test {
         let mut pt: SecAffine = SecPoint::GENERATOR.into();
         for scalar in scalars.iter() {
             pt = pt.double().into();
-            rel.insert(pt.clone().into(), *scalar);
+            rel.insert(pt.into(), *scalar);
         }
 
         let mut multimult = MultiMult::new();
@@ -317,7 +317,7 @@ mod test {
         let mut pt: TomAffine = TomPoint::GENERATOR.into();
         for scalar in scalars.iter() {
             pt = pt.double().into();
-            rel.insert(pt.clone().into(), *scalar);
+            rel.insert(pt.into(), *scalar);
         }
 
         let mut multimult = MultiMult::new();

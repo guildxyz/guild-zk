@@ -1,5 +1,4 @@
 #![feature(int_log)]
-//#![deny(warnings)]
 #![deny(clippy::dbg_macro)]
 #![deny(clippy::all)]
 

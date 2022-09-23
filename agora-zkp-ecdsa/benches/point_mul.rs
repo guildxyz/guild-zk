@@ -10,14 +10,14 @@ fn bench_point_mul(c: &mut Criterion) {
 
     let mut rng = OsRng;
     let generator_g = Point::<Tom256k1>::GENERATOR;
-    let generator_h = &Point::<Tom256k1>::GENERATOR * Scalar::random(&mut rng);
+    let generator_h = Point::<Tom256k1>::GENERATOR * Scalar::random(&mut rng);
 
     let n = 50_usize;
     let random_scalars = vec![Scalar::random(&mut rng); n];
 
     group.bench_function("single_mul", |b| {
         let i = rng.gen_range(0..n);
-        b.iter(|| &generator_g * random_scalars[i])
+        b.iter(|| generator_g * random_scalars[i])
     });
 
     group.bench_function("double_mul", |b| {

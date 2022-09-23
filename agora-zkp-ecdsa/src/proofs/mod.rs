@@ -58,9 +58,9 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
         let r_point = Point::<C>::GENERATOR.double_mul(&u1, &Point::from(&input.pubkey), &u2);
         let s1 = r_inv * input.signature.s;
         let z1 = r_inv * input.msg_hash;
-        let q_point = &Point::<C>::GENERATOR * z1;
+        let q_point = Point::<C>::GENERATOR * z1;
 
-        let commitment_to_s1 = pedersen.base().commit_with_generator(rng, s1, &r_point);
+        let commitment_to_s1 = pedersen.base().commit_with_generator(rng, s1, r_point);
         let commitment_to_pk_x = pedersen
             .cycle()
             .commit(rng, input.pubkey.x().to_cycle_scalar());
@@ -71,7 +71,7 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
         // generate membership proof on pubkey x coordinate
         let membership_proof = MembershipProof::construct(
             rng,
-            pedersen.cycle(),
+            &pedersen.cycle(),
             &commitment_to_pk_x,
             input.index,
             ring,
@@ -86,8 +86,7 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
         };
 
         let signature_proof = ExpProof::construct(
-            //rng,
-            &r_point,
+            r_point,
             &pedersen,
             &exp_secrets,
             &exp_commitments,
@@ -128,14 +127,17 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
         // directly into a scalar
         let r_inv = Scalar::<C>::new(*r_point_affine.x().inner()).inverse();
         let z1 = r_inv * self.msg_hash;
-        let q_point = &Point::<C>::GENERATOR * z1;
+        let q_point = Point::<C>::GENERATOR * z1;
 
-        self.membership_proof
-            .verify(rng, self.pedersen.cycle(), &self.exp_commitments.px, ring)?;
+        self.membership_proof.verify(
+            rng,
+            &self.pedersen.cycle(),
+            &self.exp_commitments.px,
+            ring,
+        )?;
 
         self.signature_proof.verify(
-            //rng,
-            &self.r_point,
+            self.r_point,
             &self.pedersen,
             &self.exp_commitments,
             Some(q_point),

@@ -89,9 +89,9 @@ impl<C: Curve> ExpSecrets<C> {
 impl<C: Curve, CC: Cycle<C>> ExpCommitments<C, CC> {
     pub fn into_commitments(self) -> ExpCommitmentPoints<C, CC> {
         ExpCommitmentPoints {
-            px: self.px.into_commitment(),
-            py: self.py.into_commitment(),
-            exp: self.exp.into_commitment(),
+            px: self.px.commitment(),
+            py: self.py.commitment(),
+            exp: self.exp.commitment(),
         }
     }
 }
@@ -112,7 +112,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
 
     pub fn construct(
         //rng: &mut R,
-        base_gen: &Point<C>,
+        base_gen: Point<C>,
         pedersen: &PedersenCycle<C, CC>,
         secrets: &ExpSecrets<C>,
         commitments: &ExpCommitments<C, CC>,
@@ -121,12 +121,12 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         let aux_vec = aux::commitments_vector(base_gen, pedersen);
 
         let mut point_hasher = PointHasher::new(Self::HASH_ID);
-        point_hasher.insert_point(commitments.px.commitment());
-        point_hasher.insert_point(commitments.py.commitment());
+        point_hasher.insert_point(&commitments.px.commitment());
+        point_hasher.insert_point(&commitments.py.commitment());
         for aux in &aux_vec {
             point_hasher.insert_point(&aux.a);
-            point_hasher.insert_point(aux.tx.commitment());
-            point_hasher.insert_point(aux.ty.commitment());
+            point_hasher.insert_point(&aux.tx.commitment());
+            point_hasher.insert_point(&aux.ty.commitment());
         }
 
         let proofs = aux::proofs(
@@ -145,7 +145,7 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
     pub fn verify(
         &self,
         //rng: &mut R,
-        base_gen: &Point<C>,
+        base_gen: Point<C>,
         pedersen: &PedersenCycle<C, CC>,
         commitments: &ExpCommitmentPoints<C, CC>,
         q_point: Option<Point<C>>,
@@ -158,11 +158,11 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
         let mut base_multimult = MultiMult::<C>::new();
 
         tom_multimult.add_known(Point::<CC>::GENERATOR);
-        tom_multimult.add_known(pedersen.cycle().generator().clone());
+        tom_multimult.add_known(pedersen.cycle().generator());
 
-        base_multimult.add_known(base_gen.clone());
-        base_multimult.add_known(pedersen.base().generator().clone());
-        base_multimult.add_known(commitments.exp.clone());
+        base_multimult.add_known(base_gen);
+        base_multimult.add_known(pedersen.base().generator());
+        base_multimult.add_known(commitments.exp);
 
         let tom_multimult = Arc::new(Mutex::new(tom_multimult));
         let base_multimult = Arc::new(Mutex::new(base_multimult));
@@ -268,7 +268,7 @@ mod test {
 
         let exp_proof = ExpProof::construct(
             //&mut rng,
-            &base_gen,
+            base_gen,
             &pedersen,
             &secrets,
             &commitments,
@@ -279,7 +279,7 @@ mod test {
         assert!(exp_proof
             .verify(
                 //&mut rng,
-                &base_gen,
+                base_gen,
                 &pedersen,
                 &commitments.into_commitments(),
                 None
@@ -295,25 +295,25 @@ mod test {
 
         let q_point = Point::<Secp256k1>::GENERATOR.double();
         let exponent = Scalar::<Secp256k1>::random(&mut rng);
-        let result = &Point::<Secp256k1>::GENERATOR.scalar_mul(&exponent) - &q_point;
+        let result = Point::<Secp256k1>::GENERATOR * exponent - q_point;
 
         let secrets = ExpSecrets::new(exponent, result.into());
         let commitments = secrets.commit(&mut rng, &pedersen);
 
         let exp_proof = ExpProof::construct(
             //&mut rng,
-            &base_gen,
+            base_gen,
             &pedersen,
             &secrets,
             &commitments,
-            Some(q_point.clone()),
+            Some(q_point),
         )
         .unwrap();
 
         assert!(exp_proof
             .verify(
                 //&mut rng,
-                &base_gen,
+                base_gen,
                 &pedersen,
                 &commitments.into_commitments(),
                 Some(q_point),
@@ -335,7 +335,7 @@ mod test {
 
         let exp_proof = ExpProof::construct(
             //&mut rng,
-            &base_gen,
+            base_gen,
             &pedersen,
             &secrets,
             &commitments,
@@ -346,7 +346,7 @@ mod test {
         assert!(exp_proof
             .verify(
                 //&mut rng,
-                &base_gen,
+                base_gen,
                 &pedersen,
                 &commitments.into_commitments(),
                 None
