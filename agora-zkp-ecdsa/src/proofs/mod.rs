@@ -86,7 +86,6 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
         };
 
         let signature_proof = ExpProof::construct(
-            //rng,
             r_point,
             &pedersen,
             &exp_secrets,
@@ -138,7 +137,6 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
         )?;
 
         self.signature_proof.verify(
-            //rng,
             self.r_point,
             &self.pedersen,
             &self.exp_commitments,
