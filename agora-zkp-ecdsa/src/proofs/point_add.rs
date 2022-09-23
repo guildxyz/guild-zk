@@ -20,7 +20,10 @@ pub struct PointAddSecrets<C: Curve> {
 
 impl<C: Curve> PointAddSecrets<C> {
     pub fn new(p: AffinePoint<C>, q: AffinePoint<C>, r: AffinePoint<C>) -> Self {
-        // TODO debug_assert!(p + q = r) ?
+        // NOTE this fails (as expected) when running invalid tests
+        // (intentionally). However, it breaks those tests, so it
+        // will be left commented out.
+        // debug_assert_eq!((&p + &q).to_affine(), r);
         Self { p, q, r }
     }
 
