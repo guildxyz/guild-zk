@@ -18,7 +18,7 @@ fn main() {
 
     let security_param = 60;
     let proof = ExpProof::construct(
-        &mut rng,
+        //&mut rng,
         &base_gen,
         &pedersen_cycle,
         &secrets,
@@ -30,7 +30,7 @@ fn main() {
 
     assert!(proof
         .verify(
-            &mut rng,
+            //&mut rng,
             &base_gen,
             &pedersen_cycle,
             &commitments.into_commitments(),
