@@ -34,22 +34,22 @@ impl<C: Curve> EqualityProof<C> {
 
         let mut hasher = PointHasher::new(Self::HASH_ID);
         hasher.insert_points(&[
-            commitment_1.commitment(),
-            commitment_2.commitment(),
-            commitment_to_random_1.commitment(),
-            commitment_to_random_2.commitment(),
+            &commitment_1.commitment(),
+            &commitment_2.commitment(),
+            &commitment_to_random_1.commitment(),
+            &commitment_to_random_2.commitment(),
         ]);
         let challenge = hasher.finalize();
         let challenge_scalar = Scalar::new(challenge);
         let mask_secret = random_scalar - challenge_scalar * secret;
         let mask_random_1 =
-            *commitment_to_random_1.randomness() - &challenge_scalar * commitment_1.randomness();
+            commitment_to_random_1.randomness() - challenge_scalar * commitment_1.randomness();
         let mask_random_2 =
-            *commitment_to_random_2.randomness() - &challenge_scalar * commitment_2.randomness();
+            commitment_to_random_2.randomness() - challenge_scalar * commitment_2.randomness();
 
         Self {
-            commitment_to_random_1: commitment_to_random_1.into_commitment(),
-            commitment_to_random_2: commitment_to_random_2.into_commitment(),
+            commitment_to_random_1: commitment_to_random_1.commitment(),
+            commitment_to_random_2: commitment_to_random_2.commitment(),
             mask_secret,
             mask_random_1,
             mask_random_2,
@@ -60,14 +60,14 @@ impl<C: Curve> EqualityProof<C> {
         &self,
         rng: &mut R,
         pedersen_generator: &PedersenGenerator<C>,
-        commitment_1: &Point<C>,
-        commitment_2: &Point<C>,
+        commitment_1: Point<C>,
+        commitment_2: Point<C>,
         multimult: &mut MultiMult<C>,
     ) {
         let mut hasher = PointHasher::new(Self::HASH_ID);
         hasher.insert_points(&[
-            commitment_1,
-            commitment_2,
+            &commitment_1,
+            &commitment_2,
             &self.commitment_to_random_1,
             &self.commitment_to_random_2,
         ]);
@@ -76,13 +76,13 @@ impl<C: Curve> EqualityProof<C> {
         let mut relation_1 = Relation::new();
         let mut relation_2 = Relation::new();
         relation_1.insert(Point::<C>::GENERATOR, self.mask_secret);
-        relation_1.insert(pedersen_generator.generator().clone(), self.mask_random_1);
-        relation_1.insert(commitment_1.clone(), challenge_scalar);
+        relation_1.insert(pedersen_generator.generator(), self.mask_random_1);
+        relation_1.insert(commitment_1, challenge_scalar);
         relation_1.insert((&self.commitment_to_random_1).neg(), Scalar::ONE);
 
         relation_2.insert(Point::<C>::GENERATOR, self.mask_secret);
-        relation_2.insert(pedersen_generator.generator().clone(), self.mask_random_2);
-        relation_2.insert(commitment_2.clone(), challenge_scalar);
+        relation_2.insert(pedersen_generator.generator(), self.mask_random_2);
+        relation_2.insert(commitment_2, challenge_scalar);
         relation_2.insert((&self.commitment_to_random_2).neg(), Scalar::ONE);
 
         relation_1.drain(rng, multimult);
@@ -94,8 +94,8 @@ impl<C: Curve> EqualityProof<C> {
         &self,
         rng: &mut R,
         pedersen_generator: &PedersenGenerator<C>,
-        commitment_1: &Point<C>,
-        commitment_2: &Point<C>,
+        commitment_1: Point<C>,
+        commitment_2: Point<C>,
     ) -> bool {
         let mut multimult = MultiMult::new();
         self.aggregate(

@@ -92,7 +92,7 @@ impl<C: Curve> MultiMult<C> {
                     scalar: a.scalar - b.scalar,
                 };
                 let d = Pair {
-                    point: &a.point + &b.point,
+                    point: a.point + b.point,
                     scalar: b.scalar,
                 };
 

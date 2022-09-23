@@ -71,17 +71,17 @@ impl<C: Curve> MembershipProof<C> {
             cl.push(
                 pedersen_generator
                     .commit_with_randomness(l_vec[i], r_vec[i])
-                    .into_commitment(),
+                    .commitment(),
             );
             ca.push(
                 pedersen_generator
                     .commit_with_randomness(a_vec[i], s_vec[i])
-                    .into_commitment(),
+                    .commitment(),
             );
             cb.push(
                 pedersen_generator
                     .commit_with_randomness(l_vec[i] * a_vec[i], t_vec[i])
-                    .into_commitment(),
+                    .commitment(),
             );
 
             omegas.push(Scalar::new(U256::from_u64(i as u64)));
@@ -122,7 +122,7 @@ impl<C: Curve> MembershipProof<C> {
             cd.push(
                 pedersen_generator
                     .commit_with_randomness(coeff, rho)
-                    .into_commitment(),
+                    .commitment(),
             );
         }
 
@@ -135,7 +135,7 @@ impl<C: Curve> MembershipProof<C> {
         let mut za = Vec::<Scalar<C>>::with_capacity(n);
         let mut zb = Vec::<Scalar<C>>::with_capacity(n);
         let mut zd =
-            commitment_to_key.randomness() * &challenge.pow(&Scalar::new(U256::from_u64(n as u64)));
+            commitment_to_key.randomness() * challenge.pow(&Scalar::new(U256::from_u64(n as u64)));
 
         for i in 0..n {
             fi.push(l_vec[i] * challenge + a_vec[i]);
@@ -174,7 +174,7 @@ impl<C: Curve> MembershipProof<C> {
 
         let mut multimult = MultiMult::new();
         multimult.add_known(Point::<C>::GENERATOR);
-        multimult.add_known(*pedersen_generator.generator());
+        multimult.add_known(pedersen_generator.generator());
 
         // NOTE unwraps here are fine because of length checks
         // at proof construction
@@ -185,11 +185,11 @@ impl<C: Curve> MembershipProof<C> {
             rel_0.insert(self.cl[i], challenge);
             rel_0.insert(self.ca[i], Scalar::ONE);
             rel_0.insert(Point::<C>::GENERATOR, -self.fi[i]);
-            rel_0.insert(*pedersen_generator.generator(), -self.za[i]);
+            rel_0.insert(pedersen_generator.generator(), -self.za[i]);
 
             rel_1.insert(self.cl[i], challenge - self.fi[i]);
             rel_1.insert(self.cb[i], Scalar::ONE);
-            rel_1.insert(*pedersen_generator.generator(), -self.zb[i]);
+            rel_1.insert(pedersen_generator.generator(), -self.zb[i]);
 
             rel_0.drain(rng, &mut multimult);
             rel_1.drain(rng, &mut multimult);
@@ -211,17 +211,17 @@ impl<C: Curve> MembershipProof<C> {
         let mut rel_final = Relation::new();
         for (i, cd_elem) in self.cd.iter().enumerate() {
             rel_final.insert(
-                cd_elem.clone(),
+                *cd_elem,
                 -challenge.pow(&Scalar::new(U256::from_u64(i as u64))),
             );
         }
 
         rel_final.insert(
-            commitment_to_key.clone(),
+            *commitment_to_key,
             challenge.pow(&Scalar::new(U256::from_u64(n as u64))),
         );
         rel_final.insert(Point::<C>::GENERATOR, -total);
-        rel_final.insert(pedersen_generator.generator().clone(), -self.zd);
+        rel_final.insert(pedersen_generator.generator(), -self.zd);
         rel_final.drain(rng, &mut multimult);
 
         if multimult.evaluate().is_identity() {
@@ -289,7 +289,7 @@ mod test {
             .verify(
                 &mut rng,
                 &pedersen_generator,
-                commitment_to_key.commitment(),
+                &commitment_to_key.commitment(),
                 &ring,
             )
             .is_ok());
@@ -319,7 +319,7 @@ mod test {
             .verify(
                 &mut rng,
                 &pedersen_generator,
-                commitment_to_key.commitment(),
+                &commitment_to_key.commitment(),
                 &ring,
             )
             .is_ok());
@@ -355,7 +355,7 @@ mod test {
             proof.verify(
                 &mut rng,
                 &pedersen_generator,
-                commitment_to_key.commitment(),
+                &commitment_to_key.commitment(),
                 &ring,
             ),
             Err("failed to verify membership".to_string())

@@ -71,6 +71,13 @@ macro_rules! impl_point_arithmetic {
             }
         }
 
+        impl<C: Curve> std::ops::Mul<Scalar<C>> for $this {
+            type Output = Point<C>;
+            fn mul(self, rhs: Scalar<C>) -> Self::Output {
+                self.scalar_mul(&rhs)
+            }
+        }
+
         impl<C: Curve> std::ops::Mul<Scalar<C>> for &$this {
             type Output = Point<C>;
             fn mul(self, rhs: Scalar<C>) -> Self::Output {

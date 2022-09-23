@@ -41,7 +41,7 @@ impl<C: Curve> MultiplicationProof<C> {
         z: Scalar<C>,
     ) -> Self {
         let c4 = commitment_to_y.commitment() * x;
-        let r4 = commitment_to_y.randomness() * &x;
+        let r4 = commitment_to_y.randomness() * x;
 
         let random_scalar_1 = Scalar::random(rng);
         let random_scalar_2 = Scalar::random(rng);
@@ -56,14 +56,14 @@ impl<C: Curve> MultiplicationProof<C> {
 
         let mut hasher = PointHasher::new(Self::HASH_ID);
         hasher.insert_points(&[
-            commitment_to_x.commitment(),
-            commitment_to_y.commitment(),
-            commitment_to_z.commitment(),
+            &commitment_to_x.commitment(),
+            &commitment_to_y.commitment(),
+            &commitment_to_z.commitment(),
             &c4,
-            commitment_to_random_1.commitment(),
-            commitment_to_random_2.commitment(),
-            commitment_to_random_3.commitment(),
-            a4_1.commitment(),
+            &commitment_to_random_1.commitment(),
+            &commitment_to_random_2.commitment(),
+            &commitment_to_random_3.commitment(),
+            &a4_1.commitment(),
             &a4_2,
         ]);
         let challenge = hasher.finalize();
@@ -73,23 +73,20 @@ impl<C: Curve> MultiplicationProof<C> {
         let mask_y = random_scalar_2 - challenge_scalar * y;
         let mask_z = random_scalar_3 - challenge_scalar * z;
 
-        let mask_random_x = commitment_to_random_1
-            .randomness()
-            .sub(&(&challenge_scalar * commitment_to_x.randomness()));
-        let mask_random_y = commitment_to_random_2
-            .randomness()
-            .sub(&(&challenge_scalar * commitment_to_y.randomness()));
-        let mask_random_z = commitment_to_random_3
-            .randomness()
-            .sub(&(&challenge_scalar * commitment_to_z.randomness()));
-        let mask_r4 = a4_1.randomness().sub(&(challenge_scalar * r4));
+        let mask_random_x =
+            commitment_to_random_1.randomness() - challenge_scalar * commitment_to_x.randomness();
+        let mask_random_y =
+            commitment_to_random_2.randomness() - challenge_scalar * commitment_to_y.randomness();
+        let mask_random_z =
+            commitment_to_random_3.randomness() - challenge_scalar * commitment_to_z.randomness();
+        let mask_r4 = a4_1.randomness() - challenge_scalar * r4;
 
         Self {
             c4,
-            commitment_to_random_1: commitment_to_random_1.into_commitment(),
-            commitment_to_random_2: commitment_to_random_2.into_commitment(),
-            commitment_to_random_3: commitment_to_random_3.into_commitment(),
-            a4_1: a4_1.into_commitment(),
+            commitment_to_random_1: commitment_to_random_1.commitment(),
+            commitment_to_random_2: commitment_to_random_2.commitment(),
+            commitment_to_random_3: commitment_to_random_3.commitment(),
+            a4_1: a4_1.commitment(),
             a4_2,
             mask_x,
             mask_y,
@@ -105,16 +102,16 @@ impl<C: Curve> MultiplicationProof<C> {
         &self,
         rng: &mut R,
         pedersen_generator: &PedersenGenerator<C>,
-        commitment_to_x: &Point<C>,
-        commitment_to_y: &Point<C>,
-        commitment_to_z: &Point<C>,
+        commitment_to_x: Point<C>,
+        commitment_to_y: Point<C>,
+        commitment_to_z: Point<C>,
         multimult: &mut MultiMult<C>,
     ) {
         let mut hasher = PointHasher::new(Self::HASH_ID);
         hasher.insert_points(&[
-            commitment_to_x,
-            commitment_to_y,
-            commitment_to_z,
+            &commitment_to_x,
+            &commitment_to_y,
+            &commitment_to_z,
             &self.c4,
             &self.commitment_to_random_1,
             &self.commitment_to_random_2,
@@ -132,27 +129,27 @@ impl<C: Curve> MultiplicationProof<C> {
         let mut relation_a4_2 = Relation::<C>::new();
 
         relation_x.insert(Point::<C>::GENERATOR, self.mask_x);
-        relation_x.insert(pedersen_generator.generator().clone(), self.mask_random_x);
-        relation_x.insert(commitment_to_x.clone(), challenge_scalar);
+        relation_x.insert(pedersen_generator.generator(), self.mask_random_x);
+        relation_x.insert(commitment_to_x, challenge_scalar);
         relation_x.insert((&self.commitment_to_random_1).neg(), Scalar::<C>::ONE);
 
         relation_y.insert(Point::<C>::GENERATOR, self.mask_y);
-        relation_y.insert(pedersen_generator.generator().clone(), self.mask_random_y);
-        relation_y.insert(commitment_to_y.clone(), challenge_scalar);
+        relation_y.insert(pedersen_generator.generator(), self.mask_random_y);
+        relation_y.insert(commitment_to_y, challenge_scalar);
         relation_y.insert((&self.commitment_to_random_2).neg(), Scalar::<C>::ONE);
 
         relation_z.insert(Point::<C>::GENERATOR, self.mask_z);
-        relation_z.insert(pedersen_generator.generator().clone(), self.mask_random_z);
-        relation_z.insert(commitment_to_z.clone(), challenge_scalar);
+        relation_z.insert(pedersen_generator.generator(), self.mask_random_z);
+        relation_z.insert(commitment_to_z, challenge_scalar);
         relation_z.insert((&self.commitment_to_random_3).neg(), Scalar::<C>::ONE);
 
         relation_a4_1.insert(Point::<C>::GENERATOR, self.mask_z);
-        relation_a4_1.insert(pedersen_generator.generator().clone(), self.mask_r4);
-        relation_a4_1.insert(self.c4.clone(), challenge_scalar);
+        relation_a4_1.insert(pedersen_generator.generator(), self.mask_r4);
+        relation_a4_1.insert(self.c4, challenge_scalar);
         relation_a4_1.insert((&self.a4_1).neg(), Scalar::<C>::ONE);
 
-        relation_a4_2.insert(commitment_to_y.clone(), self.mask_x);
-        relation_a4_2.insert(self.c4.clone(), challenge_scalar);
+        relation_a4_2.insert(commitment_to_y, self.mask_x);
+        relation_a4_2.insert(self.c4, challenge_scalar);
         relation_a4_2.insert((&self.a4_2).neg(), Scalar::<C>::ONE);
 
         relation_x.drain(rng, multimult);
@@ -167,9 +164,9 @@ impl<C: Curve> MultiplicationProof<C> {
         &self,
         rng: &mut R,
         pedersen_generator: &PedersenGenerator<C>,
-        commitment_to_x: &Point<C>,
-        commitment_to_y: &Point<C>,
-        commitment_to_z: &Point<C>,
+        commitment_to_x: Point<C>,
+        commitment_to_y: Point<C>,
+        commitment_to_z: Point<C>,
     ) -> bool {
         let mut multimult = MultiMult::new();
         self.aggregate(

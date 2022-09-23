@@ -18,26 +18,26 @@ impl<C: Curve, CC: Cycle<C>> PedersenCycle<C, CC> {
         }
     }
 
-    pub fn base(&self) -> &PedersenGenerator<C> {
-        &self.base
+    pub fn base(&self) -> PedersenGenerator<C> {
+        self.base
     }
 
-    pub fn cycle(&self) -> &PedersenGenerator<CC> {
-        &self.cycle
+    pub fn cycle(&self) -> PedersenGenerator<CC> {
+        self.cycle
     }
 }
 
-#[derive(Clone, Debug, BorshDeserialize, BorshSerialize)]
+#[derive(Copy, Clone, Debug, BorshDeserialize, BorshSerialize)]
 pub struct PedersenGenerator<C: Curve>(Point<C>);
 
 impl<C: Curve> PedersenGenerator<C> {
     pub fn new<R: CryptoCoreRng>(rng: &mut R) -> Self {
         let random_scalar = Scalar::random(rng);
-        Self(&Point::<C>::GENERATOR * random_scalar)
+        Self(Point::<C>::GENERATOR * random_scalar)
     }
 
-    pub fn generator(&self) -> &Point<C> {
-        &self.0
+    pub fn generator(&self) -> Point<C> {
+        self.0
     }
 
     pub fn commit<R: CryptoCoreRng>(
@@ -59,10 +59,10 @@ impl<C: Curve> PedersenGenerator<C> {
         &self,
         rng: &mut R,
         secret: Scalar<C>,
-        generator: &Point<C>,
+        generator: Point<C>,
     ) -> PedersenCommitment<C> {
         let randomness = Scalar::random(rng);
-        let commitment = self.0.double_mul(&randomness, generator, &secret);
+        let commitment = self.0.double_mul(&randomness, &generator, &secret);
 
         PedersenCommitment {
             commitment,
@@ -100,16 +100,12 @@ impl<C: Curve> PedersenCommitment<C> {
         }
     }
 
-    pub fn commitment(&self) -> &Point<C> {
-        &self.commitment
-    }
-
-    pub fn into_commitment(self) -> Point<C> {
+    pub fn commitment(&self) -> Point<C> {
         self.commitment
     }
 
-    pub fn randomness(&self) -> &Scalar<C> {
-        &self.randomness
+    pub fn randomness(&self) -> Scalar<C> {
+        self.randomness
     }
 }
 
@@ -117,7 +113,7 @@ impl<C: Curve> std::ops::Add<&PedersenCommitment<C>> for &PedersenCommitment<C> 
     type Output = PedersenCommitment<C>;
     fn add(self, rhs: &PedersenCommitment<C>) -> Self::Output {
         PedersenCommitment {
-            commitment: &self.commitment + &rhs.commitment,
+            commitment: self.commitment + rhs.commitment,
             randomness: self.randomness + rhs.randomness,
         }
     }
@@ -127,7 +123,7 @@ impl<C: Curve> std::ops::Sub<&PedersenCommitment<C>> for &PedersenCommitment<C> 
     type Output = PedersenCommitment<C>;
     fn sub(self, rhs: &PedersenCommitment<C>) -> Self::Output {
         PedersenCommitment {
-            commitment: &self.commitment - &rhs.commitment,
+            commitment: self.commitment - rhs.commitment,
             randomness: self.randomness - rhs.randomness,
         }
     }
@@ -176,7 +172,7 @@ mod test {
         assert_eq!(c.z().inner(), &U256::ONE);
 
         let commitment_with_randomness = p.commit_with_randomness(secret, randomness);
-        let cr = commitment_with_randomness.into_commitment().into();
+        let cr = commitment_with_randomness.commitment().into();
         assert_eq!(c, cr);
     }
 }

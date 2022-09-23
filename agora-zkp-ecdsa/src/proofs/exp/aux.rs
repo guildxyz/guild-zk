@@ -21,13 +21,13 @@ pub struct AuxiliaryCommitments<C: Curve, CC: Cycle<C>> {
 }
 
 pub fn commitments_vector<C: Curve, CC: Cycle<C>>(
-    base_gen: &Point<C>,
+    base_gen: Point<C>,
     pedersen: &PedersenCycle<C, CC>,
 ) -> Vec<AuxiliaryCommitments<C, CC>> {
     #[cfg(feature = "parallel")]
     let iter = (0..SEC_PARAM).into_par_iter();
     #[cfg(not(feature = "parallel"))]
-    let iter = (0..SEC_PARAM).into_iter();
+    let iter = 0..SEC_PARAM;
 
     iter.map(|_| {
         let mut rng = rand_core::OsRng;
@@ -38,7 +38,7 @@ pub fn commitments_vector<C: Curve, CC: Cycle<C>>(
         // T = g^alpha
         let t: AffinePoint<C> = (base_gen * alpha).into();
         // A = g^alpha = h^r (essentially a commitment in the base curve)
-        let a = &t + &(pedersen.base().generator() * r).to_affine();
+        let a = t + (pedersen.base().generator() * r).to_affine();
 
         // commitment to Tx
         let tx = pedersen.cycle().commit(&mut rng, t.x().to_cycle_scalar());
@@ -60,7 +60,7 @@ pub fn commitments_vector<C: Curve, CC: Cycle<C>>(
 pub fn proofs<C: Curve, CC: Cycle<C>>(
     aux_vec: Vec<AuxiliaryCommitments<C, CC>>,
     point_hasher: PointHasher,
-    base_gen: &Point<C>,
+    base_gen: Point<C>,
     pedersen: &PedersenCycle<C, CC>,
     secrets: &ExpSecrets<C>,
     commitments: &ExpCommitments<C, CC>,
@@ -82,12 +82,12 @@ pub fn proofs<C: Curve, CC: Cycle<C>>(
         .zip(challenge_iter)
         .flat_map(|(aux, c_bit)| {
             if c_bit {
-                let tx_r = *aux.tx.randomness();
-                let ty_r = *aux.ty.randomness();
+                let tx_r = aux.tx.randomness();
+                let ty_r = aux.ty.randomness();
                 Ok(SingleExpProof {
                     a: aux.a,
-                    tx_p: aux.tx.into_commitment(),
-                    ty_p: aux.ty.into_commitment(),
+                    tx_p: aux.tx.commitment(),
+                    ty_p: aux.ty.commitment(),
                     variant: ExpProofVariant::Odd {
                         alpha: aux.alpha,
                         r: aux.r,
@@ -107,10 +107,10 @@ pub fn proofs<C: Curve, CC: Cycle<C>>(
                 }
 
                 // Generate point add proof
-                let add_secret = PointAddSecrets::new(t1.into(), secrets.point.clone(), aux.t);
+                let add_secret = PointAddSecrets::new(t1.into(), secrets.point, aux.t);
                 let add_commitments = add_secret.commit_p_only(
                     &mut rand_core::OsRng,
-                    pedersen.cycle(),
+                    &pedersen.cycle(),
                     commitments.px.clone(),
                     commitments.py.clone(),
                     aux.tx.clone(),
@@ -118,20 +118,20 @@ pub fn proofs<C: Curve, CC: Cycle<C>>(
                 );
                 let add_proof = PointAddProof::construct(
                     &mut rand_core::OsRng,
-                    pedersen.cycle(),
+                    &pedersen.cycle(),
                     &add_commitments,
                     &add_secret,
                 );
 
                 Ok(SingleExpProof {
                     a: aux.a,
-                    tx_p: aux.tx.into_commitment(),
-                    ty_p: aux.ty.into_commitment(),
+                    tx_p: aux.tx.commitment(),
+                    ty_p: aux.ty.commitment(),
                     variant: ExpProofVariant::Even {
                         z,
-                        r: aux.r - (*commitments.exp.randomness()),
-                        t1_x: *add_commitments.px.randomness(),
-                        t1_y: *add_commitments.py.randomness(),
+                        r: aux.r - commitments.exp.randomness(),
+                        t1_x: add_commitments.px.randomness(),
+                        t1_y: add_commitments.py.randomness(),
                         add_proof,
                     },
                 })
@@ -144,7 +144,7 @@ pub fn proofs<C: Curve, CC: Cycle<C>>(
 
 #[allow(clippy::too_many_arguments)]
 pub fn aggregate_proofs<C: Curve, CC: Cycle<C>>(
-    base_gen: &Point<C>,
+    base_gen: Point<C>,
     pedersen: &PedersenCycle<C, CC>,
     commitments: &ExpCommitmentPoints<C, CC>,
     q_point: Option<Point<C>>,
@@ -160,7 +160,7 @@ pub fn aggregate_proofs<C: Curve, CC: Cycle<C>>(
     #[cfg(feature = "parallel")]
     let challenge_iter = challenge.into_par_iter();
     #[cfg(not(feature = "parallel"))]
-    let proofs_iter = proofs.into_iter();
+    let proofs_iter = proofs.iter();
     #[cfg(not(feature = "parallel"))]
     let challenge_iter = challenge.into_iter();
 
@@ -182,8 +182,8 @@ pub fn aggregate_proofs<C: Curve, CC: Cycle<C>>(
                     let t = base_gen.scalar_mul(alpha);
                     let mut relation_a = Relation::<C>::new();
 
-                    relation_a.insert(t.clone(), Scalar::<C>::ONE);
-                    relation_a.insert(pedersen.base().generator().clone(), *r);
+                    relation_a.insert(t, Scalar::<C>::ONE);
+                    relation_a.insert(pedersen.base().generator(), *r);
                     relation_a.insert((&proof.a).neg(), Scalar::<C>::ONE);
 
                     relation_a.drain(&mut rng, &mut base_multimult.lock().unwrap());
@@ -200,11 +200,11 @@ pub fn aggregate_proofs<C: Curve, CC: Cycle<C>>(
                     let mut relation_ty = Relation::new();
 
                     relation_tx.insert(Point::<CC>::GENERATOR, sx);
-                    relation_tx.insert(pedersen.cycle().generator().clone(), *tx_r);
+                    relation_tx.insert(pedersen.cycle().generator(), *tx_r);
                     relation_tx.insert((&proof.tx_p).neg(), Scalar::<CC>::ONE);
 
                     relation_ty.insert(Point::<CC>::GENERATOR, sy);
-                    relation_ty.insert(pedersen.cycle().generator().clone(), *ty_r);
+                    relation_ty.insert(pedersen.cycle().generator(), *ty_r);
                     relation_ty.insert((&proof.ty_p).neg(), Scalar::<CC>::ONE);
 
                     relation_tx.drain(&mut rng, &mut tom_multimult.lock().unwrap());
@@ -225,10 +225,10 @@ pub fn aggregate_proofs<C: Curve, CC: Cycle<C>>(
                     let mut t = base_gen.scalar_mul(z);
 
                     let mut relation_a = Relation::<C>::new();
-                    relation_a.insert(t.clone(), Scalar::<C>::ONE);
-                    relation_a.insert(commitments.exp.clone(), Scalar::<C>::ONE);
+                    relation_a.insert(t, Scalar::<C>::ONE);
+                    relation_a.insert(commitments.exp, Scalar::<C>::ONE);
                     relation_a.insert((&proof.a).neg(), Scalar::<C>::ONE);
-                    relation_a.insert(pedersen.base().generator().clone(), *r);
+                    relation_a.insert(pedersen.base().generator(), *r);
 
                     relation_a.drain(&mut rng, &mut base_multimult.lock().unwrap());
 
@@ -236,7 +236,7 @@ pub fn aggregate_proofs<C: Curve, CC: Cycle<C>>(
                         t += pt;
                     }
 
-                    let coord_t: AffinePoint<C> = t.clone().into();
+                    let coord_t: AffinePoint<C> = t.into();
                     if coord_t.is_identity() {
                         return Err("intermediate value is identity".to_owned());
                     }
@@ -248,17 +248,17 @@ pub fn aggregate_proofs<C: Curve, CC: Cycle<C>>(
                     let t1_com_y = pedersen.cycle().commit_with_randomness(sy, *t1_y);
 
                     let point_add_commitments = PointAddCommitmentPoints::new(
-                        t1_com_x.into_commitment(),
-                        t1_com_y.into_commitment(),
-                        commitments.px.clone(),
-                        commitments.py.clone(),
-                        proof.tx_p.clone(),
-                        proof.ty_p.clone(),
+                        t1_com_x.commitment(),
+                        t1_com_y.commitment(),
+                        commitments.px,
+                        commitments.py,
+                        proof.tx_p,
+                        proof.ty_p,
                     );
 
                     add_proof.aggregate(
                         &mut rng,
-                        pedersen.cycle(),
+                        &pedersen.cycle(),
                         &point_add_commitments,
                         &mut tom_multimult.lock().unwrap(),
                     );

@@ -204,7 +204,7 @@ mod test {
         let four = SecScalar::new(U256::from_u8(4));
         let g4 = SecPoint::GENERATOR.scalar_mul(&four);
         assert_eq!(g2.double(), g4);
-        assert_eq!(&g2 + &g2, g4);
+        assert_eq!(g2 + g2, g4);
     }
 
     #[test]
@@ -297,10 +297,10 @@ mod test {
 
         let h_gen = TomPoint::GENERATOR.scalar_mul(&TomScalar::new(U256::from_u8(250)));
 
-        for (a, b) in scalars {
-            let dbl_mul = h_gen.double_mul(a, &TomPoint::GENERATOR, b);
-            let dbl_mul_rev = TomPoint::GENERATOR.double_mul(b, &h_gen, a);
-            let expected = &h_gen * *a + &TomPoint::GENERATOR * *b;
+        for &(a, b) in scalars {
+            let dbl_mul = h_gen.double_mul(&a, &TomPoint::GENERATOR, &b);
+            let dbl_mul_rev = TomPoint::GENERATOR.double_mul(&b, &h_gen, &a);
+            let expected = h_gen * a + TomPoint::GENERATOR * b;
             assert_eq!(dbl_mul, expected);
             assert_eq!(dbl_mul_rev, expected);
         }
