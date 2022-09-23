@@ -16,14 +16,12 @@ fn main() {
     let secrets = ExpSecrets::new(exponent, result.into());
     let commitments = secrets.commit(&mut rng, &pedersen_cycle);
 
-    let security_param = 60;
     let proof = ExpProof::construct(
         //&mut rng,
         &base_gen,
         &pedersen_cycle,
         &secrets,
         &commitments,
-        security_param,
         None,
     )
     .unwrap();
@@ -34,7 +32,6 @@ fn main() {
             &base_gen,
             &pedersen_cycle,
             &commitments.into_commitments(),
-            security_param,
             None,
         )
         .is_ok());

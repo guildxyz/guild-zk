@@ -91,7 +91,6 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
             &pedersen,
             &exp_secrets,
             &exp_commitments,
-            SEC_PARAM,
             Some(q_point),
         )?;
 
@@ -139,7 +138,6 @@ impl<C: Curve, CC: Cycle<C>> ZkAttestProof<C, CC> {
             &self.r_point,
             &self.pedersen,
             &self.exp_commitments,
-            SEC_PARAM,
             Some(q_point),
         )?;
 
