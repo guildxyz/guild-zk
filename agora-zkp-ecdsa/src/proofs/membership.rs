@@ -174,7 +174,7 @@ impl<C: Curve> MembershipProof<C> {
 
         let mut multimult = MultiMult::new();
         multimult.add_known(Point::<C>::GENERATOR);
-        multimult.add_known(pedersen_generator.generator().clone());
+        multimult.add_known(*pedersen_generator.generator());
 
         // NOTE unwraps here are fine because of length checks
         // at proof construction
@@ -182,14 +182,14 @@ impl<C: Curve> MembershipProof<C> {
             let mut rel_0 = Relation::new();
             let mut rel_1 = Relation::new();
 
-            rel_0.insert(self.cl.get(i).unwrap().clone(), challenge);
-            rel_0.insert(self.ca.get(i).unwrap().clone(), Scalar::ONE);
+            rel_0.insert(self.cl[i], challenge);
+            rel_0.insert(self.ca[i], Scalar::ONE);
             rel_0.insert(Point::<C>::GENERATOR, -self.fi[i]);
-            rel_0.insert(pedersen_generator.generator().clone(), -self.za[i]);
+            rel_0.insert(*pedersen_generator.generator(), -self.za[i]);
 
-            rel_1.insert(self.cl.get(i).unwrap().clone(), challenge - self.fi[i]);
-            rel_1.insert(self.cb.get(i).unwrap().clone(), Scalar::ONE);
-            rel_1.insert(pedersen_generator.generator().clone(), -self.zb[i]);
+            rel_1.insert(self.cl[i], challenge - self.fi[i]);
+            rel_1.insert(self.cb[i], Scalar::ONE);
+            rel_1.insert(*pedersen_generator.generator(), -self.zb[i]);
 
             rel_0.drain(rng, &mut multimult);
             rel_1.drain(rng, &mut multimult);

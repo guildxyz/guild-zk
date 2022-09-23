@@ -212,8 +212,8 @@ macro_rules! impl_point_arithmetic {
                 let mut this_lookup = HashMap::with_capacity(16);
                 let mut other_lookup = HashMap::with_capacity(16);
                 for digit in &BASE_16_DIGITS {
-                    this_lookup.insert(digit, this_current.clone());
-                    other_lookup.insert(digit, other_current.clone());
+                    this_lookup.insert(digit, this_current);
+                    other_lookup.insert(digit, other_current);
                     this_current += self;
                     other_current += other_point;
                 }
@@ -238,7 +238,7 @@ macro_rules! impl_point_arithmetic {
                 let mut current = Point::<C>::IDENTITY;
                 let mut lookup = HashMap::with_capacity(16);
                 for digit in &BASE_16_DIGITS {
-                    lookup.insert(digit, current.clone());
+                    lookup.insert(digit, current);
                     current += self;
                 }
                 for ch in scalar.to_unpadded_string().chars() {

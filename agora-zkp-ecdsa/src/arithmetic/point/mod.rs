@@ -6,7 +6,7 @@ use crate::curve::Curve;
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::Serialize;
 
-#[derive(Debug, Clone, BorshSerialize, BorshDeserialize, Serialize)]
+#[derive(Debug, Clone, Copy, BorshSerialize, BorshDeserialize, Serialize)]
 pub struct Point<C: Curve> {
     x: FieldElement<C>,
     y: FieldElement<C>,
@@ -15,7 +15,7 @@ pub struct Point<C: Curve> {
 
 // z can only be 1 (general point) or 0 (identity)
 // This invariable is preserved in the methods
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct AffinePoint<C: Curve> {
     x: FieldElement<C>,
     y: FieldElement<C>,
