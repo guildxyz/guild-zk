@@ -22,20 +22,12 @@ fn main() {
         let commitments = secrets.commit(&mut rng, &pedersen_cycle);
         println!("RUNNING LOOP {}/{}", i, loops);
         let mut start = Instant::now();
-        let proof = ExpProof::construct(
-            //&mut rng,
-            base_gen,
-            &pedersen_cycle,
-            &secrets,
-            &commitments,
-            None,
-        )
-        .unwrap();
+        let proof =
+            ExpProof::construct(base_gen, &pedersen_cycle, &secrets, &commitments, None).unwrap();
         let prove_elapsed = start.elapsed().as_millis();
         start = Instant::now();
         assert!(proof
             .verify(
-                //&mut rng,
                 base_gen,
                 &pedersen_cycle,
                 &commitments.into_commitments(),

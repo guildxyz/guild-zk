@@ -105,11 +105,12 @@ pub fn proofs<C: Curve, CC: Cycle<C>>(
                 if t1.is_identity() {
                     return Err("intermediate value is identity".to_owned());
                 }
+                let mut rng = rand_core::OsRng;
 
                 // Generate point add proof
                 let add_secret = PointAddSecrets::new(t1.into(), secrets.point, aux.t);
                 let add_commitments = add_secret.commit_p_only(
-                    &mut rand_core::OsRng,
+                    &mut rng,
                     &pedersen.cycle(),
                     commitments.px.clone(),
                     commitments.py.clone(),
@@ -117,7 +118,7 @@ pub fn proofs<C: Curve, CC: Cycle<C>>(
                     aux.ty.clone(),
                 );
                 let add_proof = PointAddProof::construct(
-                    &mut rand_core::OsRng,
+                    &mut rng,
                     &pedersen.cycle(),
                     &add_commitments,
                     &add_secret,

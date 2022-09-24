@@ -3,12 +3,13 @@ use crate::arithmetic::AffinePoint;
 use crate::arithmetic::{Modular, Point, Scalar};
 use crate::curve::{Curve, Cycle};
 use crate::pedersen::*;
-use crate::rng::CryptoCoreRng;
 
 use super::equality::EqualityProof;
 use super::multiplication::MultiplicationProof;
 
 use borsh::{BorshDeserialize, BorshSerialize};
+use rand_core::{CryptoRng, RngCore};
+
 use std::marker::PhantomData;
 
 #[derive(Clone)]
@@ -34,7 +35,7 @@ impl<C: Curve> PointAddSecrets<C> {
         pedersen_generator: &PedersenGenerator<CC>,
     ) -> PointAddCommitments<CC>
     where
-        R: CryptoCoreRng,
+        R: RngCore + CryptoRng,
         CC: Cycle<C>,
     {
         PointAddCommitments {
@@ -57,7 +58,7 @@ impl<C: Curve> PointAddSecrets<C> {
         ry: PedersenCommitment<CC>,
     ) -> PointAddCommitments<CC>
     where
-        R: CryptoCoreRng,
+        R: RngCore + CryptoRng,
         CC: Cycle<C>,
     {
         PointAddCommitments {
@@ -149,7 +150,7 @@ pub struct PointAddProof<CC: Cycle<C>, C: Curve> {
 }
 
 impl<CC: Cycle<C>, C: Curve> PointAddProof<CC, C> {
-    pub fn construct<R: CryptoCoreRng>(
+    pub fn construct<R: RngCore + CryptoRng>(
         rng: &mut R,
         pedersen_generator: &PedersenGenerator<CC>,
         commitments: &PointAddCommitments<CC>,
@@ -246,7 +247,7 @@ impl<CC: Cycle<C>, C: Curve> PointAddProof<CC, C> {
         }
     }
 
-    pub fn aggregate<R: CryptoCoreRng>(
+    pub fn aggregate<R: RngCore + CryptoRng>(
         &self,
         rng: &mut R,
         pedersen_generator: &PedersenGenerator<CC>,
@@ -314,7 +315,7 @@ impl<CC: Cycle<C>, C: Curve> PointAddProof<CC, C> {
     }
 
     #[cfg(test)]
-    pub fn verify<R: CryptoCoreRng>(
+    pub fn verify<R: RngCore + CryptoRng>(
         &self,
         rng: &mut R,
         pedersen_generator: &PedersenGenerator<CC>,

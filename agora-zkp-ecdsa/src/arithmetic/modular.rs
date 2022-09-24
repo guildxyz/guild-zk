@@ -1,8 +1,8 @@
-use crate::rng::CryptoCoreRng;
 use bigint::subtle::ConstantTimeLess;
 use bigint::{Encoding, NonZero, U256};
 use num_bigint::BigUint;
 use num_integer::Integer;
+use rand_core::{CryptoRng, RngCore};
 
 const TWO: U256 = U256::from_u8(2);
 
@@ -90,13 +90,13 @@ fn exp_mod_u256(base: &U256, exponent: &U256, modulus: &U256) -> U256 {
     r
 }
 
-fn get_random_u256<R: CryptoCoreRng>(rng: &mut R) -> U256 {
+fn get_random_u256<R: RngCore + CryptoRng>(rng: &mut R) -> U256 {
     let mut bytes = [0_u8; 32];
     rng.fill_bytes(&mut bytes);
     U256::from_be_slice(&bytes)
 }
 
-pub fn random_mod_u256<T: Modular, R: CryptoCoreRng>(rng: &mut R) -> T {
+pub fn random_mod_u256<T: Modular, R: RngCore + CryptoRng>(rng: &mut R) -> T {
     loop {
         let random_number = get_random_u256(rng);
         if random_number.ct_lt(&T::MODULUS).into() {
@@ -356,7 +356,7 @@ mod random_test {
 
     // assumed: mod_byte_number <= 4
     // Only for tests
-    fn get_random_small_modular<T: Modular, R: CryptoCoreRng>(
+    fn get_random_small_modular<T: Modular, R: RngCore + CryptoRng>(
         mod_byte_number: u8,
         rng: &mut R,
     ) -> T {

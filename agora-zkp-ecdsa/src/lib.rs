@@ -8,7 +8,6 @@ mod hasher;
 pub mod parse;
 pub mod pedersen;
 pub mod proofs;
-mod rng;
 
 use arithmetic::Point;
 pub use bigint::U256;

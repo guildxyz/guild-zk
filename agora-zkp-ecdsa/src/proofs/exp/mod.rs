@@ -6,10 +6,10 @@ use crate::curve::{Curve, Cycle};
 use crate::hasher::PointHasher;
 use crate::pedersen::*;
 use crate::proofs::point_add::{PointAddCommitmentPoints, PointAddProof, PointAddSecrets};
-use crate::rng::CryptoCoreRng;
 
 use bigint::{Encoding, U256};
 use borsh::{BorshDeserialize, BorshSerialize};
+use rand_core::{CryptoRng, RngCore};
 
 use std::ops::Neg;
 use std::sync::{Arc, Mutex};
@@ -71,7 +71,7 @@ impl<C: Curve> ExpSecrets<C> {
         pedersen: &PedersenCycle<C, CC>,
     ) -> ExpCommitments<C, CC>
     where
-        R: CryptoCoreRng,
+        R: RngCore + CryptoRng,
         CC: Cycle<C>,
     {
         ExpCommitments {
@@ -111,7 +111,6 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
     const HASH_ID: &'static [u8] = b"exp-proof";
 
     pub fn construct(
-        //rng: &mut R,
         base_gen: Point<C>,
         pedersen: &PedersenCycle<C, CC>,
         secrets: &ExpSecrets<C>,
@@ -144,7 +143,6 @@ impl<CC: Cycle<C>, C: Curve> ExpProof<C, CC> {
 
     pub fn verify(
         &self,
-        //rng: &mut R,
         base_gen: Point<C>,
         pedersen: &PedersenCycle<C, CC>,
         commitments: &ExpCommitmentPoints<C, CC>,
@@ -266,24 +264,11 @@ mod test {
         let secrets = ExpSecrets::new(exponent, result.into());
         let commitments = secrets.commit(&mut rng, &pedersen);
 
-        let exp_proof = ExpProof::construct(
-            //&mut rng,
-            base_gen,
-            &pedersen,
-            &secrets,
-            &commitments,
-            None,
-        )
-        .unwrap();
+        let exp_proof =
+            ExpProof::construct(base_gen, &pedersen, &secrets, &commitments, None).unwrap();
 
         assert!(exp_proof
-            .verify(
-                //&mut rng,
-                base_gen,
-                &pedersen,
-                &commitments.into_commitments(),
-                None
-            )
+            .verify(base_gen, &pedersen, &commitments.into_commitments(), None)
             .is_ok())
     }
 
@@ -300,19 +285,12 @@ mod test {
         let secrets = ExpSecrets::new(exponent, result.into());
         let commitments = secrets.commit(&mut rng, &pedersen);
 
-        let exp_proof = ExpProof::construct(
-            //&mut rng,
-            base_gen,
-            &pedersen,
-            &secrets,
-            &commitments,
-            Some(q_point),
-        )
-        .unwrap();
+        let exp_proof =
+            ExpProof::construct(base_gen, &pedersen, &secrets, &commitments, Some(q_point))
+                .unwrap();
 
         assert!(exp_proof
             .verify(
-                //&mut rng,
                 base_gen,
                 &pedersen,
                 &commitments.into_commitments(),
@@ -333,24 +311,11 @@ mod test {
         let secrets = ExpSecrets::new(exponent, result.into());
         let commitments = secrets.commit(&mut rng, &pedersen);
 
-        let exp_proof = ExpProof::construct(
-            //&mut rng,
-            base_gen,
-            &pedersen,
-            &secrets,
-            &commitments,
-            None,
-        )
-        .unwrap();
+        let exp_proof =
+            ExpProof::construct(base_gen, &pedersen, &secrets, &commitments, None).unwrap();
 
         assert!(exp_proof
-            .verify(
-                //&mut rng,
-                base_gen,
-                &pedersen,
-                &commitments.into_commitments(),
-                None
-            )
+            .verify(base_gen, &pedersen, &commitments.into_commitments(), None)
             .is_err());
     }
 }
