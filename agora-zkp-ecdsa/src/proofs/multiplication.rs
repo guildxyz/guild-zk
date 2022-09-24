@@ -3,9 +3,9 @@ use crate::arithmetic::{Modular, Point, Scalar};
 use crate::curve::Curve;
 use crate::hasher::PointHasher;
 use crate::pedersen::*;
-use crate::rng::CryptoCoreRng;
 
 use borsh::{BorshDeserialize, BorshSerialize};
+use rand_core::{CryptoRng, RngCore};
 
 use std::ops::Neg;
 
@@ -30,7 +30,7 @@ impl<C: Curve> MultiplicationProof<C> {
     const HASH_ID: &'static [u8] = b"multiplication-proof";
 
     #[allow(clippy::too_many_arguments)]
-    pub fn construct<R: CryptoCoreRng>(
+    pub fn construct<R: RngCore + CryptoRng>(
         rng: &mut R,
         pedersen_generator: &PedersenGenerator<C>,
         commitment_to_x: &PedersenCommitment<C>,
@@ -98,7 +98,7 @@ impl<C: Curve> MultiplicationProof<C> {
         }
     }
 
-    pub fn aggregate<R: CryptoCoreRng>(
+    pub fn aggregate<R: RngCore + CryptoRng>(
         &self,
         rng: &mut R,
         pedersen_generator: &PedersenGenerator<C>,
@@ -160,7 +160,7 @@ impl<C: Curve> MultiplicationProof<C> {
     }
 
     #[cfg(test)]
-    pub fn verify<R: CryptoCoreRng>(
+    pub fn verify<R: RngCore + CryptoRng>(
         &self,
         rng: &mut R,
         pedersen_generator: &PedersenGenerator<C>,

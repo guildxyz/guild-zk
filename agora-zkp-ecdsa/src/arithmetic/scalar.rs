@@ -1,12 +1,12 @@
 use super::modular::{mod_u256, random_mod_u256, Modular};
 use crate::curve::Curve;
-use crate::rng::CryptoCoreRng;
 use crate::U256;
 
 use agora_interpolate::Interpolate;
 use bigint::subtle::{Choice, CtOption};
 use bigint::Encoding;
 use borsh::{BorshDeserialize, BorshSerialize};
+use rand_core::{CryptoRng, RngCore};
 
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::marker::PhantomData;
@@ -61,7 +61,7 @@ impl<C: Curve> Scalar<C> {
             .collect()
     }
 
-    pub fn random<R: CryptoCoreRng>(rng: &mut R) -> Self {
+    pub fn random<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
         random_mod_u256::<Self, R>(rng)
     }
 }
