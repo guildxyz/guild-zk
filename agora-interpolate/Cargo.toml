@@ -17,4 +17,13 @@ zeroize = { version = "1.5.7", features = ["zeroize_derive"], optional = true}
 
 [dev-dependencies]
 bls = { package = "bls12_381", version = "0.7.0" }
+criterion = "0.3.5"
+ff = { version = "0.12.0", default-features = false }
 k256 = { version = "0.11", features = ["arithmetic"] }
+rand_core = { version = "0.6.4", default-features = false }
+
+[[bench]]
+name = "interpolate"
+path = "benches/interpolate.rs"
+harness = false
+required-features = ["bls-curve"]
