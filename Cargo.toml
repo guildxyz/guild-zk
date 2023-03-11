@@ -4,6 +4,7 @@ members = [
 	"agora-interpolate",
 	"agora-zkp-ecdsa",
 	"agora-zkp-triptych",
+	"guild-zk-ecdsa",
 ]
 
 [profile.dev]

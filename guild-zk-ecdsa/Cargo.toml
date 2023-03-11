@@ -1,0 +1,12 @@
+[package]
+name = "guild-zk-ecdsa"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ark-crypto-primitives = { version = "0.4.0", features = ["commitment"] }
+ark-ec = "0.4.0"
+ark-ff = "0.4.0"
+ark-secp256k1 = "0.4.0"
+ark-secq256k1 = "0.4.0"
+ark-std = { version = "0.4.0", default-features = false }
