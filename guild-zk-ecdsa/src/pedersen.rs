@@ -1,12 +1,18 @@
-pub use ark_crypto_primitives::commitment::pedersen::Commitment;
-pub use ark_crypto_primitives::commitment::pedersen::Parameters;
-pub use ark_crypto_primitives::commitment::pedersen::Randomness;
-pub use ark_crypto_primitives::commitment::CommitmentScheme;
+use ark_ec::models::short_weierstrass::{Affine, SWCurveConfig};
+use ark_std::{rand::Rng, UniformRand};
 
-#[derive(Clone, Copy)]
-pub struct Window;
+pub struct Parameters<C: SWCurveConfig>(Affine<C>);
 
-impl ark_crypto_primitives::commitment::pedersen::Window for Window {
-    const WINDOW_SIZE: usize = 256;
-    const NUM_WINDOWS: usize = 1;
+impl<C: SWCurveConfig> Parameters<C> {
+    pub fn new<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        Self((C::GENERATOR * C::ScalarField::rand(rng)).into())
+    }
+
+    pub fn commit(&self, witness: C::ScalarField, randomness: C::ScalarField) -> Affine<C> {
+        (C::GENERATOR * witness + self.0 * randomness).into()
+    }
+
+    pub fn h(&self) -> Affine<C> {
+        self.0
+    }
 }

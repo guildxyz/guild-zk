@@ -4,12 +4,12 @@ use ark_ec::models::short_weierstrass::{Affine, SWCurveConfig};
 use ark_ff::PrimeField;
 use ark_serialize::CanonicalSerialize;
 
-pub fn hash_points<C: SWCurveConfig>(points: &[&Affine<C>]) -> Result<C::ScalarField, String> {
+pub fn hash_points<C: SWCurveConfig>(points: &[&Affine<C>]) -> C::ScalarField {
     let mut input = Vec::new();
     for &point in points {
         point
             .serialize_compressed(&mut input)
-            .map_err(|e| e.to_string())?;
+            .expect("this operation never fails; qed");
     }
 
     let digest: [u8; 32] = Sha256::evaluate(&(), input)
@@ -17,7 +17,7 @@ pub fn hash_points<C: SWCurveConfig>(points: &[&Affine<C>]) -> Result<C::ScalarF
         .try_into()
         .expect("digest is 32 bytes; qed");
 
-    Ok(C::ScalarField::from_le_bytes_mod_order(&digest))
+    C::ScalarField::from_le_bytes_mod_order(&digest)
 }
 
 #[cfg(test)]
@@ -44,6 +44,6 @@ mod test {
             17496338974118635249,
         ]));
 
-        assert_eq!(hash_points(points), Ok(expected));
+        assert_eq!(hash_points(points), expected);
     }
 }
