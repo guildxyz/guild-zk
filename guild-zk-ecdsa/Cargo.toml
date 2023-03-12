@@ -7,7 +7,10 @@ edition = "2021"
 ark-crypto-primitives = { version = "0.4.0", features = ["commitment"] }
 ark-ec = "0.4.0"
 ark-ff = "0.4.0"
-ark-secp256k1 = "0.4.0"
-ark-secq256k1 = "0.4.0"
 ark-serialize = "0.4.0"
 ark-std = { version = "0.4.0", default-features = false }
+
+[dev-dependencies]
+ark-secp256k1 = "0.4.0"
+ark-secq256k1 = "0.4.0"
+hex = "0.4.3"
