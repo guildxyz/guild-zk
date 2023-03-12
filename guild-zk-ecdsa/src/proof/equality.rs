@@ -6,6 +6,8 @@ use ark_std::{rand::Rng, UniformRand};
 
 use core::ops::Neg;
 
+const HASH_ID: &[u8] = b"equality proof";
+
 pub struct EqualityProof<C: SWCurveConfig> {
     commitment_to_secret_1: Affine<C>,
     commitment_to_secret_2: Affine<C>,
@@ -39,12 +41,15 @@ where
         let randomness_to_random_2 = C::ScalarField::rand(rng);
         let commitment_to_random_2 = parameters.commit(random_scalar, randomness_to_random_2);
 
-        let challenge = crate::hash::hash_points(&[
-            &commitment_to_secret_1,
-            &commitment_to_secret_2,
-            &commitment_to_random_1,
-            &commitment_to_random_2,
-        ]);
+        let challenge = crate::hash::hash_points(
+            HASH_ID,
+            &[
+                &commitment_to_secret_1,
+                &commitment_to_secret_2,
+                &commitment_to_random_1,
+                &commitment_to_random_2,
+            ],
+        );
 
         let mask_secret = random_scalar - challenge * secret;
         let mask_random_1 = randomness_to_random_1 - challenge * randomness_to_secret_1;
@@ -67,12 +72,15 @@ where
         parameters: &Parameters<C>,
         multimult: &mut MultiMult<C>,
     ) {
-        let challenge = crate::hash::hash_points(&[
-            &self.commitment_to_secret_1,
-            &self.commitment_to_secret_2,
-            &self.commitment_to_random_1,
-            &self.commitment_to_random_2,
-        ]);
+        let challenge = crate::hash::hash_points(
+            HASH_ID,
+            &[
+                &self.commitment_to_secret_1,
+                &self.commitment_to_secret_2,
+                &self.commitment_to_random_1,
+                &self.commitment_to_random_2,
+            ],
+        );
 
         let mut relation_1 = Relation::new();
         let mut relation_2 = Relation::new();
@@ -138,7 +146,6 @@ mod test {
     #[test]
     fn completeness() {
         let mut rng = StdRng::seed_from_u64(SEED);
-
         let secret = <Config as CurveConfig>::ScalarField::rand(&mut rng);
         let parameters = Parameters::<Config>::new(&mut rng);
         let proof = EqualityProof::construct(&mut rng, &parameters, secret);
@@ -148,14 +155,12 @@ mod test {
     #[test]
     fn soundness() {
         let mut rng = StdRng::seed_from_u64(SEED);
-
         // switch parameters
         let secret = <Config as CurveConfig>::ScalarField::rand(&mut rng);
         let parameters = Parameters::<Config>::new(&mut rng);
         let mut proof = EqualityProof::construct(&mut rng, &parameters, secret);
         let other_parameters = Parameters::<Config>::new(&mut rng);
         assert!(!proof.verify(&mut rng, &other_parameters));
-
         // change a commitment
         proof.commitment_to_secret_1 = Config::GENERATOR;
         assert!(!proof.verify(&mut rng, &parameters));

@@ -101,13 +101,13 @@ mod test {
     const SEED: u64 = 1234567890;
 
     #[test]
-    fn multimult_empty() {
+    fn empty() {
         let multimult = MultiMult::<SecpConfig>::new();
         assert_eq!(multimult.evaluate(), Affine::<SecpConfig>::identity());
     }
 
     #[test]
-    fn multimult_single() {
+    fn single() {
         let pair = Pair {
             point: SecpConfig::GENERATOR,
             scalar: <SecpConfig as CurveConfig>::ScalarField::one(),
@@ -120,7 +120,7 @@ mod test {
     }
 
     #[test]
-    fn multimult_multiple() {
+    fn multiple() {
         let mut rng = StdRng::seed_from_u64(SEED);
 
         let mut mm_time = Duration::new(0, 0);

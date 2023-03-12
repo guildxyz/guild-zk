@@ -3,12 +3,21 @@ name = "guild-zk-ecdsa"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["std"]
+std = [
+	"ark-ec/std",
+	"ark-ff/std",
+	"ark-serialize/std",
+	"ark-std/std",
+]
+
 [dependencies]
-ark-crypto-primitives = { version = "0.4.0", features = ["commitment"] }
-ark-ec = "0.4.0"
-ark-ff = "0.4.0"
-ark-serialize = "0.4.0"
+ark-ec = { version = "0.4.0", default-features = false }
+ark-ff = { version = "0.4.0", default-features = false }
+ark-serialize = { version = "0.4.0", default-features = false }
 ark-std = { version = "0.4.0", default-features = false }
+sha3 = { version = "0.10.6", default-features = false }
 
 [dev-dependencies]
 ark-secp256k1 = "0.4.0"
