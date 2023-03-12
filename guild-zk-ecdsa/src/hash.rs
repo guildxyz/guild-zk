@@ -1,13 +1,10 @@
 use ark_crypto_primitives::crh::sha256::Sha256;
 use ark_crypto_primitives::crh::CRHScheme;
 use ark_ec::models::short_weierstrass::{Affine, SWCurveConfig};
-use ark_ec::models::CurveConfig;
 use ark_ff::PrimeField;
 use ark_serialize::CanonicalSerialize;
 
-pub fn hash_points<C: CurveConfig + SWCurveConfig>(
-    points: &[&Affine<C>],
-) -> Result<C::ScalarField, String> {
+pub fn hash_points<C: SWCurveConfig>(points: &[&Affine<C>]) -> Result<C::ScalarField, String> {
     let mut input = Vec::new();
     for &point in points {
         point
@@ -25,7 +22,8 @@ pub fn hash_points<C: CurveConfig + SWCurveConfig>(
 
 #[cfg(test)]
 mod test {
-    use super::{hash_points, CurveConfig, SWCurveConfig};
+    use super::{hash_points, SWCurveConfig};
+    use ark_ec::models::CurveConfig;
     use ark_ff::BigInt;
     use ark_secp256k1::Config;
 
@@ -33,8 +31,10 @@ mod test {
     fn point_hasing() {
         let points = &[
             &Config::GENERATOR,
-            &Config::mul_affine(&Config::GENERATOR, &[2, 3, 4, 5]).into(),
-            &Config::mul_affine(&Config::GENERATOR, &[3, 2, 1, 0]).into(),
+            &(Config::GENERATOR * <Config as CurveConfig>::ScalarField::new(BigInt([2, 3, 4, 5])))
+                .into(),
+            &(Config::GENERATOR * <Config as CurveConfig>::ScalarField::new(BigInt([3, 2, 1, 0])))
+                .into(),
         ];
 
         let expected = <Config as CurveConfig>::ScalarField::new(BigInt([

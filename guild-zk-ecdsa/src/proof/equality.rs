@@ -1,10 +1,9 @@
 use crate::pedersen::{Commitment, CommitmentScheme, Parameters, Randomness, Window};
 use ark_ec::models::short_weierstrass::{Affine, Projective, SWCurveConfig};
-use ark_ec::models::CurveConfig;
 use ark_ff::{BigInteger, PrimeField};
 use ark_std::{rand::Rng, UniformRand};
 
-pub struct EqualityProof<C: CurveConfig + SWCurveConfig> {
+pub struct EqualityProof<C: SWCurveConfig> {
     commitment_to_random_1: Affine<C>,
     commitment_to_random_2: Affine<C>,
     mask_secret: C::ScalarField,
@@ -14,7 +13,7 @@ pub struct EqualityProof<C: CurveConfig + SWCurveConfig> {
 
 impl<C> EqualityProof<C>
 where
-    C: CurveConfig + SWCurveConfig,
+    C: SWCurveConfig,
 {
     pub fn construct<R: Rng + ?Sized>(
         rng: &mut R,
