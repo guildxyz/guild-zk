@@ -8,8 +8,8 @@ impl<C: SWCurveConfig> Parameters<C> {
         Self((C::GENERATOR * C::ScalarField::rand(rng)).into())
     }
 
-    pub fn commit(&self, witness: C::ScalarField, randomness: C::ScalarField) -> Affine<C> {
-        (C::GENERATOR * witness + self.0 * randomness).into()
+    pub fn commit(&self, secret: C::ScalarField, randomness: C::ScalarField) -> Affine<C> {
+        (C::GENERATOR * secret + self.0 * randomness).into()
     }
 
     pub fn h(&self) -> Affine<C> {

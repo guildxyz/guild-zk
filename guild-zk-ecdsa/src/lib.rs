@@ -22,11 +22,14 @@ where
     >,
 {
     type BaseCurveConfig: SWCurveConfig;
-    fn to_cycle(
-        base: &<<Self::BaseCurveConfig as CurveConfig>::BaseField as Field>::BasePrimeField,
-    ) -> Self::ScalarField {
+    fn to_cycle(base: &<Self::BaseCurveConfig as CurveConfig>::BaseField) -> Self::ScalarField {
         <Self::ScalarField as PrimeField>::from_le_bytes_mod_order(
-            &base.into_bigint().to_bytes_le(),
+            &base
+                .to_base_prime_field_elements()
+                .next()
+                .expect("iterator must contain a single entry")
+                .into_bigint()
+                .to_bytes_le(),
         )
     }
 }

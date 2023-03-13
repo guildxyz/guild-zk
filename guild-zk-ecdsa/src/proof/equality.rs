@@ -9,8 +9,6 @@ use core::ops::Neg;
 const HASH_ID: &[u8] = b"equality proof";
 
 pub struct EqualityProof<C: SWCurveConfig> {
-    commitment_to_secret_1: Affine<C>,
-    commitment_to_secret_2: Affine<C>,
     commitment_to_random_1: Affine<C>,
     commitment_to_random_2: Affine<C>,
     mask_secret: C::ScalarField,
@@ -25,14 +23,12 @@ where
     pub fn construct<R: Rng + ?Sized>(
         rng: &mut R,
         parameters: &Parameters<C>,
+        commitment_to_secret_1: Affine<C>,
+        commitment_to_secret_2: Affine<C>,
+        randomness_to_secret_1: C::ScalarField,
+        randomness_to_secret_2: C::ScalarField,
         secret: C::ScalarField,
     ) -> Self {
-        // commit to the secret scalar twice
-        let randomness_to_secret_1 = C::ScalarField::rand(rng);
-        let commitment_to_secret_1 = parameters.commit(secret, randomness_to_secret_1);
-        let randomness_to_secret_2 = C::ScalarField::rand(rng);
-        let commitment_to_secret_2 = parameters.commit(secret, randomness_to_secret_2);
-
         // commit to a random scalar twice
         let random_scalar = C::ScalarField::rand(rng);
         let randomness_to_random_1 = C::ScalarField::rand(rng);
@@ -56,8 +52,6 @@ where
         let mask_random_2 = randomness_to_random_2 - challenge * randomness_to_secret_2;
 
         Self {
-            commitment_to_secret_1,
-            commitment_to_secret_2,
             commitment_to_random_1,
             commitment_to_random_2,
             mask_secret,
@@ -70,13 +64,15 @@ where
         &self,
         rng: &mut R,
         parameters: &Parameters<C>,
+        commitment_to_secret_1: Affine<C>,
+        commitment_to_secret_2: Affine<C>,
         multimult: &mut MultiMult<C>,
     ) {
         let challenge = crate::hash::hash_points(
             HASH_ID,
             &[
-                &self.commitment_to_secret_1,
-                &self.commitment_to_secret_2,
+                &commitment_to_secret_1,
+                &commitment_to_secret_2,
                 &self.commitment_to_random_1,
                 &self.commitment_to_random_2,
             ],
@@ -94,7 +90,7 @@ where
             scalar: self.mask_random_1,
         });
         relation_1.insert_pair(Pair {
-            point: self.commitment_to_secret_1,
+            point: commitment_to_secret_1,
             scalar: challenge,
         });
         relation_1.insert_pair(Pair {
@@ -111,7 +107,7 @@ where
             scalar: self.mask_random_2,
         });
         relation_2.insert_pair(Pair {
-            point: self.commitment_to_secret_2,
+            point: commitment_to_secret_2,
             scalar: challenge,
         });
         relation_2.insert_pair(Pair {
@@ -123,9 +119,21 @@ where
         relation_2.drain(rng, multimult);
     }
 
-    pub fn verify<R: Rng + ?Sized>(&self, rng: &mut R, parameters: &Parameters<C>) -> bool {
+    pub fn verify<R: Rng + ?Sized>(
+        &self,
+        rng: &mut R,
+        parameters: &Parameters<C>,
+        commitment_to_secret_1: Affine<C>,
+        commitment_to_secret_2: Affine<C>,
+    ) -> bool {
         let mut multimult = MultiMult::new();
-        self.aggregate(rng, parameters, &mut multimult);
+        self.aggregate(
+            rng,
+            parameters,
+            commitment_to_secret_1,
+            commitment_to_secret_2,
+            &mut multimult,
+        );
 
         multimult.evaluate() == Affine::identity()
     }
@@ -148,21 +156,66 @@ mod test {
         let mut rng = StdRng::seed_from_u64(SEED);
         let secret = <Config as CurveConfig>::ScalarField::rand(&mut rng);
         let parameters = Parameters::<Config>::new(&mut rng);
-        let proof = EqualityProof::construct(&mut rng, &parameters, secret);
-        assert!(proof.verify(&mut rng, &parameters));
+        let randomness_to_secret_1 = <Config as CurveConfig>::ScalarField::rand(&mut rng);
+        let randomness_to_secret_2 = <Config as CurveConfig>::ScalarField::rand(&mut rng);
+        let commitment_to_secret_1 = parameters.commit(secret, randomness_to_secret_1);
+        let commitment_to_secret_2 = parameters.commit(secret, randomness_to_secret_2);
+        let proof = EqualityProof::construct(
+            &mut rng,
+            &parameters,
+            commitment_to_secret_1,
+            commitment_to_secret_2,
+            randomness_to_secret_1,
+            randomness_to_secret_2,
+            secret,
+        );
+        assert!(proof.verify(
+            &mut rng,
+            &parameters,
+            commitment_to_secret_1,
+            commitment_to_secret_2
+        ));
     }
 
     #[test]
     fn soundness() {
         let mut rng = StdRng::seed_from_u64(SEED);
-        // switch parameters
         let secret = <Config as CurveConfig>::ScalarField::rand(&mut rng);
         let parameters = Parameters::<Config>::new(&mut rng);
-        let mut proof = EqualityProof::construct(&mut rng, &parameters, secret);
+        let randomness_to_secret_1 = <Config as CurveConfig>::ScalarField::rand(&mut rng);
+        let randomness_to_secret_2 = <Config as CurveConfig>::ScalarField::rand(&mut rng);
+        let commitment_to_secret_1 = parameters.commit(secret, randomness_to_secret_1);
+        let commitment_to_secret_2 = parameters.commit(secret, randomness_to_secret_2);
+        let proof = EqualityProof::construct(
+            &mut rng,
+            &parameters,
+            commitment_to_secret_1,
+            commitment_to_secret_2,
+            randomness_to_secret_1,
+            randomness_to_secret_2,
+            secret,
+        );
+        // switch parameters
         let other_parameters = Parameters::<Config>::new(&mut rng);
-        assert!(!proof.verify(&mut rng, &other_parameters));
+        assert!(!proof.verify(
+            &mut rng,
+            &other_parameters,
+            commitment_to_secret_1,
+            commitment_to_secret_2
+        ));
         // change a commitment
-        proof.commitment_to_secret_1 = Config::GENERATOR;
-        assert!(!proof.verify(&mut rng, &parameters));
+        assert!(!proof.verify(
+            &mut rng,
+            &parameters,
+            Config::GENERATOR,
+            commitment_to_secret_2
+        ));
+        // change a commitment
+        assert!(!proof.verify(
+            &mut rng,
+            &parameters,
+            commitment_to_secret_1,
+            Config::GENERATOR
+        ));
     }
 }

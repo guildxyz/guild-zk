@@ -12,9 +12,6 @@ pub struct MultiplicationProof<C: SWCurveConfig> {
     aux_41: Affine<C>,
     aux_42: Affine<C>,
     commitment_4: Affine<C>,
-    commitment_to_secret_x: Affine<C>,
-    commitment_to_secret_y: Affine<C>,
-    commitment_to_secret_z: Affine<C>,
     commitment_to_random_1: Affine<C>,
     commitment_to_random_2: Affine<C>,
     commitment_to_random_3: Affine<C>,
@@ -28,20 +25,20 @@ pub struct MultiplicationProof<C: SWCurveConfig> {
 }
 
 impl<C: SWCurveConfig> MultiplicationProof<C> {
+    #[allow(clippy::too_many_arguments)]
     pub fn construct<R: Rng + ?Sized>(
         rng: &mut R,
         parameters: &Parameters<C>,
+        commitment_to_secret_x: Affine<C>,
+        commitment_to_secret_y: Affine<C>,
+        commitment_to_secret_z: Affine<C>,
+        randomness_to_secret_x: C::ScalarField,
+        randomness_to_secret_y: C::ScalarField,
+        randomness_to_secret_z: C::ScalarField,
         secret_x: C::ScalarField,
         secret_y: C::ScalarField,
         secret_z: C::ScalarField,
     ) -> Self {
-        let randomness_to_secret_x = C::ScalarField::rand(rng);
-        let randomness_to_secret_y = C::ScalarField::rand(rng);
-        let randomness_to_secret_z = C::ScalarField::rand(rng);
-        let commitment_to_secret_x = parameters.commit(secret_x, randomness_to_secret_x);
-        let commitment_to_secret_y = parameters.commit(secret_y, randomness_to_secret_y);
-        let commitment_to_secret_z = parameters.commit(secret_z, randomness_to_secret_z);
-
         let commitment_4 = (commitment_to_secret_y * secret_x).into();
         let randomness_4 = randomness_to_secret_y * secret_x;
 
@@ -87,9 +84,6 @@ impl<C: SWCurveConfig> MultiplicationProof<C> {
             aux_41,
             aux_42,
             commitment_4,
-            commitment_to_secret_x,
-            commitment_to_secret_y,
-            commitment_to_secret_z,
             commitment_to_random_1,
             commitment_to_random_2,
             commitment_to_random_3,
@@ -107,6 +101,9 @@ impl<C: SWCurveConfig> MultiplicationProof<C> {
         &self,
         rng: &mut R,
         parameters: &Parameters<C>,
+        commitment_to_secret_x: Affine<C>,
+        commitment_to_secret_y: Affine<C>,
+        commitment_to_secret_z: Affine<C>,
         multimult: &mut MultiMult<C>,
     ) {
         let challenge = crate::hash::hash_points(
@@ -115,9 +112,9 @@ impl<C: SWCurveConfig> MultiplicationProof<C> {
                 &self.aux_41,
                 &self.aux_42,
                 &self.commitment_4,
-                &self.commitment_to_secret_x,
-                &self.commitment_to_secret_y,
-                &self.commitment_to_secret_z,
+                &commitment_to_secret_x,
+                &commitment_to_secret_y,
+                &commitment_to_secret_z,
                 &self.commitment_to_random_1,
                 &self.commitment_to_random_2,
                 &self.commitment_to_random_3,
@@ -139,7 +136,7 @@ impl<C: SWCurveConfig> MultiplicationProof<C> {
             scalar: self.mask_random_x,
         });
         relation_x.insert_pair(Pair {
-            point: self.commitment_to_secret_x,
+            point: commitment_to_secret_x,
             scalar: challenge,
         });
         relation_x.insert_pair(Pair {
@@ -156,7 +153,7 @@ impl<C: SWCurveConfig> MultiplicationProof<C> {
             scalar: self.mask_random_y,
         });
         relation_y.insert_pair(Pair {
-            point: self.commitment_to_secret_y,
+            point: commitment_to_secret_y,
             scalar: challenge,
         });
         relation_y.insert_pair(Pair {
@@ -173,7 +170,7 @@ impl<C: SWCurveConfig> MultiplicationProof<C> {
             scalar: self.mask_random_z,
         });
         relation_z.insert_pair(Pair {
-            point: self.commitment_to_secret_z,
+            point: commitment_to_secret_z,
             scalar: challenge,
         });
         relation_z.insert_pair(Pair {
@@ -199,7 +196,7 @@ impl<C: SWCurveConfig> MultiplicationProof<C> {
         });
 
         relation_aux_42.insert_pair(Pair {
-            point: self.commitment_to_secret_y,
+            point: commitment_to_secret_y,
             scalar: self.mask_x,
         });
         relation_aux_42.insert_pair(Pair {
@@ -218,9 +215,23 @@ impl<C: SWCurveConfig> MultiplicationProof<C> {
         relation_aux_42.drain(rng, multimult);
     }
 
-    pub fn verify<R: Rng + ?Sized>(&self, rng: &mut R, parameters: &Parameters<C>) -> bool {
+    pub fn verify<R: Rng + ?Sized>(
+        &self,
+        rng: &mut R,
+        parameters: &Parameters<C>,
+        commitment_to_secret_x: Affine<C>,
+        commitment_to_secret_y: Affine<C>,
+        commitment_to_secret_z: Affine<C>,
+    ) -> bool {
         let mut multimult = MultiMult::new();
-        self.aggregate(rng, parameters, &mut multimult);
+        self.aggregate(
+            rng,
+            parameters,
+            commitment_to_secret_x,
+            commitment_to_secret_y,
+            commitment_to_secret_z,
+            &mut multimult,
+        );
         multimult.evaluate() == Affine::identity()
     }
 }
@@ -244,8 +255,32 @@ mod test {
         let y = <Config as CurveConfig>::ScalarField::rand(&mut rng);
         let z = x * y;
         let parameters = Parameters::<Config>::new(&mut rng);
-        let proof = MultiplicationProof::construct(&mut rng, &parameters, x, y, z);
-        assert!(proof.verify(&mut rng, &parameters));
+        let randomness_to_x = <Config as CurveConfig>::ScalarField::rand(&mut rng);
+        let randomness_to_y = <Config as CurveConfig>::ScalarField::rand(&mut rng);
+        let randomness_to_z = <Config as CurveConfig>::ScalarField::rand(&mut rng);
+        let commitment_to_x = parameters.commit(x, randomness_to_x);
+        let commitment_to_y = parameters.commit(y, randomness_to_y);
+        let commitment_to_z = parameters.commit(z, randomness_to_z);
+        let proof = MultiplicationProof::construct(
+            &mut rng,
+            &parameters,
+            commitment_to_x,
+            commitment_to_y,
+            commitment_to_z,
+            randomness_to_x,
+            randomness_to_y,
+            randomness_to_z,
+            x,
+            y,
+            z,
+        );
+        assert!(proof.verify(
+            &mut rng,
+            &parameters,
+            commitment_to_x,
+            commitment_to_y,
+            commitment_to_z,
+        ));
     }
 
     #[test]
@@ -255,16 +290,81 @@ mod test {
         let y = <Config as CurveConfig>::ScalarField::rand(&mut rng);
         let z = x * y;
         let parameters = Parameters::<Config>::new(&mut rng);
-        let mut proof = MultiplicationProof::construct(&mut rng, &parameters, x, y, z);
+        let randomness_to_x = <Config as CurveConfig>::ScalarField::rand(&mut rng);
+        let randomness_to_y = <Config as CurveConfig>::ScalarField::rand(&mut rng);
+        let randomness_to_z = <Config as CurveConfig>::ScalarField::rand(&mut rng);
+        let commitment_to_x = parameters.commit(x, randomness_to_x);
+        let commitment_to_y = parameters.commit(y, randomness_to_y);
+        let commitment_to_z = parameters.commit(z, randomness_to_z);
+        let proof = MultiplicationProof::construct(
+            &mut rng,
+            &parameters,
+            commitment_to_x,
+            commitment_to_y,
+            commitment_to_z,
+            randomness_to_x,
+            randomness_to_y,
+            randomness_to_z,
+            x,
+            y,
+            z,
+        );
         // change parameters
         let other_parameters = Parameters::<Config>::new(&mut rng);
-        assert!(!proof.verify(&mut rng, &other_parameters));
-        // invalid commitment
-        proof.commitment_to_secret_x = Config::GENERATOR;
-        assert!(!proof.verify(&mut rng, &parameters));
+        assert!(!proof.verify(
+            &mut rng,
+            &other_parameters,
+            commitment_to_x,
+            commitment_to_y,
+            commitment_to_z,
+        ));
+        // invalid x commitment
+        assert!(!proof.verify(
+            &mut rng,
+            &parameters,
+            Config::GENERATOR,
+            commitment_to_y,
+            commitment_to_z,
+        ));
+        // invalid y commitment
+        assert!(!proof.verify(
+            &mut rng,
+            &parameters,
+            commitment_to_x,
+            Config::GENERATOR,
+            commitment_to_z,
+        ));
+        // invalid z commitment
+        assert!(!proof.verify(
+            &mut rng,
+            &parameters,
+            commitment_to_x,
+            commitment_to_y,
+            Config::GENERATOR,
+        ));
         // invalid multiplication
         let other_z = <Config as CurveConfig>::ScalarField::rand(&mut rng);
-        let proof = MultiplicationProof::construct(&mut rng, &parameters, x, y, other_z);
-        assert!(!proof.verify(&mut rng, &parameters));
+        let randomness_to_other_z = <Config as CurveConfig>::ScalarField::rand(&mut rng);
+        let commitment_to_other_z = parameters.commit(other_z, randomness_to_z);
+        let proof = MultiplicationProof::construct(
+            &mut rng,
+            &parameters,
+            commitment_to_x,
+            commitment_to_y,
+            commitment_to_other_z,
+            randomness_to_x,
+            randomness_to_y,
+            randomness_to_other_z,
+            x,
+            y,
+            other_z,
+        );
+        assert!(!proof.verify(
+            &mut rng,
+            &parameters,
+            commitment_to_x,
+            commitment_to_y,
+            commitment_to_other_z,
+        ));
     }
 }
