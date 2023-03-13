@@ -1,6 +1,6 @@
 use crate::eval::{MultiMult, Pair, Relation};
 use crate::pedersen::Parameters;
-use ark_ec::models::short_weierstrass::{Affine, SWCurveConfig};
+use ark_ec::short_weierstrass::{Affine, SWCurveConfig};
 use ark_ff::One;
 use ark_std::{rand::Rng, UniformRand};
 

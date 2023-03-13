@@ -1,6 +1,6 @@
 use crate::eval::{MultiMult, Pair, Relation};
 use crate::pedersen::Parameters;
-use ark_ec::models::short_weierstrass::{Affine, SWCurveConfig};
+use ark_ec::short_weierstrass::{Affine, SWCurveConfig};
 use ark_ff::One;
 use ark_std::{rand::Rng, UniformRand};
 
@@ -228,7 +228,7 @@ impl<C: SWCurveConfig> MultiplicationProof<C> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use ark_ec::models::CurveConfig;
+    use ark_ec::CurveConfig;
     use ark_secq256k1::Config;
     use ark_std::{
         rand::{rngs::StdRng, SeedableRng},
