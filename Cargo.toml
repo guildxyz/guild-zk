@@ -5,6 +5,7 @@ members = [
 	"agora-zkp-ecdsa",
 	"agora-zkp-triptych",
 	"guild-zk-ecdsa",
+	"guild-zk-triptych",
 ]
 
 [profile.dev]

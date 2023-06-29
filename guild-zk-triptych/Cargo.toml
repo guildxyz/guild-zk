@@ -1,0 +1,11 @@
+[package]
+name = "guild-zk-triptych"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ark-ec = "0.4"
+ark-ff = "0.4"
+ark-secp256k1 = "0.4"
+ark-serialize = "0.4"
+hex = "0.4"
